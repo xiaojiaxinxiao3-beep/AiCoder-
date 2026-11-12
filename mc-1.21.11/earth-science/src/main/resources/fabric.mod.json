@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-earth",
+  "version": "${version}",
+  "name": "AiCoder Earth Science",
+  "description": "Ten earth-science GUI themes for Meteor Client.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.earth.EarthAddon"
+    ]
+  },
+  "mixins": [
+    "aicoder-earth.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "232,160,96",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}

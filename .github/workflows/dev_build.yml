@@ -18,7 +18,9 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 25
+          java-version: |
+            21
+            25
 
       - name: Build with Gradle
         run: ./gradlew build
@@ -38,3 +40,9 @@ jobs:
       - name: Build glass-columns addon
         working-directory: glass-columns
         run: ./gradlew build
+
+      - name: Build the Minecraft 1.21.11 ports
+        run: |
+          for project in cyber earth-science liquid-glass columns glass-columns; do
+            (cd "mc-1.21.11/$project" && ./gradlew build)
+          done

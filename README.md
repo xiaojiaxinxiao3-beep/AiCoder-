@@ -135,3 +135,10 @@ cd glass-columns
   回到 GUI 分頁，在 **Wallpaper** 區塊的下拉選單選它。兩個 addon 共用這個資料夾
 - `Wallpaper` 選 `None` 就是沒有圖片的純玻璃
 - `Wallpaper Opacity`：圖片的濃淡；`Glass Opacity`（Liquid Glass 區塊）：蓋在圖片上的玻璃顏色有多實
+
+---
+
+# Minecraft 1.21.11 版（`mc-1.21.11/`）
+
+五個 addon 都有 1.21.11 的版本，功能和 26.3 版相同，jar 檔名結尾是 `-1.21.11.jar`。
+原始碼由 `mc-1.21.11/port.py` 從 26.3 版轉出，說明見 `mc-1.21.11/README.md`。

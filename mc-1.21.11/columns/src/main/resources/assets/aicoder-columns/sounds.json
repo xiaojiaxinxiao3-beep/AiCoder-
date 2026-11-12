@@ -1,0 +1,8 @@
+{
+  "toggle_on": {
+    "sounds": ["aicoder-columns:toggle_on"]
+  },
+  "toggle_off": {
+    "sounds": ["aicoder-columns:toggle_off"]
+  }
+}
