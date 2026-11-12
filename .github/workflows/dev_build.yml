@@ -22,3 +22,7 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew build
+
+      - name: Build earth-science addon
+        working-directory: earth-science
+        run: ./gradlew build

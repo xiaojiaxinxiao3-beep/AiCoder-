@@ -147,3 +147,12 @@
 
 ### 建置
 - 需要 JDK 25；`./gradlew build`，產物在 `build/libs/`
+
+## 第二個 addon：AiCoder 地球科學（`earth-science/`）
+- 獨立的 Gradle 專案（自己的 `settings.gradle.kts` 與 wrapper），套件 `aicoder.earth`，mod id `aicoder-earth`，產出 `AiCoder地球科學.jar`
+- 十個主題共用同一套版面與元件，差異全部放在 `gui/Style.java`（配色、圓角／切角、開關圖示、滑桿種類、背景、底列文字）
+  - 新增或調整主題：改 `Style.java`；開關圖示在 `gui/Toggles.java`，背景在 `gui/Backdrops.java`
+- 十個主題都是 `EarthGuiTheme` 的實例。`MeteorGuiTheme` 的名稱寫死為 `"Meteor"`，所以用 mixin（`GuiThemeAccessor`，`@Mutable`）改名後各自註冊，不會取代 Meteor 原本的主題
+- 切換：`EarthModulesScreen.switchTheme()` 呼叫 `GuiThemes.select(name)` 後重開分頁；切換鈕的位置固定，不能隨主題改變
+- 圓角、圓形、橢圓都在 `gui/Fx.java` 用三角形拼；外框要畫成「內外兩圈之間的帶狀」，用線段接會在半透明時出現亮點
+- 建置時語系要是 UTF-8，否則寫不出中文檔名
