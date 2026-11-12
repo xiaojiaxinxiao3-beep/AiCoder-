@@ -28,6 +28,9 @@ public final class Chrome {
             Fx.boxOutline(g, x - 1.5 * u, y - 1.5 * u, w + 3 * u, h + 3 * u, corner + 1.5 * u, 1.5 * u, Fx.a(mid, 0.3));
         }
 
+        // The wallpaper first, so everything below tints and frames it
+        Wallpaper.renderIn(g, x, y, w, h, corner);
+
         // Body: color A in the top-left running to color B in the bottom-right
         if (s.tinted) {
             Color a = Fx.a(s.colorA, s.opacity);

@@ -121,3 +121,16 @@ cd glass-columns
 - 滑鼠停在模組上會在旁邊出現說明卡
 - 顏色、透明度、音效開關與音量都在 GUI 分頁的 **Liquid Glass** 區塊，和原本的液態玻璃相同，多了 Toggle Sound 與 Sound Volume
 - 主題名稱是 `AiCoder Glass Columns`，可以和原本的液態玻璃一起安裝，在 Theme 下拉選單切換
+
+---
+
+# 壁紙（液態玻璃、液態玻璃直立式）
+
+兩個液態玻璃 addon 的面板裡可以顯示一張圖片：圖片以「鋪滿整個畫面」的方式排版，但只有面板內看得到，
+所以每一欄像是同一張圖的窗口，面板以外仍然是遊戲畫面。
+
+- 內建一張 `Crimson Scythe`，預設啟用
+- 加自己的圖：把 PNG 或 JPG 放進遊戲資料夾的 `meteor-client/aicoder-wallpapers/`（開過一次 GUI 後會自動建立），
+  回到 GUI 分頁，在 **Wallpaper** 區塊的下拉選單選它。兩個 addon 共用這個資料夾
+- `Wallpaper` 選 `None` 就是沒有圖片的純玻璃
+- `Wallpaper Opacity`：圖片的濃淡；`Glass Opacity`（Liquid Glass 區塊）：蓋在圖片上的玻璃顏色有多實

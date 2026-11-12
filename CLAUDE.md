@@ -178,3 +178,9 @@
 - 主題名稱 `AiCoder Glass Columns`；mixin accessor 的方法前綴是 `glasscol$`，和 `liquid-glass/` 的 `glass$` 不同，兩個 addon 才能同時安裝
 - 音效：`assets/aicoder-glass-columns/sounds.json` 的 `drop_on`／`drop_off`，程式合成的水滴聲
 - 分類欄用較小的圓角（14）且不畫流動光斑；其他視窗維持完整的玻璃效果（`WGlassWindow.column`）
+
+## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
+- `gui/Wallpaper.java`（兩個專案各一份，只有 namespace 不同）。圖片**只畫在面板裡**，不是全螢幕背景：`frame()` 每個畫面算一次「鋪滿螢幕」的排版，`renderIn()` 由 `Chrome.panel()` 呼叫，用自己的 `Renderer2D` 畫該面板範圍的那一塊（UV 依螢幕座標），圓角用水平細條拼
+- `renderIn()` 用自己的 scissor 立刻送出，所以面板之後畫的染色、反光、亮邊都疊在圖片上面
+- 內建壁紙放在 `assets/<namespace>/wallpapers/`，並登記在 `Wallpaper.BUNDLED`；玩家自己的圖放 `meteor-client/aicoder-wallpapers/`
+- 新增內建壁紙：把圖放進兩個專案的 `wallpapers/`，各在 `BUNDLED` 加一行

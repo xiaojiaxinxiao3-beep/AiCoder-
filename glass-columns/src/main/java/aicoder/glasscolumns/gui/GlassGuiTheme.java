@@ -32,6 +32,7 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WTriangle;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.ColorSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
+import meteordevelopment.meteorclient.settings.ProvidedStringSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
@@ -55,6 +56,25 @@ public class GlassGuiTheme extends MeteorGuiTheme {
     public final Style style = new Style();
 
     private final SettingGroup sgGlass = settings.createGroup("Liquid Glass");
+
+    private final SettingGroup sgWallpaper = settings.createGroup("Wallpaper");
+
+    public final Setting<String> wallpaper = sgWallpaper.add(new ProvidedStringSetting.Builder()
+        .name("wallpaper")
+        .description("Picture shown inside the glass panes. Add your own PNG or JPG files to meteor-client/aicoder-wallpapers in the game folder, then reopen this tab.")
+        .supplier(Wallpaper::names)
+        .defaultValue(Wallpaper.DEFAULT)
+        .build()
+    );
+
+    public final Setting<Double> wallpaperOpacity = sgWallpaper.add(new DoubleSetting.Builder()
+        .name("wallpaper-opacity")
+        .description("How strongly the wallpaper shows inside the glass.")
+        .defaultValue(1)
+        .range(0, 1)
+        .sliderRange(0, 1)
+        .build()
+    );
 
     public final Setting<Boolean> tinted = sgGlass.add(new BoolSetting.Builder()
         .name("color")
@@ -82,7 +102,7 @@ public class GlassGuiTheme extends MeteorGuiTheme {
     public final Setting<Double> glassOpacity = sgGlass.add(new DoubleSetting.Builder()
         .name("glass-opacity")
         .description("How solid the glass is. Lower shows more of the game through it.")
-        .defaultValue(0.72)
+        .defaultValue(0.5)
         .range(0.1, 1)
         .sliderRange(0.1, 1)
         .build()
@@ -193,7 +213,7 @@ public class GlassGuiTheme extends MeteorGuiTheme {
 
     /**
      * Runs once per frame before the first window is drawn (the tab strip, windows and the modules frame
-     * all call it first thing): resets the occluder list and lays the optional dim over the game.
+     * all call it first thing): resets the occluder list, picks this frame's wallpaper and lays the optional dim over the game.
      */
     public void backdrop(GuiRenderer renderer) {
         if (!backdropPending) return;
@@ -201,17 +221,22 @@ public class GlassGuiTheme extends MeteorGuiTheme {
 
         Fx.nextFrame();
 
+        double w = getWindowWidth(), h = getWindowHeight();
+        Wallpaper.frame(wallpaper.get(), wallpaperOpacity.get(), w, h);
+
         double dim = backdropDim.get();
         if (dim > 0) {
             // Own scissor, so the dim reaches the screen before any glass is drawn over it
-            renderer.scissorStart(0, 0, getWindowWidth(), getWindowHeight());
-            renderer.quad(0, 0, getWindowWidth(), getWindowHeight(), Fx.rgba(4, 6, 18, dim));
+            renderer.scissorStart(0, 0, w, h);
+            renderer.quad(0, 0, w, h, Fx.rgba(4, 6, 18, dim));
             renderer.scissorEnd();
         }
     }
 
     /** Switches Meteor's Blur module on if the player wants the game blurred behind the glass. */
     public void ensureBlur() {
+        Wallpaper.ensureFolder();
+
         if (!autoBlur.get()) return;
 
         Blur blur = Modules.get().get(Blur.class);
