@@ -105,3 +105,19 @@ cd columns
 - GUI 分頁的 **Cyber** 區塊可以關掉音效（Toggle Sound）或調音量（Sound Volume），也能調背景壓暗、資料雨、光點
 
 這個主題和第一個「賽博龐克」一樣是**取代** Meteor 原本的主題，兩個不能同時安裝。
+
+---
+
+# AiCoder 液態玻璃直立式（`glass-columns/`）
+
+第五個獨立的 Meteor addon，產出 `AiCoder液態玻璃直立式.jar`：液態玻璃的外觀，配上「每個分類一欄」的直立式版面，開關模組時有水滴落在玻璃上的音效。
+
+```
+cd glass-columns
+./gradlew build      # 系統語系要是 UTF-8，產物在 build/libs/AiCoder液態玻璃直立式.jar
+```
+
+- 左鍵點模組＝開關（開是往上的水滴聲、關是往下的），右鍵＝開啟該模組的設定視窗
+- 滑鼠停在模組上會在旁邊出現說明卡
+- 顏色、透明度、音效開關與音量都在 GUI 分頁的 **Liquid Glass** 區塊，和原本的液態玻璃相同，多了 Toggle Sound 與 Sound Volume
+- 主題名稱是 `AiCoder Glass Columns`，可以和原本的液態玻璃一起安裝，在 Theme 下拉選單切換

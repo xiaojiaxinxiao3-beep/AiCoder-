@@ -1,0 +1,8 @@
+{
+  "drop_on": {
+    "sounds": ["aicoder-glass-columns:drop_on"]
+  },
+  "drop_off": {
+    "sounds": ["aicoder-glass-columns:drop_off"]
+  }
+}

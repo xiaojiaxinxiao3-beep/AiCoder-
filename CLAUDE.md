@@ -171,3 +171,10 @@
 - `gui/widgets/WColumnModule.java`：模組列與停留時的說明卡（用 `absolutePost` 畫在最上層）
 - 音效：`gui/Sounds.java` 播放 `assets/aicoder-columns/sounds.json` 定義的 `toggle_on`／`toggle_off`。兩個 ogg 是程式合成的，不是取樣
 - AICODER 分類在 `AiCoderAddon.onRegisterCategories()` 註冊，沒有模組時仍會顯示該欄
+
+## 第五個 addon：AiCoder 液態玻璃直立式（`glass-columns/`）
+- 獨立的 Gradle 專案，套件 `aicoder.glasscolumns`，mod id `aicoder-glass-columns`，產出 `AiCoder液態玻璃直立式.jar`
+- 外觀來自 `liquid-glass/`（`Fx`、`Chrome`、`Style`、設定），版面與互動來自 `columns/`（`GlassColumnsScreen` 是 `ColumnsModulesScreen` 的改寫，模組列左鍵開關、右鍵設定、停留說明卡）
+- 主題名稱 `AiCoder Glass Columns`；mixin accessor 的方法前綴是 `glasscol$`，和 `liquid-glass/` 的 `glass$` 不同，兩個 addon 才能同時安裝
+- 音效：`assets/aicoder-glass-columns/sounds.json` 的 `drop_on`／`drop_off`，程式合成的水滴聲
+- 分類欄用較小的圓角（14）且不畫流動光斑；其他視窗維持完整的玻璃效果（`WGlassWindow.column`）

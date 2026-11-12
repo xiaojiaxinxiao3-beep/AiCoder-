@@ -34,3 +34,7 @@ jobs:
       - name: Build columns addon
         working-directory: columns
         run: ./gradlew build
+
+      - name: Build glass-columns addon
+        working-directory: glass-columns
+        run: ./gradlew build
