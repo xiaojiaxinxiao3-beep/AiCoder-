@@ -118,6 +118,7 @@ cd glass-columns
 ```
 
 - 左鍵點模組＝開關（開是往上的水滴聲、關是往下的），右鍵＝開啟該模組的設定視窗
+- 滑鼠移到模組上會有一聲輕敲玻璃的聲音，每個模組的音高略有不同；可用 Hover Sound 關掉
 - 滑鼠停在模組上會在旁邊出現說明卡
 - 顏色、透明度、音效開關與音量都在 GUI 分頁的 **Liquid Glass** 區塊，和原本的液態玻璃相同，多了 Toggle Sound 與 Sound Volume
 - 主題名稱是 `AiCoder Glass Columns`，可以和原本的液態玻璃一起安裝，在 Theme 下拉選單切換

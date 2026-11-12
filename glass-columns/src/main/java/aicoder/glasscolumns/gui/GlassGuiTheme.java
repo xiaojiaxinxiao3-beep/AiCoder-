@@ -138,13 +138,20 @@ public class GlassGuiTheme extends MeteorGuiTheme {
         .build()
     );
 
+    public final Setting<Boolean> hoverSound = sgGlass.add(new BoolSetting.Builder()
+        .name("hover-sound")
+        .description("Plays a light tap on glass when the pointer moves onto a module.")
+        .defaultValue(true)
+        .build()
+    );
+
     public final Setting<Double> soundVolume = sgGlass.add(new DoubleSetting.Builder()
         .name("sound-volume")
-        .description("Volume of the toggle sound.")
+        .description("Volume of the toggle and hover sounds.")
         .defaultValue(0.6)
         .range(0, 1)
         .sliderRange(0, 1)
-        .visible(toggleSound::get)
+        .visible(() -> toggleSound.get() || hoverSound.get())
         .build()
     );
 

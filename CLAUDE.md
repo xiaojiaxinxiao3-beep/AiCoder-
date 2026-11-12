@@ -176,7 +176,7 @@
 - 獨立的 Gradle 專案，套件 `aicoder.glasscolumns`，mod id `aicoder-glass-columns`，產出 `AiCoder液態玻璃直立式.jar`
 - 外觀來自 `liquid-glass/`（`Fx`、`Chrome`、`Style`、設定），版面與互動來自 `columns/`（`GlassColumnsScreen` 是 `ColumnsModulesScreen` 的改寫，模組列左鍵開關、右鍵設定、停留說明卡）
 - 主題名稱 `AiCoder Glass Columns`；mixin accessor 的方法前綴是 `glasscol$`，和 `liquid-glass/` 的 `glass$` 不同，兩個 addon 才能同時安裝
-- 音效：`assets/aicoder-glass-columns/sounds.json` 的 `drop_on`／`drop_off`，程式合成的水滴聲
+- 音效：`assets/aicoder-glass-columns/sounds.json` 的 `drop_on`／`drop_off`（程式合成的水滴聲）與 `hover`（滑鼠移入模組列時的輕敲聲；`Sounds.hover()` 依模組固定的 seed 調音高，並限制最短間隔 45ms）
 - 分類欄用較小的圓角（14）且不畫流動光斑；其他視窗維持完整的玻璃效果（`WGlassWindow.column`）
 
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）

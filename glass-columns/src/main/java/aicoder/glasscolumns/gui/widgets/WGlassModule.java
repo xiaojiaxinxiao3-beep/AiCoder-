@@ -23,8 +23,8 @@ import static meteordevelopment.meteorclient.utils.Utils.getWindowHeight;
 import static meteordevelopment.meteorclient.utils.Utils.getWindowWidth;
 
 /**
- * One line in a column. Left click toggles the module (with a water-drop sound), right click opens its
- * settings. Off is plain text; on is a lit capsule of the two glass colors with a droplet at the right;
+ * One line in a column. Moving the pointer onto it plays a light tap, left click toggles the module
+ * (with a water-drop sound), right click opens its settings. Off is plain text; on is a lit capsule of the two glass colors with a droplet at the right;
  * hovering lifts a clear capsule under the row and shows a detail card beside it.
  */
 public class WGlassModule extends WPressable implements MeteorWidget {
@@ -40,6 +40,7 @@ public class WGlassModule extends WPressable implements MeteorWidget {
     private double active;
     private double hover;
     private double hoverTime;
+    private boolean wasHovered;
     private List<String> wrapped;
     private double wrappedUnit;
 
@@ -83,6 +84,9 @@ public class WGlassModule extends WPressable implements MeteorWidget {
         active = Mth.clamp(active + delta * 8 * (module.isActive() ? 1 : -1), 0, 1);
         hover = Mth.clamp(hover + delta * 10 * (hovered ? 1 : -1), 0, 1);
         hoverTime = hovered ? hoverTime + delta : 0;
+
+        if (hovered && !wasHovered) Sounds.hover(glass(), seed);
+        wasHovered = hovered;
 
         // Capsule, inset from the column's edges
         double px = x + 5 * u, pw = width - 10 * u;
