@@ -156,3 +156,9 @@
 - 切換：`EarthModulesScreen.switchTheme()` 呼叫 `GuiThemes.select(name)` 後重開分頁；切換鈕的位置固定，不能隨主題改變
 - 圓角、圓形、橢圓都在 `gui/Fx.java` 用三角形拼；外框要畫成「內外兩圈之間的帶狀」，用線段接會在半透明時出現亮點
 - 建置時語系要是 UTF-8，否則寫不出中文檔名
+
+## 第三個 addon：AiCoder 液態玻璃（`liquid-glass/`）
+- 獨立的 Gradle 專案，套件 `aicoder.glass`，mod id `aicoder-glass`，產出 `AiCoder液態玻璃.jar`；由 `earth-science/` 複製後改寫，`Fx.java` 多了四角漸層與漸層外框
+- 單一主題 `AiCoder Glass`（`GlassGuiTheme`）。`gui/Style.java` 不是固定配色，而是每個畫面由設定（兩個顏色、是否上色、不透明度）重新計算的調色盤
+- 玻璃的層次都在 `gui/Chrome.java`：`panel()`（視窗）、`plate()`（分類／模組列）、`field()`（輸入框、按鈕）、`droplet()`（圓形開關）
+- 背景模糊不是自己畫的：`GlassGuiTheme.ensureBlur()` 在開啟 Modules 畫面時打開 Meteor 的 Blur 模組（可用 Auto Blur 關掉）

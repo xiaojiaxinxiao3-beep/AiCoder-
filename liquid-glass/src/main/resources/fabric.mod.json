@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-glass",
+  "version": "${version}",
+  "name": "AiCoder Liquid Glass",
+  "description": "Liquid glass GUI theme for Meteor Client with two adjustable colors.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.glass.GlassAddon"
+    ]
+  },
+  "mixins": [
+    "aicoder-glass.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "90,120,255",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}

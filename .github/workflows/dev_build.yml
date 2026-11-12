@@ -26,3 +26,7 @@ jobs:
       - name: Build earth-science addon
         working-directory: earth-science
         run: ./gradlew build
+
+      - name: Build liquid-glass addon
+        working-directory: liquid-glass
+        run: ./gradlew build

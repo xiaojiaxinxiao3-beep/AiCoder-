@@ -61,3 +61,28 @@ cd earth-science
 操作方式和賽博龐克主題相同：點模組列選取、點開關圖示或按右鍵開關模組、`Ctrl+F` 搜尋。
 
 主題的中文名稱只有在關閉 Config 的「Custom Font」時才會顯示在標題列（Meteor 的自訂字型沒有中文字）。
+
+---
+
+# AiCoder 液態玻璃（`liquid-glass/`）
+
+第三個獨立的 Meteor addon，產出 `AiCoder液態玻璃.jar`：圓角玻璃視窗，兩種顏色由左上漸層到右下。
+
+```
+cd liquid-glass
+./gradlew build      # 系統語系要是 UTF-8，產物在 build/libs/AiCoder液態玻璃.jar
+```
+
+在 GUI 分頁最下方的 **Liquid Glass** 區塊調整：
+
+| 設定 | 作用 |
+|---|---|
+| Color | 開＝用下面兩個顏色上色；關＝沒有顏色的透明玻璃 |
+| Color 1 / Color 2 | 玻璃左上／右下的顏色 |
+| Glass Opacity | 玻璃的實心程度，越低越透 |
+| Liquid Motion | 玻璃內緩慢流動的光斑 |
+| Auto Blur | 開啟 GUI 時自動打開 Meteor 的 Blur 模組，讓玻璃後方的畫面變模糊 |
+| Backdrop Dim | 遊戲畫面壓暗的程度 |
+
+主題名稱是 `AiCoder Glass`，第一次安裝會自動選用；Meteor 原本的主題仍在 Theme 下拉選單裡。
+操作方式和另外兩個 addon 相同：點模組列選取、點圓形開關或按右鍵開關模組、`Ctrl+F` 搜尋。
