@@ -162,3 +162,12 @@
 - 單一主題 `AiCoder Glass`（`GlassGuiTheme`）。`gui/Style.java` 不是固定配色，而是每個畫面由設定（兩個顏色、是否上色、不透明度）重新計算的調色盤
 - 玻璃的層次都在 `gui/Chrome.java`：`panel()`（視窗）、`plate()`（分類／模組列）、`field()`（輸入框、按鈕）、`droplet()`（圓形開關）
 - 背景模糊不是自己畫的：`GlassGuiTheme.ensureBlur()` 在開啟 Modules 畫面時打開 Meteor 的 Blur 模組（可用 Auto Blur 關掉）
+
+## 第四個 addon：AiCoder 多欄賽博龐克（`columns/`）
+- 獨立的 Gradle 專案，套件 `aicoder.columns`，mod id `aicoder-columns`，產出 `AiCoder多欄賽博龐克.jar`；由根目錄的賽博龐克專案複製後改寫。交接文件與設計稿在 `columns/CLAUDE.md`、`columns/design/`
+- 主題名稱仍是 `"Meteor"`（取代原主題），所以和根目錄的賽博龐克 addon 不能同時安裝
+- `gui/screens/ColumnsModulesScreen.java` 是 Meteor `ModulesScreen` 的改寫版：欄位從 logo 下方排起、欄距 12、最小欄寬 162、加上編號；放不下的視窗排到最短那一欄下面
+- `gui/widgets/WColumnWindow.java`：欄位視窗。標題由自己畫，Meteor 加的置中標題 label 被隱藏（不能不呼叫 `super.init()`，基底類別的 `render` 會用到它建立的三角形）
+- `gui/widgets/WColumnModule.java`：模組列與停留時的說明卡（用 `absolutePost` 畫在最上層）
+- 音效：`gui/Sounds.java` 播放 `assets/aicoder-columns/sounds.json` 定義的 `toggle_on`／`toggle_off`。兩個 ogg 是程式合成的，不是取樣
+- AICODER 分類在 `AiCoderAddon.onRegisterCategories()` 註冊，沒有模組時仍會顯示該欄

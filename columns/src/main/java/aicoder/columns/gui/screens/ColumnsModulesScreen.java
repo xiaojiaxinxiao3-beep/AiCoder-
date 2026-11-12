@@ -1,0 +1,369 @@
+package aicoder.columns.gui.screens;
+
+import com.mojang.datafixers.util.Pair;
+import aicoder.columns.AiCoderAddon;
+import aicoder.columns.gui.AiCoderGuiTheme;
+import aicoder.columns.gui.widgets.WColumnWindow;
+import meteordevelopment.meteorclient.gui.GuiTheme;
+import meteordevelopment.meteorclient.gui.tabs.TabScreen;
+import meteordevelopment.meteorclient.gui.tabs.Tabs;
+import meteordevelopment.meteorclient.gui.utils.Cell;
+import meteordevelopment.meteorclient.gui.widgets.WWidget;
+import meteordevelopment.meteorclient.gui.widgets.containers.WContainer;
+import meteordevelopment.meteorclient.gui.widgets.containers.WSection;
+import meteordevelopment.meteorclient.gui.widgets.containers.WVerticalList;
+import meteordevelopment.meteorclient.gui.widgets.containers.WWindow;
+import meteordevelopment.meteorclient.gui.widgets.input.WTextBox;
+import meteordevelopment.meteorclient.systems.config.Config;
+import meteordevelopment.meteorclient.systems.modules.Category;
+import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.systems.modules.Modules;
+import meteordevelopment.meteorclient.utils.misc.NbtUtils;
+import meteordevelopment.meteorclient.utils.misc.input.Input;
+import net.minecraft.client.input.KeyEvent;
+import org.apache.commons.lang3.SystemUtils;
+import org.jspecify.annotations.NonNull;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import static com.mojang.blaze3d.platform.InputConstants.*;
+import static meteordevelopment.meteorclient.utils.Utils.getWindowHeight;
+import static meteordevelopment.meteorclient.utils.Utils.getWindowWidth;
+
+/**
+ * Modules tab: one column per category, side by side, as in Meteor's own screen. This is that screen with
+ * the layout adjusted to the design: columns start below the logo, sit 12px apart, share a minimum width,
+ * are numbered, and the addon's own (cyan) column is shown even while it has no modules.
+ */
+public class ColumnsModulesScreen extends TabScreen {
+    // Design pixels
+    private static final double TOP = 52;
+    private static final double LEFT = 18;
+    private static final double GAP = 12;
+    private static final double COLUMN_WIDTH = 162;
+
+    private int columnNumber;
+
+    private WCategoryController controller;
+    private WWindow searchWindow;
+    private WTextBox searchTextBox;
+
+    public ColumnsModulesScreen(GuiTheme theme) {
+        super(theme, Tabs.get().getFirst());
+    }
+
+    @Override
+    public void initWidgets() {
+        controller = add(new WCategoryController()).widget();
+
+        // Help
+        if (theme.modulesHelpText()) {
+            WVerticalList help = add(theme.verticalList()).pad(4).bottom().widget();
+            help.add(theme.label("Left click - Toggle module"));
+            help.add(theme.label("Right click - Open module settings"));
+        }
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        controller.refresh();
+    }
+
+    // Category
+
+    private double unit() {
+        return ((AiCoderGuiTheme) theme).unit();
+    }
+
+    /** Vertical breathing room inside a column; real content, so it scrolls with the list. */
+    private class WGap extends WWidget {
+        private final double designPx;
+
+        WGap(double designPx) {
+            this.designPx = designPx;
+        }
+
+        @Override
+        protected void onCalculateSize() {
+            width = 0;
+            height = Math.round(designPx * unit());
+        }
+    }
+
+    private WWindow column(WContainer c, String title, String id) {
+        WWindow w = theme.window(title);
+        w.id = id;
+        w.padding = 0;
+        w.spacing = 0;
+
+        c.add(w);
+        w.view.scrollOnlyWhenMouseOver = true;
+        w.view.hasScrollBar = false;
+        w.view.spacing = 0;
+
+        // Cell.minWidth is in Meteor units, which are 1.5 design pixels
+        w.minWidth = COLUMN_WIDTH * 1.5;
+        return w;
+    }
+
+    protected WWindow createCategory(WContainer c, Category category, List<Module> moduleList) {
+        WWindow w = column(c, category.name, category.name);
+
+        if (w instanceof WColumnWindow column) {
+            column.number = ++columnNumber;
+            column.count = moduleList.size();
+            column.cyan = category.equals(AiCoderAddon.CATEGORY);
+        }
+
+        w.add(new WGap(3));
+        for (Module module : moduleList) {
+            w.add(theme.module(module)).expandX();
+        }
+        if (moduleList.isEmpty()) {
+            w.add(theme.label("  No modules yet").color(theme.textSecondaryColor())).expandX();
+        }
+        w.add(new WGap(8));
+
+        return w;
+    }
+
+    // Search
+
+    protected void createSearchW(WContainer w, String text) {
+        if (!text.isEmpty()) {
+            // Titles
+            List<Pair<Module, String>> modules = Modules.get().searchTitles(text);
+
+            if (!modules.isEmpty()) {
+                WSection section = w.add(theme.section("Modules")).expandX().widget();
+                section.spacing = 0;
+
+                int count = 0;
+                for (Pair<Module, String> p : modules) {
+                    if (count >= Config.get().moduleSearchCount.get() || count >= modules.size()) break;
+                    section.add(theme.module(p.getFirst(), p.getSecond())).expandX();
+                    count++;
+                }
+            }
+
+            // Settings
+            Set<Module> settings = Modules.get().searchSettingTitles(text);
+
+            if (!settings.isEmpty()) {
+                WSection section = w.add(theme.section("Settings")).expandX().widget();
+                section.spacing = 0;
+
+                int count = 0;
+                for (Module module : settings) {
+                    if (count >= Config.get().moduleSearchCount.get() || count >= settings.size()) break;
+                    section.add(theme.module(module)).expandX();
+                    count++;
+                }
+            }
+        }
+    }
+
+    protected WWindow createSearch(WContainer c) {
+        WWindow w = theme.window("Search");
+        w.id = "search";
+        searchWindow = w;
+
+        c.add(w);
+        w.view.scrollOnlyWhenMouseOver = true;
+        w.view.hasScrollBar = false;
+        w.view.maxHeight -= 20;
+        w.minWidth = COLUMN_WIDTH * 1.5;
+
+        WVerticalList l = theme.verticalList();
+
+        WTextBox text = w.add(theme.textBox("")).minWidth(140).expandX().widget();
+        text.setFocused(true);
+        searchTextBox = text;
+        text.action = () -> {
+            l.clear();
+            createSearchW(l, text.get());
+        };
+
+        w.add(l).expandX();
+        createSearchW(l, text.get());
+
+        return w;
+    }
+
+    @Override
+    public boolean keyPressed(@NonNull KeyEvent input) {
+        if (locked) return false;
+
+        boolean ctrl = SystemUtils.IS_OS_MAC
+            ? Input.modsMatch(input.modifiers(), MOD_SUPER)
+            : Input.modsMatch(input.modifiers(), MOD_CONTROL);
+
+        if (ctrl && input.key() == KEY_F) {
+            if (searchWindow != null) searchWindow.setExpanded(true);
+            if (searchTextBox != null) {
+                searchTextBox.setFocused(true);
+                searchTextBox.setCursorMax();
+            }
+
+            return true;
+        }
+
+        return super.keyPressed(input);
+    }
+
+    // Favorites
+
+    protected Cell<WWindow> createFavorites(WContainer c) {
+        boolean hasFavorites = Modules.get().getAll().stream().anyMatch(module -> module.favorite);
+        if (!hasFavorites) return null;
+
+        WWindow w = theme.window("Favorites");
+        w.id = "favorites";
+        w.padding = 0;
+        w.spacing = 0;
+
+        Cell<WWindow> cell = c.add(w);
+        w.view.scrollOnlyWhenMouseOver = true;
+        w.view.hasScrollBar = false;
+        w.view.spacing = 0;
+        w.minWidth = COLUMN_WIDTH * 1.5;
+
+        createFavoritesW(w);
+        return cell;
+    }
+
+    protected boolean createFavoritesW(WWindow w) {
+        List<Module> modules = new ArrayList<>();
+
+        for (Module module : Modules.get().getAll()) {
+            if (module.favorite) {
+                modules.add(module);
+            }
+        }
+
+        modules.sort((o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.name, o2.name));
+
+        for (Module module : modules) {
+            w.add(theme.module(module)).expandX();
+        }
+
+        return !modules.isEmpty();
+    }
+
+    @Override
+    public boolean toClipboard() {
+        return NbtUtils.toClipboard(Modules.get());
+    }
+
+    @Override
+    public boolean fromClipboard() {
+        return NbtUtils.fromClipboard(Modules.get());
+    }
+
+    @Override
+    public void reload() {
+    }
+
+    // Stuff
+
+    protected class WCategoryController extends WContainer {
+        public final List<WWindow> windows = new ArrayList<>();
+        private Cell<WWindow> favorites;
+
+        @Override
+        public void init() {
+            columnNumber = 0;
+
+            List<Module> moduleList = new ArrayList<>();
+            for (Category category : Modules.loopCategories()) {
+                for (Module module : Modules.get().getGroup(category)) {
+                    if (!Config.get().hiddenModules.get().contains(module)) {
+                        moduleList.add(module);
+                    }
+                }
+
+                // Empty categories are not shown, except the addon's own column
+                if (!moduleList.isEmpty() || category.equals(AiCoderAddon.CATEGORY)) {
+                    windows.add(createCategory(this, category, moduleList));
+                    moduleList.clear();
+                }
+            }
+
+            windows.add(createSearch(this));
+
+            refresh();
+        }
+
+        protected void refresh() {
+            if (favorites == null) {
+                favorites = createFavorites(this);
+                if (favorites != null) windows.add(favorites.widget());
+            } else {
+                favorites.widget().clear();
+
+                if (!createFavoritesW(favorites.widget())) {
+                    remove(favorites);
+                    windows.remove(favorites.widget());
+                    favorites = null;
+                }
+            }
+        }
+
+        @Override
+        protected void onCalculateSize() {
+            width = getWindowWidth();
+            height = getWindowHeight();
+        }
+
+        @Override
+        protected void onCalculateWidgetPositions() {
+            double u = unit();
+            double gap = GAP * u;
+            double left = LEFT * u;
+            double windowWidth = getWindowWidth();
+
+            double top = TOP * u;
+            double x = left;
+            boolean firstRow = true;
+
+            // Columns already placed in the first row: left edge, width and current bottom of each stack
+            List<double[]> stacks = new ArrayList<>();
+
+            // Left to right along the top. Whatever no longer fits goes under the shortest column so far,
+            // which is where the search box and favorites usually land. A column the player has dragged
+            // keeps its own saved position (WWindow applies that itself).
+            for (Cell<?> cell : cells) {
+                WWidget w = cell.widget();
+                double wx, wy;
+
+                if (firstRow && (stacks.isEmpty() || x + w.width <= windowWidth)) {
+                    wx = x;
+                    wy = top;
+                    stacks.add(new double[]{wx, w.width, wy + w.height});
+                    x += w.width + gap;
+                } else {
+                    firstRow = false;
+
+                    double[] shortest = stacks.getFirst();
+                    for (double[] stack : stacks) {
+                        if (stack[2] < shortest[2]) shortest = stack;
+                    }
+
+                    wx = Math.max(0, Math.min(shortest[0], windowWidth - w.width));
+                    wy = shortest[2] + gap * 2;
+                    shortest[2] = wy + w.height;
+                }
+
+                cell.x = wx;
+                cell.y = wy;
+                cell.width = w.width;
+                cell.height = w.height;
+                w.x = wx;
+                w.y = wy;
+            }
+        }
+    }
+}

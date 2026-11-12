@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--c:#00f0ff;--m:#ff2a6d;--w:#eaf6ff;--dim:#7a8ba3;--mono:'DejaVu Sans Mono',monospace;--sans:'DejaVu Sans',Arial,sans-serif;--jp:'Noto Sans CJK TC',sans-serif}
+html,body{width:1280px;height:720px;overflow:hidden;background:#07020c}
+#stage{position:relative;width:1280px;height:720px;font-family:var(--sans);
+  background:radial-gradient(1100px 600px at 15% 115%,rgba(255,42,109,.25),transparent 65%),
+             radial-gradient(900px 560px at 95% -10%,rgba(0,240,255,.18),transparent 60%),
+             radial-gradient(700px 500px at 50% 50%,rgba(110,20,150,.22),transparent 70%),#07020c}
+#bokeh,#rain{position:absolute;inset:0;overflow:hidden}
+.bk{position:absolute;border-radius:50%;filter:blur(10px);mix-blend-mode:screen}
+#rain{opacity:.42}
+.rc{position:absolute;top:0;width:12px;font:500 11px/13px var(--jp);color:rgba(0,240,255,.55);writing-mode:vertical-rl;text-orientation:upright;white-space:nowrap;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)}
+.rc.m{color:rgba(255,42,109,.55)}
+/* HUD label */
+.hud{position:absolute;left:18px;top:14px;display:flex;align-items:baseline;gap:10px}
+.logo{position:relative;font:800 17px/1 var(--sans);letter-spacing:5px;color:var(--w);text-shadow:0 0 10px rgba(0,240,255,.75)}
+.logo::before,.logo::after{content:"AICODER";position:absolute;left:0;top:0;opacity:var(--gl,0);text-shadow:none}
+.logo::before{color:var(--m);transform:translate(var(--gx1,0),0);clip-path:inset(var(--gc1,0) 0 var(--gc2,0) 0)}
+.logo::after{color:var(--c);transform:translate(var(--gx2,0),0);clip-path:inset(var(--gc2,0) 0 var(--gc1,0) 0)}
+.ver{font:600 10px/1 var(--mono);letter-spacing:2px;color:var(--m)}
+.jp{font:700 10px/1 var(--jp);letter-spacing:3px;color:rgba(0,240,255,.7)}
+.tabs{position:absolute;right:30px;top:10px;display:flex;gap:2px;padding:0 10px;height:24px;align-items:center;
+  background:rgba(20,6,30,.6);backdrop-filter:blur(8px);clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);border-top:1px solid rgba(0,240,255,.35)}
+.tab{font:600 10px/24px var(--sans);letter-spacing:2px;color:#7f9bb8;padding:0 11px;position:relative}
+.tab.on{color:var(--w)}.tab.on::after{content:"";position:absolute;left:9px;right:9px;bottom:2px;height:2px;background:var(--m);box-shadow:0 0 8px var(--m)}
+/* columns */
+.col{position:absolute;top:52px;width:162px;
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);
+  background:linear-gradient(180deg,rgba(26,8,40,.62),rgba(8,6,22,.70));backdrop-filter:blur(10px) saturate(1.2)}
+.cframe{position:absolute;top:52px;width:162px;pointer-events:none;overflow:visible}
+.hd{height:30px;display:flex;align-items:center;gap:7px;padding:0 9px;position:relative;
+  background:linear-gradient(90deg,rgba(255,42,109,.42),rgba(255,42,109,.10));border-bottom:1px solid rgba(255,42,109,.75)}
+.hd .n{font:600 8.5px/1 var(--mono);color:rgba(255,255,255,.65)}
+.hd .t{font:800 10.5px/1 var(--sans);letter-spacing:2.2px;color:#fff;text-shadow:0 0 6px rgba(255,42,109,.9)}
+.hd .c{margin-left:auto;font:600 8.5px/1 var(--mono);color:rgba(0,240,255,.85)}
+.hd .v{font:700 9px/1 var(--sans);color:rgba(255,255,255,.7)}
+.hd.ai{background:linear-gradient(90deg,rgba(0,240,255,.35),rgba(0,240,255,.08));border-bottom-color:rgba(0,240,255,.8)}
+.hd.ai .t{text-shadow:0 0 6px rgba(0,240,255,.9)}
+.list{padding:3px 0 8px}
+.r{position:relative;height:19px;display:flex;align-items:center;padding:0 10px 0 12px;font:500 10.5px/1 var(--sans);color:var(--dim);letter-spacing:.2px}
+.r.on{color:var(--w);background:linear-gradient(90deg,rgba(0,240,255,.16),rgba(0,240,255,0) 75%)}
+.r.on::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:2px;background:var(--c);box-shadow:0 0 6px var(--c);opacity:var(--b,1)}
+.r.on::after{content:"";position:absolute;right:9px;width:4px;height:4px;background:var(--c);transform:rotate(45deg);box-shadow:0 0 5px var(--c);opacity:var(--b,1)}
+.r.hov{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,42,109,.85);background:rgba(255,42,109,.14)}
+.r.hov .ul{position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--m),var(--c),var(--m),var(--c));background-size:300% 100%;background-position:var(--selx,0%) 0}
+.tip{position:absolute;padding:8px 10px;width:230px;font:400 10px/1.45 var(--sans);color:#cfe0f0;background:rgba(12,6,26,.97);backdrop-filter:blur(8px);border:1px solid rgba(255,42,109,.6);z-index:5;
+  clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px);box-shadow:0 0 18px rgba(255,42,109,.25)}
+.tip b{display:block;font:700 10.5px/1 var(--sans);letter-spacing:1.5px;color:#fff;margin-bottom:5px}
+.tip i{font-style:normal;font:600 8.5px/1 var(--mono);color:var(--c);letter-spacing:1px}
+#vig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 180px rgba(0,0,0,.7)}
+</style></head>
+<body><div id="stage">
+  <div id="bokeh"></div><div id="rain"></div>
+  <div class="hud"><div class="logo" id="logo">AICODER</div><div class="ver">v0.3 // CLIENT</div><div class="jp">サイバー・システム</div></div>
+  <div class="tabs"><span class="tab on">MODULES</span><span class="tab">CONFIG</span><span class="tab">GUI</span><span class="tab">HUD</span><span class="tab">FRIENDS</span><span class="tab">MACROS</span><span class="tab">PROFILES</span></div>
+  <div id="cols"></div>
+  <div id="vig"></div>
+</div>
+<script>
+const TAU=Math.PI*2,R=document.documentElement.style;
+function flow(p,s){return 0.54*Math.sin(TAU*(p+s))+0.30*Math.sin(TAU*(2*p+s*1.7)+1.1)+0.16*Math.sin(TAU*(3*p-s*0.6)+2.3);}
+const D={
+ COMBAT:['Anchor Aura','Anti Anvil','Anti Bed','Arrow Dodge','Auto Anvil','Auto Armor','Auto City','Auto Totem','Auto Trap','Auto Weapon','Bed Aura','Burrow','Criticals','Crystal Aura','Hitboxes','Hole Filler','Kill Aura','Offhand','Quiver','Self Trap','Surround'],
+ PLAYER:['Anti Hunger','Auto Eat','Auto Fish','Auto Gap','Auto Mend','Auto Replenish','Auto Tool','Chest Swap','Exp Thrower','Fake Player','Fast Use','Ghost Hand','Instant Rebreak','Liquid Interact','Middle Click','No Break Delay','No Interact','No Rotate','Portals','Potion Spoof','Reach','Rotation','Speed Mine'],
+ MOVEMENT:['Air Jump','Anchor','Anti AFK','Auto Jump','Auto Walk','Blink','Boat Fly','Click TP','Elytra Boost','Elytra Fly','Entity Control','Fast Climb','Flight','Gui Move','High Jump','Jesus','Long Jump','No Fall','No Slow','Parkour','Safe Walk','Scaffold','Sneak','Speed','Spider','Sprint','Step'],
+ RENDER:['Block ESP','Block Selection','Breadcrumbs','Break Indicators','Camera Tweaks','Chams','City ESP','ESP','Free Look','Freecam','Fullbright','Hand View','Hole ESP','Item Physics','Light Overlay','Logout Spots','Nametags','No Render','Storage ESP','Time Changer','Tracers','Trajectories','Waypoints','Xray','Zoom'],
+ WORLD:['Air Place','Ambience','Auto Breed','Auto Brewer','Auto Mount','Auto Nametag','Auto Shearer','Auto Sign','Auto Smelter','Build Height','Collisions','Echest Farmer','Endermen Look','Flamethrower','Highway Builder','Infinity Miner','Liquid Filler','Nuker','Packet Mine','Stash Finder','Timer','Vein Miner'],
+ MISC:['Anti Packet Kick','Auto Clip','Auto Log','Auto Reconnect','Auto Respawn','Better Beacons','Better Chat','Book Bot','Discord Presence','Inventory Tweaks','Message Aura','Name Protect','Notebot','Notifier','Packet Canceller','Server Spoof','Sound Blocker','Spam','Swarm'],
+ AICODER:['Auto Mine','Theme Control','HUD Plus'],
+};
+const ON=new Set(['Auto Armor','Auto Totem','Crystal Aura','Offhand','Surround','Auto Eat','Auto Tool','Speed Mine','No Rotate','Elytra Fly','No Fall','Sprint','Step','Velocity','Fullbright','Nametags','Hole ESP','Storage ESP','Freecam','Tracers','Better Chat','Discord Presence','Auto Reconnect','Name Protect','Auto Mine','Theme Control','Air Place','Timer']);
+const HOV='Auto Armor';
+const cols=document.getElementById('cols');let x=40;const rowsOn=[];let hovRow;
+Object.entries(D).forEach(([cat,list],ci)=>{
+  const ai=cat=='AICODER';
+  const h=30+3+list.length*19+8;
+  const col=document.createElement('div');col.className='col';col.style.left=x+'px';col.style.height=h+'px';
+  col.innerHTML=`<div class="hd${ai?' ai':''}"><span class="n">0${ci+1}</span><span class="t">${cat}</span><span class="c">[${list.length}]</span><span class="v">▾</span></div>
+    <div class="list">${list.map(n=>`<div class="r${ON.has(n)?' on':''}${n==HOV?' hov':''}">${n}${n==HOV?'<span class="ul"></span>':''}</div>`).join('')}</div>`;
+  cols.appendChild(col);
+  // frame svg (outline + bracket)
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class','cframe');svg.style.left=x+'px';svg.setAttribute('width',162);svg.setAttribute('height',h);svg.style.height=h+'px';
+  const stroke=ai?'rgba(0,240,255,.55)':'rgba(255,42,109,.5)';
+  svg.innerHTML=`<path d="M.5 .5 H161.5 V${h-12} L${150} ${h-.5} H.5 Z" fill="none" stroke="${stroke}"/>
+    <path class="brk" d="M${147} ${h+4} L${165} ${h-14}" stroke="#00f0ff" stroke-width="2" style="filter:drop-shadow(0 0 4px #00f0ff)"/>
+    <path class="brk" d="M-4 ${h-14} V${h+4} H14" fill="none" stroke="#00f0ff" stroke-width="2" style="filter:drop-shadow(0 0 4px #00f0ff)"/>`;
+  cols.appendChild(svg);
+  col.querySelectorAll('.r.on').forEach(r=>rowsOn.push(r));
+  const hv=col.querySelector('.r.hov');if(hv)hovRow={col:x,idx:list.indexOf(HOV)};
+  x+=162+12;});
+// tooltip next to hovered row
+if(hovRow){const t=document.createElement('div');t.className='tip';t.style.left=(hovRow.col+170)+'px';t.style.top=(52+33+hovRow.idx*19-4)+'px';
+  t.innerHTML='<b>AUTO ARMOR</b>Automatically equips the best armor in your inventory.<br><i>MOD-0x2F · ENABLED</i>';document.getElementById('stage').appendChild(t);}
+// bokeh + rain
+const bk=document.getElementById('bokeh'),B=[],cc=['rgba(0,240,255,','rgba(255,42,109,','rgba(176,38,255,','rgba(0,240,255,'];
+for(let i=0;i<34;i++){const d=document.createElement('div');d.className='bk';const s=14+Math.random()*50;d.style.width=d.style.height=s+'px';d.style.background=cc[i%4]+(0.16+Math.random()*.3)+')';bk.appendChild(d);
+  B.push({el:d,x:Math.random()*1280,y:Math.random()*720,s:Math.random(),a:20+Math.random()*40});}
+const rain=document.getElementById('rain'),RC=[],gl='アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF';
+for(let i=0;i<46;i++){const d=document.createElement('div');d.className='rc'+(i%3==0?' m':'');let t='';for(let k=0;k<24;k++)t+=gl[(Math.random()*gl.length)|0];d.textContent=t;rain.appendChild(d);
+  RC.push({el:d,x:i*28+Math.random()*10,sp:1+((i*7)%3),o:Math.random()});}
+const logo=document.getElementById('logo'),brks=[...document.querySelectorAll('.brk')];
+function glitch(p){let g=0;for(const b of [0.12,0.47,0.81]){const d=Math.abs(p-b);if(d<0.025)g=1-d/0.025;}const s=logo.style;s.setProperty('--gl',g>0?1:0);const j=Math.sin(p*997)*g;
+  s.setProperty('--gx1',(j*5).toFixed(1)+'px');s.setProperty('--gx2',(-j*4).toFixed(1)+'px');s.setProperty('--gc1',(((p*7919)%1)*60|0)+'%');s.setProperty('--gc2',(((p*104729)%1)*40|0)+'%');s.opacity=g>0.6&&((p*331)%1)<0.5?0.55:1;}
+function setPhase(p){
+  B.forEach(b=>{b.el.style.transform=`translate(${(b.x+flow(p,b.s)*b.a)|0}px,${(b.y+flow(p,b.s+0.4)*b.a*0.6)|0}px)`;b.el.style.opacity=(0.55+0.35*flow(p,b.s+0.2)).toFixed(3);});
+  RC.forEach(r=>{r.el.style.transform=`translate(${r.x}px,${(((r.o+p*r.sp)%1)*1000-300)|0}px)`;});
+  glitch(p);
+  rowsOn.forEach((r,i)=>r.style.setProperty('--b',(0.6+0.4*(0.5+0.5*flow(p,(i*0.137)%1))).toFixed(3)));
+  brks.forEach((b,i)=>b.setAttribute('opacity',(0.45+0.45*(0.5+0.5*flow(p,(i*0.211)%1))).toFixed(3)));
+  R.setProperty('--selx',(p*200)%300+'%');
+}
+window.setPhase=setPhase;let t=0;function loop(){t=(t+0.004)%1;setPhase(t);requestAnimationFrame(loop);}setPhase(0);if(!window.__capture)loop();
+</script>
+</body></html>

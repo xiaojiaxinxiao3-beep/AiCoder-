@@ -30,3 +30,7 @@ jobs:
       - name: Build liquid-glass addon
         working-directory: liquid-glass
         run: ./gradlew build
+
+      - name: Build columns addon
+        working-directory: columns
+        run: ./gradlew build

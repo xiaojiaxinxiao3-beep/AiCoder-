@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-columns",
+  "version": "${version}",
+  "name": "AiCoder Columns",
+  "description": "Multi-column cyberpunk GUI theme for Meteor Client, with toggle sounds.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.columns.AiCoderAddon"
+    ]
+  },
+  "mixins": [
+    "aicoder-columns.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "255,42,109",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}
