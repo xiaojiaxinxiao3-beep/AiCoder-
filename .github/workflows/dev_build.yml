@@ -41,6 +41,10 @@ jobs:
         working-directory: glass-columns
         run: ./gradlew build
 
+      - name: Build elytra-cruise addon
+        working-directory: elytra-cruise
+        run: ./gradlew build
+
       - name: Build the Minecraft 1.21.11 ports
         run: |
           for project in cyber earth-science liquid-glass columns glass-columns; do

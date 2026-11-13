@@ -179,6 +179,25 @@
 - 音效：`assets/aicoder-glass-columns/sounds.json` 的 `drop_on`／`drop_off`（程式合成的水滴聲）與 `hover`（滑鼠移入模組列時的輕敲聲；`Sounds.hover()` 依模組固定的 seed 調音高，並限制最短間隔 45ms）
 - 分類欄用較小的圓角（14）且不畫流動光斑；其他視窗維持完整的玻璃效果（`WGlassWindow.column`）
 
+## 第六個 addon：AiCoder 鞘翅巡航（`elytra-cruise/`）
+- 獨立的 Gradle 專案，套件 `aicoder.cruise`，mod id `aicoder-cruise`，產出 `AiCoder鞘翅巡航.jar`。**不是主題**：沒有 mixin，只註冊一個模組 `ElytraCruise`（`Categories.Movement`，不另外註冊分類）
+- 全部邏輯在 `ElytraCruise.java`，是每 tick（`TickEvent.Pre`）跑一次的狀態機：`WALK_TO_SKY`（選用）→ `TAKEOFF` → `CLIMB` → `CRUISE`
+  - `TAKEOFF`：跳起來，**開始下落後**才送 `START_FALL_FLYING`（同一 tick 送伺服器有時不認）
+  - `CLIMB`：pitch 固定 `climb-pitch`，速度低於 `min-climb-speed` 且過了冷卻才補一發煙火
+  - `CRUISE`：Meteor `ElytraFly` Pitch40 的數值（俯衝 37.72°、拉到 -54.77°、5.45°／tick 拉起、0.90°／tick 壓回）。和原版唯一的差別：超過上界時用 5.45°／tick 壓回，否則會衝過上界約 60～80 格
+- 上界只是「開始壓機頭」的位置，拉起的慣性仍會衝過去：預設設定實測在 Y 296～366 來回（設定的範圍是 299～339）
+- 尋路只用 Meteor 的 `PathManagers`／`IPathManager`，不直接參考 Baritone 的類別；沒裝時是 `NopPathManager`
+  - 要用 `moveTo(pos, true)`：`moveTo(pos)` 走到目標**旁邊**就算到達，可能還在屋簷下
+  - Baritone 計算路徑時 `isPathing()` 是 false，所以開始後有 60 tick 的寬限才判定為放棄
+  - 「頭頂是否空曠」用 `MOTION_BLOCKING` heightmap 判斷，不用 `canSeeSky()`（玻璃會被當成看得到天空）
+- 聊天訊息與設定說明用英文：Meteor 的自訂字型畫不出中文
+- 沒有 1.21.11 版：`mc-1.21.11/port.py` 只涵蓋 GUI 相關的命名，玩家／物品／封包的 Yarn 命名要另外補
+- 測試方式（這個環境沒有顯示卡，世界裡很慢）：起一個離線的原版伺服器（`~/.gradle/caches/fabric-loom/26.3/minecraft-server.jar`，`online-mode=false`、flat 世界，啟動後在主控台下 `whitelist off`），
+  客戶端用 `./gradlew runClient --args="--quickPlayMultiplayer localhost:25565"` 直接連進去，不用操作選單；
+  給裝備、傳送、放方塊都從伺服器主控台下指令，用 `data get entity @a[limit=1] Pos` 和 `clear @a firework_rocket 0` 讀座標與煙火數，比截圖準。
+  只有 `.toggle elytra-cruise`、`.settings elytra-cruise <設定> <值>` 需要用 `xdotool` 打進聊天欄
+  - 測 Baritone：把 `meteordevelopment:baritone:26.3-SNAPSHOT` 的 jar 放進 `elytra-cruise/run/mods/`（`run/` 不進版控）
+
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
 - `gui/Wallpaper.java`（兩個專案各一份，只有 namespace 不同）。圖片**只畫在面板裡**，不是全螢幕背景：`frame()` 每個畫面算一次「鋪滿螢幕」的排版，`renderIn()` 由 `Chrome.panel()` 呼叫，用自己的 `Renderer2D` 畫該面板範圍的那一塊（UV 依螢幕座標），圓角用水平細條拼
 - `renderIn()` 用自己的 scissor 立刻送出，所以面板之後畫的染色、反光、亮邊都疊在圖片上面

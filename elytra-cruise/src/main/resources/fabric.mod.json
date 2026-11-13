@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-cruise",
+  "version": "${version}",
+  "name": "AiCoder Elytra Cruise",
+  "description": "Meteor Client module that takes off, climbs above the build limit with fireworks, then glides without them.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.cruise.AiCoderCruiseAddon"
+    ]
+  },
+  "custom": {
+    "meteor-client:color": "0,240,255",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}

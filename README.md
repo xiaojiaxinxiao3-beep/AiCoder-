@@ -125,6 +125,26 @@ cd glass-columns
 
 ---
 
+# AiCoder 鞘翅巡航（`elytra-cruise/`）
+
+第六個獨立的 Meteor addon，產出 `AiCoder鞘翅巡航.jar`。這個不是主題，而是一個模組 **Elytra Cruise**（在 Movement 分類）：
+自動起飛、用煙火爬到建築高度上限以上，之後改用「pitch 40」上下擺動視角的滑翔法前進，巡航時不耗煙火。
+
+```
+cd elytra-cruise
+./gradlew build      # 系統語系要是 UTF-8，產物在 build/libs/AiCoder鞘翅巡航.jar
+```
+
+- 穿好鞘翅、快捷列或背包放煙火，啟用模組（或聊天欄輸入 `.toggle elytra-cruise`）即可
+- 實測（26.3 原版伺服器、主世界、預設設定）：從地面爬到 Y 339 約用 8 發煙火；巡航時 0 發，高度在約 Y 296～366 之間來回，速度約 29 格／秒
+- **Direction Mode**：`Locked` 鎖住啟用當下的方向；`Custom` 照 `Yaw` 設定飛（0 = 南、90 = 西、±180 = 北、-90 = 東），飛行中改了立刻轉向；`Free` 自己用滑鼠轉
+- 高度掉到滑翔範圍以下 20 格會自動用煙火補回去；落地後會自動再起飛（可用 Auto Takeoff 關掉）
+- 頭頂有遮蔽時：有裝 Baritone 會先走到最近的空曠處再起飛（Use Baritone）；沒裝就提示並直接嘗試。連續 3 次起飛失敗會自動關閉，避免浪費煙火
+- 鞘翅耐久低於 Min Elytra Durability、或煙火用完，模組會自動關閉
+- 只有 Minecraft 26.3 版，沒有 1.21.11 版
+
+---
+
 # 壁紙（液態玻璃、液態玻璃直立式）
 
 兩個液態玻璃 addon 的面板裡可以顯示一張圖片：圖片以「鋪滿整個畫面」的方式排版，但只有面板內看得到，
