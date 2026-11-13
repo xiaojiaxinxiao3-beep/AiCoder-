@@ -20,6 +20,8 @@ PROJECTS = [
     ('liquid-glass', 'liquid-glass', 'AiCoder液態玻璃'),
     ('columns', 'columns', 'AiCoder多欄賽博龐克'),
     ('glass-columns', 'glass-columns', 'AiCoder液態玻璃直立式'),
+    ('aurora-glass', 'aurora-glass', 'AiCoder極光玻璃'),
+    ('aurora-columns', 'aurora-columns', 'AiCoder極光玻璃直立式'),
 ]
 
 # Plain text replacements, applied in order to every Java file

@@ -179,6 +179,16 @@
 - 音效：`assets/aicoder-glass-columns/sounds.json` 的 `drop_on`／`drop_off`（程式合成的水滴聲）與 `hover`（滑鼠移入模組列時的輕敲聲；`Sounds.hover()` 依模組固定的 seed 調音高，並限制最短間隔 45ms）
 - 分類欄用較小的圓角（14）且不畫流動光斑；其他視窗維持完整的玻璃效果（`WGlassWindow.column`）
 
+## 第六、第七個 addon：極光玻璃（`aurora-glass/`、`aurora-columns/`）
+- 套件 `aicoder.aurora`／`aicoder.auroracolumns`，mod id `aicoder-aurora`／`aicoder-aurora-columns`，產出 `AiCoder極光玻璃.jar`／`AiCoder極光玻璃直立式.jar`；分別由 `liquid-glass/`、`glass-columns/` 複製後改寫。交接文件與設計稿在 `aurora-glass/CLAUDE.md`、`aurora-glass/design/`
+- **兩個專案共用的檔案只在 `aurora-glass/` 改**：`Style`、`Fx`、`Aurora`、`Chrome` 與 `widgets/` 裡除了 `WAuroraModule` 以外的元件。`aurora-columns/` 的那幾份是用 sed 換套件名（以及 mixin 前綴 `aurora$` → `auroracol$`）複製過去的，改完要同步
+- 設計稿的 1px = `theme.unit()` = `scale(1)`。主題覆寫了 `scale()`，乘上 `fit`（遊戲視窗相對 1920×1080 的比例，0.6～1），所以 Meteor 內建元件和文字也會一起縮小
+- `gui/Aurora.java`：夜空是「位置 → 顏色」的函式（三條光帶用 screen 混色、暗角），整個螢幕用 40 欄的格子取樣畫出來；玻璃面板用同一個函式（光帶加寬、提高飽和度）填色，看起來像模糊了後面的極光。星點不畫在面板底下（用上一個畫面的面板位置判斷）
+- `Fx.boxPaint()`／`Fx.outlinePaint()`：每個頂點的顏色由 `Fx.Paint` 決定的圓角方塊與外框。面板邊框的漸層（白 → 綠 → 紫 → 白）每 12 秒轉一圈，就是改 `Chrome.aimRim()` 的方向
+- `Fx.animate` 為 false 時 `Fx.phase()` 固定回傳 0、`Fx.step()` 直接跳到終點：Animations 設定就是切這個
+- 分頁列在單視窗版置中、在直立式版靠右（`AuroraGuiTheme.topBarRight()`，由 `WAuroraTopBar.calculateWidgetPositions()` 改 x）
+- 沒做到的：開啟 GUI 時「96% → 100% 放大」的動畫（只有 Meteor 本身的淡入）；等寬字（Meteor 的字型沒有等寬字，編號與數值用同一種字）；沒有用 Shoreline 實測過
+
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
 - `gui/Wallpaper.java`（兩個專案各一份，只有 namespace 不同）。圖片**只畫在面板裡**，不是全螢幕背景：`frame()` 每個畫面算一次「鋪滿螢幕」的排版，`renderIn()` 由 `Chrome.panel()` 呼叫，用自己的 `Renderer2D` 畫該面板範圍的那一塊（UV 依螢幕座標），圓角用水平細條拼
 - `renderIn()` 用自己的 scissor 立刻送出，所以面板之後畫的染色、反光、亮邊都疊在圖片上面
@@ -186,7 +196,7 @@
 - 新增內建壁紙：把圖放進兩個專案的 `wallpapers/`，各在 `BUNDLED` 加一行
 
 ## Minecraft 1.21.11 版（`mc-1.21.11/`）
-- 五個 addon 的 1.21.11 版本，各自是獨立的 Gradle 專案，產出 `<名稱>-1.21.11.jar`
+- 七個 addon 的 1.21.11 版本，各自是獨立的 Gradle 專案，產出 `<名稱>-1.21.11.jar`
 - **原始碼是產生出來的**：`python3 mc-1.21.11/port.py` 會把 26.3 版的原始碼複製過來並改寫命名（Mojang → Yarn）與 API 差異。要改東西就改 26.3 版再重跑，不要手改 `mc-1.21.11/*/src/`
 - 兩版的主要差異都列在 `port.py` 裡：`DrawContext`、`Click`／`KeyInput`、GLFW 常數與游標、`NbtCompound`、`net.minecraft.util.Pair`、`PositionedSoundInstance.ui`、`TextureFormat`；1.21.11 的 `TextRenderer.begin()` 不需要 graphics，所以沒有 `GuiRendererAccessor` mixin；沒有 `modulesHelpText()`
 - 建置：Loom 用 `net.fabricmc.fabric-loom-remap` 外掛（Gradle 以 JDK 25 執行、編譯目標 Java 21），最終檔名設在 `remapJar` 而不是 `jar`

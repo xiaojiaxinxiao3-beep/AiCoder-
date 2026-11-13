@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-aurora-columns",
+  "version": "${version}",
+  "name": "AiCoder Aurora Glass Columns",
+  "description": "Aurora liquid glass GUI theme for Meteor Client in a column layout: one pane per module category.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.auroracolumns.AuroraAddon"
+    ]
+  },
+  "mixins": [
+    "aicoder-aurora-columns.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "77,255,184",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}

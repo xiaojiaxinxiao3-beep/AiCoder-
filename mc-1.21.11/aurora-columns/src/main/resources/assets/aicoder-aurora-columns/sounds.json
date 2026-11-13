@@ -1,0 +1,11 @@
+{
+  "drop_on": {
+    "sounds": ["aicoder-aurora-columns:drop_on"]
+  },
+  "drop_off": {
+    "sounds": ["aicoder-aurora-columns:drop_off"]
+  },
+  "hover": {
+    "sounds": ["aicoder-aurora-columns:hover"]
+  }
+}

@@ -125,6 +125,23 @@ cd glass-columns
 
 ---
 
+# AiCoder 極光玻璃（`aurora-glass/`）與極光玻璃直立式（`aurora-columns/`）
+
+第六、第七個獨立的 Meteor addon：夜空、極光光帶加上液態玻璃面板。設計稿在 `aurora-glass/design/`，交接文件是 `aurora-glass/CLAUDE.md`。
+
+- `aurora-glass/` → `AiCoder極光玻璃.jar`：單視窗三欄（分類｜模組｜設定）。點模組列是選取，點右邊的開關或按右鍵是開關模組，`Ctrl+F` 搜尋。
+- `aurora-columns/` → `AiCoder極光玻璃直立式.jar`：每個分類一欄。左鍵開關、右鍵設定，停留時顯示說明卡，沿用直立式液態玻璃的音效。
+
+```
+cd aurora-glass      # 或 aurora-columns
+./gradlew build      # 系統語系要是 UTF-8，產物在 build/libs/
+```
+
+- 主題名稱是 `AiCoder Aurora`、`AiCoder Aurora Columns`，第一次安裝會自動切換過去，之後可以在 GUI 分頁的 Theme 下拉選單換回來。
+- GUI 分頁的「Aurora Glass」群組：`Animations`（關掉就是靜止的定稿樣子）、`Blur`（開啟 Meteor 的 Blur 模組；關掉時玻璃會變得比較不透明）、`Night Sky`（夜空蓋住遊戲畫面的程度）。
+- 版面以 1920×1080 為基準，遊戲視窗比較小的時候整個 GUI（包含 Meteor 內建的元件）會等比縮小，最小到 60%。
+- 1.21.11 版在 `mc-1.21.11/aurora-glass/`、`mc-1.21.11/aurora-columns/`，一樣由 `port.py` 產生。
+
 # 壁紙（液態玻璃、液態玻璃直立式）
 
 兩個液態玻璃 addon 的面板裡可以顯示一張圖片：圖片以「鋪滿整個畫面」的方式排版，但只有面板內看得到，

@@ -41,8 +41,16 @@ jobs:
         working-directory: glass-columns
         run: ./gradlew build
 
+      - name: Build aurora-glass addon
+        working-directory: aurora-glass
+        run: ./gradlew build
+
+      - name: Build aurora-columns addon
+        working-directory: aurora-columns
+        run: ./gradlew build
+
       - name: Build the Minecraft 1.21.11 ports
         run: |
-          for project in cyber earth-science liquid-glass columns glass-columns; do
+          for project in cyber earth-science liquid-glass columns glass-columns aurora-glass aurora-columns; do
             (cd "mc-1.21.11/$project" && ./gradlew build)
           done

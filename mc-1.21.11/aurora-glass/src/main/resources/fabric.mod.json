@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-aurora",
+  "version": "${version}",
+  "name": "AiCoder Aurora Glass",
+  "description": "Aurora liquid glass GUI theme for Meteor Client: one window with categories, modules and settings side by side.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.aurora.AuroraAddon"
+    ]
+  },
+  "mixins": [
+    "aicoder-aurora.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "77,255,184",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}
