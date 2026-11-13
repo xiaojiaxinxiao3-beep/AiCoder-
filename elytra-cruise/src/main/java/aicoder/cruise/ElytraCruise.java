@@ -25,7 +25,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * Takes off, climbs above the build limit on fireworks, then travels with the "pitch 40" glide,
+ * Takes off, climbs to the chosen height on fireworks, then travels with the "pitch 40" glide,
  * which trades height for speed and back and needs no fireworks at all.
  *
  * <pre>
@@ -58,6 +58,10 @@ public class ElytraCruise extends Module {
 
     /** How far below the glide band the player may sink before fireworks are used to get back up. */
     private static final int RECOVERY_MARGIN = 20;
+    /** Blocks above min-height at which the pull-up starts. Measured: the dive sinks about 3 more blocks. */
+    private static final int PULL_UP_LEAD = 5;
+    /** A shallower dive than this does not build the speed to climb back. */
+    private static final int MIN_BAND = 40;
     private static final int SKY_SEARCH_RADIUS = 32;
     /** One block of height difference is as bad as this many blocks of walking. */
     private static final int HEIGHT_COST = 8;
@@ -104,21 +108,21 @@ public class ElytraCruise extends Module {
 
     // Altitude
 
-    private final Setting<Integer> heightAboveBuildLimit = sgAltitude.add(new IntSetting.Builder()
-        .name("height-above-build-limit")
-        .description("Top of the glide, in blocks above the build limit.")
-        .defaultValue(20)
-        .range(0, 200)
-        .sliderRange(0, 200)
+    private final Setting<Integer> minHeight = sgAltitude.add(new IntSetting.Builder()
+        .name("min-height")
+        .description("Lowest Y of the glide. The dive pulls up early enough to stay above this.")
+        .defaultValue(320)
+        .range(-64, 2000)
+        .sliderRange(0, 600)
         .build()
     );
 
-    private final Setting<Integer> glideBand = sgAltitude.add(new IntSetting.Builder()
-        .name("glide-band")
-        .description("How far the glide dives before pulling back up. Under 40 there is not enough speed to climb back.")
-        .defaultValue(40)
-        .range(40, 150)
-        .sliderRange(40, 150)
+    private final Setting<Integer> maxHeight = sgAltitude.add(new IntSetting.Builder()
+        .name("max-height")
+        .description("Y the glide climbs back to, and the height fireworks climb to. Counts as at least 40 above min-height: with less there is not enough speed to climb back.")
+        .defaultValue(360)
+        .range(-24, 2040)
+        .sliderRange(40, 640)
         .build()
     );
 
@@ -199,7 +203,7 @@ public class ElytraCruise extends Module {
     private boolean warnedNoSky;
 
     public ElytraCruise() {
-        super(Categories.Movement, "elytra-cruise", "Takes off, climbs above the build limit with fireworks, then glides onward without using any.");
+        super(Categories.Movement, "elytra-cruise", "Takes off, climbs to a height you choose with fireworks, then glides onward without using any.");
     }
 
     @Override
@@ -395,7 +399,7 @@ public class ElytraCruise extends Module {
         if (landed()) return;
 
         if (mc.player.getY() >= top()) {
-            info("Reached cruise altitude, gliding between Y %d and %d.", top() - glideBand.get(), top());
+            info("Reached cruise altitude, gliding between Y %d and %d.", minHeight.get(), top());
             failedTakeoffs = 0;
             pitchingDown = true;
             pitch = mc.player.getXRot();
@@ -421,10 +425,11 @@ public class ElytraCruise extends Module {
         if (landed()) return;
 
         int upper = top();
-        int lower = upper - glideBand.get();
+        // The dive carries on for a few blocks after the pull-up starts, so start that much early
+        int lower = minHeight.get() + PULL_UP_LEAD;
         double y = mc.player.getY();
 
-        if (y < lower - RECOVERY_MARGIN) {
+        if (y < minHeight.get() - RECOVERY_MARGIN) {
             info("Lost too much height, climbing back to Y %d.", upper);
             state = State.CLIMB;
             return;
@@ -454,7 +459,7 @@ public class ElytraCruise extends Module {
 
     /** Top of the glide band, and the height CLIMB aims for. */
     private int top() {
-        return mc.level.getMaxY() + heightAboveBuildLimit.get();
+        return Math.max(maxHeight.get(), minHeight.get() + MIN_BAND);
     }
 
     /** Handles touching down or losing the glide in the air. @return true when the state changed */

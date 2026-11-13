@@ -185,7 +185,10 @@
   - `TAKEOFF`：跳起來，**開始下落後**才送 `START_FALL_FLYING`（同一 tick 送伺服器有時不認）
   - `CLIMB`：pitch 固定 `climb-pitch`，速度低於 `min-climb-speed` 且過了冷卻才補一發煙火
   - `CRUISE`：Meteor `ElytraFly` Pitch40 的數值（俯衝 37.72°、拉到 -54.77°、5.45°／tick 拉起、0.90°／tick 壓回）。和原版唯一的差別：超過上界時用 5.45°／tick 壓回，否則會衝過上界約 60～80 格
-- 上界只是「開始壓機頭」的位置，拉起的慣性仍會衝過去：預設設定實測在 Y 296～366 來回（設定的範圍是 299～339）
+- 高度範圍是兩個絕對 Y 座標的設定 `min-height`／`max-height`（預設 320／360）。玩家要的是「整段都在某個高度以上」，所以 `min-height` 是硬下限：
+  - 俯衝在 `min-height + 5`（`PULL_UP_LEAD`）就開始拉起，因為開始拉之後還會再沉約 3 格。實測 320 → 最低 321.1，400 → 最低 401.3
+  - `max-height` 只是「開始壓機頭」與煙火爬升的目標，拉起的慣性仍會衝過去（320～360 實測到 387，400～480 到 493）
+  - `top()` 會把上界當成至少 `min-height + 40`
 - 尋路只用 Meteor 的 `PathManagers`／`IPathManager`，不直接參考 Baritone 的類別；沒裝時是 `NopPathManager`
   - 要用 `moveTo(pos, true)`：`moveTo(pos)` 走到目標**旁邊**就算到達，可能還在屋簷下
   - Baritone 計算路徑時 `isPathing()` 是 false，所以開始後有 60 tick 的寬限才判定為放棄
