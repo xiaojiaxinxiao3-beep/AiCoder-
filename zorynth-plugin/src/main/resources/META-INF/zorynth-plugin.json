@@ -3,6 +3,7 @@
   "name": "AiCoder Themes",
   "version": "1.0.0",
   "apiVersion": 1,
+  "uiVersion": 2,
   "entrypoint": "aicoder.zorynth.AiCoderThemesPlugin",
   "requires": []
 }

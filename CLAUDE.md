@@ -241,6 +241,7 @@
 - 這個環境可以用 OpenGL 跑 1.21.11（26.3 只能走軟體 Vulkan）
 
 ## Zorynth 外掛：AiCoder Themes（`zorynth-plugin/`）
-- 另一個客戶端（Zorynth，外掛 API 1）的主題外掛，結構照使用者朋友給的模板；說明與限制在 `zorynth-plugin/README.md`。不用 Gradle 也能建：`./build.sh`
-- 模板沒附 SDK jar。`sdk-stub/` 只宣告從模板的範例編譯檔與說明書能確認的簽名；**不要用任何沒確認過的 API**（背景層用 `Layer.values()` 找，不寫常數名）
-- 13 個模組＝13 個主題（`Style.java`），背景都在 `Backdrops.java`，只用 `fill` 和 `text`。`preview/Preview.java` 是假宿主，用來出預覽圖；沒有在真的客戶端跑過
+- 另一個客戶端（Zorynth，外掛 API 1、UI 擴充 2）的主題外掛，結構照使用者朋友給的模板；`sdk/` 是模板附的 SDK（含原始碼 jar，API 以它為準）。說明、操作與沒驗證的假設在 `zorynth-plugin/README.md`。建置：`./build.sh`（會清掉 `build/`）
+- 13 個模組＝13 個主題（`Style.java` 一列一個，配色抄自 Meteor 版）。開啟後用 `replaceScreen(MODULES)` 換掉整個模組介面：`ThemeScreen.java`（WINDOW 三欄與 COLUMNS 直立式兩種版面、設定、綁定、搜尋；每個畫面重建點擊區 `hits` 與滾動區 `zones`），`Draw.java`（依主題的圓角／切角方塊、面板、開關圖示），`Backdrops.java`（背景）
+- 客戶端沒有 UI 擴充 2 時退回 `context.ui` 的背景層＋四角框
+- `preview/Preview.java` 是用 Java2D 實作 Canvas 的假宿主，出圖並模擬點擊；沒有在真的客戶端跑過
