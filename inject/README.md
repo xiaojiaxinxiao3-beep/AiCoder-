@@ -13,6 +13,9 @@
 2. 執行 `AiCoderAssist.exe`。它會用遊戲自己的 Java 去注入，所以不用另外安裝 Java
 3. 回到遊戲按右 Shift
 
+防毒軟體可能會擋下 `.exe`：它沒有簽章，而且做的事（找到別的行程、把程式載入進去）正是防毒會注意的行為。這裡不會為了通過掃描去改它。
+`launcher/AiCoderAssist.bat` 用一段看得懂的腳本做同樣的事，和 `AiCoderAssist.jar` 放在同一個資料夾執行即可（**還沒有在 Windows 上跑過**）。
+
 沒有 `.exe` 可用的環境（Linux、macOS）：`java -jar AiCoderAssist.jar`，需要 JDK 21 以上。
 
 ## 測過與沒測過的
