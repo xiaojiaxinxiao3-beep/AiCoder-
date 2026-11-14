@@ -55,6 +55,6 @@ jobs:
 
       - name: Build the Minecraft 1.21.11 ports
         run: |
-          for project in cyber earth-science liquid-glass columns glass-columns aurora-glass aurora-columns; do
+          for project in cyber earth-science liquid-glass columns glass-columns aurora-glass aurora-columns combat-macros; do
             (cd "mc-1.21.11/$project" && ./gradlew build)
           done

@@ -144,7 +144,7 @@ cd aurora-glass      # 或 aurora-columns
 
 # AiCoder 戰鬥巨集（`combat-macros/`）
 
-不是主題，而是四個 Meteor 模組（都在 Combat 分類），產出 `AiCoder戰鬥巨集.jar`，只有 Minecraft 26.3 版。
+不是主題，而是四個 Meteor 模組（都在 Combat 分類），產出 `AiCoder戰鬥巨集.jar`；1.21.11 版在 `mc-1.21.11/combat-macros/`。
 共同原則：只做「幫你按按鍵」的事——切快捷列、對準心指到的東西按右鍵或左鍵、真的轉動視角。送出的封包和原版客戶端按同樣按鍵時一樣。
 
 | 模組 | 做什麼 | 主要設定 |
@@ -156,8 +156,9 @@ cd aurora-glass      # 或 aurora-columns
 
 - 重生錨、水晶、風彈都要放在**快捷列**；模組不會開背包搬東西。
 - `anchor-macro` 在地獄不會動作（那裡點重生錨是設重生點）；按住潛行時也不動作。
-- `wind-pearl`：珍珠碰到風彈的範圍只有大約半格。往上丟（仰角 45° 以上）最穩；平拋時差一個 tick 就會錯過，
-  可以開 `report-result` 看風彈是從珍珠前面還是後面經過，再調 `extra-lead`。`delay` 越大，相遇點越遠（往上丟就是越高）。
+- `wind-pearl`：珍珠碰到風彈的範圍只有大約半格，所以時機很重要。在流暢的單人世界裡從接近水平到垂直都打得中；
+  延遲高或掉幀時平拋比較容易錯過，往上丟最穩。可以開 `report-result` 看風彈是從珍珠前面還是後面經過，再調 `extra-lead`。
+  `delay` 越大，相遇點越遠（往上丟就是越高）。
 
 ```
 cd combat-macros

@@ -22,6 +22,7 @@ PROJECTS = [
     ('glass-columns', 'glass-columns', 'AiCoder液態玻璃直立式'),
     ('aurora-glass', 'aurora-glass', 'AiCoder極光玻璃'),
     ('aurora-columns', 'aurora-columns', 'AiCoder極光玻璃直立式'),
+    ('combat-macros', 'combat-macros', 'AiCoder戰鬥巨集'),
 ]
 
 # Plain text replacements, applied in order to every Java file
@@ -72,6 +73,82 @@ RENAMES = [
     ('.getTextureView()', '.getGlTextureView()'),
 ]
 
+# Gameplay code (players, items, blocks, clicks). Only applied to the projects named in GAMEPLAY_PROJECTS:
+# several of these are short enough to hit unrelated GUI code.
+GAMEPLAY_PROJECTS = {'combat-macros'}
+GAMEPLAY = [
+    # Classes
+    ('net.minecraft.core.BlockPos', 'net.minecraft.util.math.BlockPos'),
+    ('BlockPos.MutableBlockPos', 'BlockPos.Mutable'),
+    ('net.minecraft.world.InteractionHand', 'net.minecraft.util.Hand'),
+    ('InteractionHand', 'Hand'),
+    ('net.minecraft.world.InteractionResult', 'net.minecraft.util.ActionResult'),
+    ('InteractionResult', 'ActionResult'),
+    ('SwingSource.PREDICTED', 'SwingSource.CLIENT'),
+    ('net.minecraft.world.entity.boss.enderdragon.EndCrystal', 'net.minecraft.entity.decoration.EndCrystalEntity'),
+    ('net.minecraft.world.entity.projectile.hurtingprojectile.windcharge.AbstractWindCharge', 'net.minecraft.entity.projectile.AbstractWindChargeEntity'),
+    ('net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl', 'net.minecraft.entity.projectile.thrown.EnderPearlEntity'),
+    ('net.minecraft.world.entity.player.Player', 'net.minecraft.entity.player.PlayerEntity'),
+    ('net.minecraft.world.entity.LivingEntity', 'net.minecraft.entity.LivingEntity'),
+    ('net.minecraft.world.entity.Entity', 'net.minecraft.entity.Entity'),
+    ('net.minecraft.world.item.ItemStack', 'net.minecraft.item.ItemStack'),
+    ('net.minecraft.world.item.Items', 'net.minecraft.item.Items'),
+    ('import net.minecraft.world.item.component.SwingAnimation;\n', ''),
+    ('net.minecraft.world.level.Level', 'net.minecraft.world.World'),
+    ('net.minecraft.world.level.block.Blocks', 'net.minecraft.block.Blocks'),
+    ('net.minecraft.world.level.block.state.BlockState', 'net.minecraft.block.BlockState'),
+    ('net.minecraft.world.level.block.state.properties.BlockStateProperties', 'net.minecraft.state.property.Properties'),
+    ('BlockStateProperties.RESPAWN_ANCHOR_CHARGES', 'Properties.CHARGES'),
+    ('net.minecraft.world.phys.BlockHitResult', 'net.minecraft.util.hit.BlockHitResult'),
+    ('net.minecraft.world.phys.EntityHitResult', 'net.minecraft.util.hit.EntityHitResult'),
+    ('net.minecraft.world.phys.HitResult', 'net.minecraft.util.hit.HitResult'),
+    ('net.minecraft.world.phys.AABB', 'net.minecraft.util.math.Box'),
+    ('net.minecraft.world.phys.Vec3', 'net.minecraft.util.math.Vec3d'),
+    # Game state
+    ('mc.level.dimension() == Level.NETHER', 'mc.world.getRegistryKey() == World.NETHER'),
+    ('mc.level.entitiesForRendering()', 'mc.world.getEntities()'),
+    ('mc.hitResult', 'mc.crosshairTarget'),
+    ('mc.level', 'mc.world'),
+    ('mc.gameMode.isDestroying()', 'mc.interactionManager.isBreakingBlock()'),
+    ('mc.gameMode.attack(', 'mc.interactionManager.attackEntity('),
+    ('mc.gameMode.useItemOn(', 'mc.interactionManager.interactBlock('),
+    ('mc.gameMode.useItem(', 'mc.interactionManager.interactItem('),
+    ('mc.gameMode', 'mc.interactionManager'),
+    # Methods
+    ('.getMainHandItem()', '.getMainHandStack()'),
+    ('.getOffhandItem()', '.getOffHandStack()'),
+    ('.getItemInHand(', '.getStackInHand('),
+    ('.getInventory().getItem(', '.getInventory().getStack('),
+    ('.getCooldowns().isOnCooldown(', '.getItemCooldownManager().isCoolingDown('),
+    ('.isShiftKeyDown()', '.isSneaking()'),
+    ('.getEyePosition(event.tickDelta)', '.getCameraPosVec(event.tickDelta)'),
+    ('.getEyePosition()', '.getEyePos()'),
+    ('.getViewVector(', '.getRotationVec('),
+    ('.getPosition(tickDelta)', '.getLerpedPos(tickDelta)'),
+    ('.position()', '.getEntityPos()'),
+    ('.getDeltaMovement()', '.getVelocity()'),
+    ('.getKnownMovement()', '.getMovement()'),
+    ('.distanceToSqr(', '.squaredDistanceTo('),
+    ('.blockPosition()', '.getBlockPos()'),
+    ('.onGround()', '.isOnGround()'),
+    ('.tickCount', '.age'),
+    ('.getYRot()', '.getYaw()'), ('.setYRot(', '.setYaw('),
+    ('.getXRot()', '.getPitch()'), ('.setXRot(', '.setPitch('),
+    ('.getYsize()', '.getLengthY()'),
+    ('.getEyeHeight()', '.getStandingEyeHeight()'),
+    ('.dot(', '.dotProduct('),
+    ('.above()', '.up()'),
+    ('.is(', '.isOf('),
+    ('.getValue(', '.get('),
+    ('.getDirection()', '.getSide()'),
+    ('.relative(', '.offset('),
+    ('.immutable()', '.toImmutable()'),
+]
+GAMEPLAY_WORDS = [
+    ('EndCrystal', 'EndCrystalEntity'), ('AbstractWindCharge', 'AbstractWindChargeEntity'),
+    ('ThrownEnderpearl', 'EnderPearlEntity'), ('Player', 'PlayerEntity'), ('AABB', 'Box'), ('Vec3', 'Vec3d'),
+]
+
 # Whole-word renames of the input constants themselves
 WORDS = [
     ('MOUSE_BUTTON_LEFT', 'GLFW_MOUSE_BUTTON_LEFT'), ('MOUSE_BUTTON_RIGHT', 'GLFW_MOUSE_BUTTON_RIGHT'),
@@ -79,7 +156,23 @@ WORDS = [
 ]
 
 
-def port_java(text):
+def port_gameplay(text):
+    for old, new in GAMEPLAY:
+        text = text.replace(old, new)
+    for old, new in GAMEPLAY_WORDS:
+        text = re.sub(r'(?<![A-Za-z_.])' + old + r'(?![A-Za-z_])', new, text)
+
+    # 1.21.11 swings without naming an animation
+    text = re.sub(r'\n *SwingAnimation swing = [^;]+;', '', text)
+    text = text.replace('SwingAnimation swing', 'Object swing')
+    text = text.replace('swingIfPredicted(result, swing)', 'swingIfPredicted(result)').replace('swingIfPredicted(ActionResult result, Object swing)', 'swingIfPredicted(ActionResult result)')
+    text = text.replace('mc.player.swing(Hand.MAIN_HAND, swing, false)', 'mc.player.swingHand(Hand.MAIN_HAND)')
+    return text
+
+
+def port_java(text, gameplay=False):
+    if gameplay:
+        text = port_gameplay(text)
     for old, new in RENAMES:
         text = text.replace(old, new)
     for old, new in WORDS:
@@ -165,7 +258,7 @@ def port_project(src_rel, name, jar):
                 os.remove(path)
                 continue
             text = open(path, encoding='utf-8').read()
-            open(path, 'w', encoding='utf-8').write(port_java(text))
+            open(path, 'w', encoding='utf-8').write(port_java(text, name in GAMEPLAY_PROJECTS))
 
     # Mixin config: drop the accessor that no longer exists, and the whole config if nothing is left
     res = os.path.join(dst, 'src/main/resources')

@@ -190,7 +190,7 @@
 - 沒做到的：開啟 GUI 時「96% → 100% 放大」的動畫（只有 Meteor 本身的淡入）；等寬字（Meteor 的字型沒有等寬字，編號與數值用同一種字）；沒有用 Shoreline 實測過
 
 ## 模組 addon：戰鬥巨集（`combat-macros/`）
-- 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`，沒有 mixin。只有 26.3 版：`port.py` 只會轉 GUI 相關的命名，這個專案沒有列進去
+- 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`，沒有 mixin。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
 - 四個模組都在 `Categories.Combat`：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`
 - **原則是只做原版按鍵會做的事**。所有點擊都走 `Clicks.java`，呼叫順序照抄 `Minecraft.startUseItem()`／`startAttack()`（先取揮手動畫、再 `useItemOn`／`useItem`／`attack`、結果是 `PREDICTED` 才揮手）。切物品只用 `inventory.setSelectedSlot()`，點方塊只用 `mc.hitResult`，不偽造視角
 - 偵測「玩家自己放的」：`InteractBlockEvent`（重生錨、水晶）、`InteractItemEvent` 加 `EntityAddedEvent`（珍珠）。模組自己的點擊也會觸發這些事件，所以用 `clicking` 旗標擋掉
@@ -198,7 +198,7 @@
   - 珍珠每 tick：`vy -= 0.03`，速度 `*= 0.99`，再移動
   - 玩家丟的風彈 `accelerationPower = 0`、慣性 1.0：固定每 tick 1.5 格直線飛，沒有重力
   - 珍珠能打到風彈是因為 `Projectile.isPickable()` 對 `REDIRECTABLE_PROJECTILE` 標籤回傳 true；碰撞框只多出 `computeMargin()` 的 0～0.3 格，所以實際要在約 0.45 格內
-  - `CLIENT_LAG = 2`：畫面上的珍珠比伺服器慢的 tick 數，是在單人世界試出來的。這個環境只有 5 FPS，試驗結果有雜訊
+  - `CLIENT_LAG = 2`：畫面上的珍珠比伺服器慢的 tick 數，是在單人世界試出來的。26.3 在這個環境只有 5 FPS，結果有雜訊；1.21.11（OpenGL，流暢）用這個值從仰角 15° 到 85° 六次全中
 - 實測方式：`--quickPlaySingleplayer "New World"` 直接進世界，用聊天指令給物品、`/tp @s x y z yaw pitch` 設定視角（xdotool 的相對滑鼠移動在這裡無效）、`/data get entity @s Pos` 讀結果。超平坦世界要先 `/difficulty peaceful`，否則史萊姆會把人推走
 
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
@@ -208,7 +208,7 @@
 - 新增內建壁紙：把圖放進兩個專案的 `wallpapers/`，各在 `BUNDLED` 加一行
 
 ## Minecraft 1.21.11 版（`mc-1.21.11/`）
-- 七個 addon 的 1.21.11 版本，各自是獨立的 Gradle 專案，產出 `<名稱>-1.21.11.jar`
+- 七個主題 addon 和戰鬥巨集的 1.21.11 版本，各自是獨立的 Gradle 專案，產出 `<名稱>-1.21.11.jar`
 - **原始碼是產生出來的**：`python3 mc-1.21.11/port.py` 會把 26.3 版的原始碼複製過來並改寫命名（Mojang → Yarn）與 API 差異。要改東西就改 26.3 版再重跑，不要手改 `mc-1.21.11/*/src/`
 - 兩版的主要差異都列在 `port.py` 裡：`DrawContext`、`Click`／`KeyInput`、GLFW 常數與游標、`NbtCompound`、`net.minecraft.util.Pair`、`PositionedSoundInstance.ui`、`TextureFormat`；1.21.11 的 `TextRenderer.begin()` 不需要 graphics，所以沒有 `GuiRendererAccessor` mixin；沒有 `modulesHelpText()`
 - 建置：Loom 用 `net.fabricmc.fabric-loom-remap` 外掛（Gradle 以 JDK 25 執行、編譯目標 Java 21），最終檔名設在 `remapJar` 而不是 `jar`
