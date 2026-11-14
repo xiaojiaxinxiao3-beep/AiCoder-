@@ -12,6 +12,7 @@ import aicoder.assist.modules.CrystalMacro;
 import aicoder.assist.modules.LeftClicker;
 import aicoder.assist.modules.MaceSwap;
 import aicoder.assist.modules.RightClicker;
+import aicoder.assist.modules.SpearLunge;
 import aicoder.assist.modules.WindPearl;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -62,6 +63,7 @@ public final class Client {
         add(new LeftClicker());
         add(new MaceSwap());
         add(new RightClicker());
+        add(new SpearLunge());
         add(new WindPearl());
         load();
         System.out.println("[" + NAME + "] ready, " + modules.size() + " modules. Right Shift opens the menu.");

@@ -144,7 +144,7 @@ cd aurora-glass      # 或 aurora-columns
 
 # AiCoder 戰鬥巨集（`combat-macros/`）
 
-不是主題，而是七個 Meteor 模組，放在自己的 **AiCoder 分頁**裡（在 Modules、Config… 的旁邊），產出 `AiCoder戰鬥巨集.jar`；1.21.11 版在 `mc-1.21.11/combat-macros/`。
+不是主題，而是八個 Meteor 模組，放在自己的 **AiCoder 分頁**裡（在 Modules、Config… 的旁邊），產出 `AiCoder戰鬥巨集.jar`；1.21.11 版在 `mc-1.21.11/combat-macros/`。
 共同原則：只做「幫你按按鍵」的事——切快捷列、對準心指到的東西按右鍵或左鍵、真的轉動視角。送出的封包和原版客戶端按同樣按鍵時一樣。
 
 | 模組 | 做什麼 | 主要設定 |
@@ -155,10 +155,11 @@ cd aurora-glass      # 或 aurora-columns
 | `right-clicker` | 長按右鍵超過 `start-after` 之後變成連點右鍵，放開就停 | `cps`（每秒點擊數，1～100）、`variation`、`start-after` |
 | `left-clicker` | 同上，但是左鍵；和右鍵是兩個獨立的模組。預設準心在方塊上時不連點，所以長按仍然可以正常挖方塊 | `cps`、`variation`、`start-after`、`not-on-blocks` |
 | `mace-swap` | 拿著劍、斧、長矛或三叉戟打人時，如果快捷列有重錘，出手前先切到重錘，幾個 tick 後切回來。這一擊以重錘為武器（重擊加成、附魔），但用的是原本武器的攻擊力和蓄力 | `swap-back-delay`、`min-fall`、`charged-only`、`players-only`、`weapons-only` |
+| `spear-lunge` | 按住指定的按鍵時連續用長矛突進：跳起來、切到長矛、按左鍵、下一個 tick 切回原本的物品，隔一下再來一次。放開按鍵或飽食度低於三格就停。長矛要有「突進」（Lunge）附魔才會往前衝 | `hold-key`、`jump`、`jump-lead`、`repeat-delay` |
 | `wind-pearl` | 丟出終界珍珠後自動補丟風彈，預判兩者在空中相遇，珍珠在那裡觸發 | `delay`、`extra-lead`、`ping-compensation`、`report-result` |
 
-- AiCoder 分頁用的是目前主題的模組畫面，所以換主題它也跟著換；裡面分三欄：Explosives（Anchor Macro、Crystal Macro）、Melee（Crosshair Drift、Left Clicker、Mace Swap）、Utility（Right Clicker、Wind Pearl）。這三欄不會出現在原本的 Modules 分頁。
-- 重生錨、螢光石、水晶、黑曜石、重錘、風彈都要放在**快捷列**；模組不會開背包搬東西。
+- AiCoder 分頁用的是目前主題的模組畫面，所以換主題它也跟著換；裡面分三欄：Explosives（Anchor Macro、Crystal Macro）、Melee（Crosshair Drift、Left Clicker、Mace Swap、Spear Lunge）、Utility（Right Clicker、Wind Pearl）。這三欄不會出現在原本的 Modules 分頁。
+- 重生錨、螢光石、水晶、黑曜石、重錘、長矛、風彈都要放在**快捷列**；模組不會開背包搬東西。
 - `anchor-macro` 在地獄不會動作（那裡點重生錨是設重生點）；按住潛行時也不動作。
 - `wind-pearl`：珍珠碰到風彈的範圍只有大約半格，所以時機很重要。在流暢的單人世界裡從接近水平到垂直都打得中；
   延遲高或掉幀時平拋比較容易錯過，往上丟最穩。可以開 `report-result` 看風彈是從珍珠前面還是後面經過，再調 `extra-lead`。

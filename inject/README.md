@@ -4,7 +4,7 @@
 七個模組和兩個極光玻璃介面就會進到正在執行的遊戲裡。在遊戲中按**右 Shift** 開啟選單。
 
 ## 內容
-- 七個模組，和 `combat-macros/` 是同一份原始碼：Anchor Macro、Crystal Macro、Crosshair Drift、Left Clicker、Mace Swap、Right Clicker、Wind Pearl
+- 八個模組，和 `combat-macros/` 是同一份原始碼：Anchor Macro、Crystal Macro、Crosshair Drift、Left Clicker、Mace Swap、Right Clicker、Spear Lunge、Wind Pearl
 - 兩個介面，可以在選單上方切換：**COLUMNS**（每個分類一欄）和 **WINDOW**（單視窗三欄）。`MOTION` 是動態的開關
 - 設定存在遊戲資料夾的 `aicoder-assist.properties`
 

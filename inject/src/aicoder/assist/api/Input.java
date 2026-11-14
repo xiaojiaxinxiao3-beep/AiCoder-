@@ -14,6 +14,14 @@ public final class Input {
         return InputConstants.getKey(mapping.saveString());
     }
 
+    public static boolean isKeyPressed(int key) {
+        return GLFW.glfwGetKey(Client.mc.getWindow().handle(), key) == GLFW.GLFW_PRESS;
+    }
+
+    public static boolean isButtonPressed(int button) {
+        return GLFW.glfwGetMouseButton(Client.mc.getWindow().handle(), button) == GLFW.GLFW_PRESS;
+    }
+
     /** Whether the bound key or button is physically held, whatever the game currently thinks of it. */
     public static boolean isPressed(KeyMapping mapping) {
         InputConstants.Key key = keyOf(mapping);

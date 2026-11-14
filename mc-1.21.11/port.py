@@ -119,6 +119,11 @@ GAMEPLAY = [
     ('net.minecraft.client.KeyMapping', 'net.minecraft.client.option.KeyBinding'),
     ('KeyMapping.click(', 'KeyBinding.onKeyPressed('),
     ('mc.options.keyUse', 'mc.options.useKey'),
+    ('mc.options.keyJump', 'mc.options.jumpKey'),
+    ('import com.mojang.blaze3d.platform.InputConstants;', 'import org.lwjgl.glfw.GLFW;'),
+    ('InputConstants.KEY_LALT', 'GLFW.GLFW_KEY_LEFT_ALT'),
+    ('InputConstants.KEY_', 'GLFW.GLFW_KEY_'),
+    ('.getFoodData().getFoodLevel()', '.getHungerManager().getFoodLevel()'),
     ('mc.options.keyAttack', 'mc.options.attackKey'),
     ('.setDown(', '.setPressed('),
     # Methods

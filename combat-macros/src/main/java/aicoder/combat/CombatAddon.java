@@ -25,6 +25,7 @@ public class CombatAddon extends MeteorAddon {
         modules.add(new RightClicker());
         modules.add(new LeftClicker());
         modules.add(new MaceSwap());
+        modules.add(new SpearLunge());
     }
 
     @Override
