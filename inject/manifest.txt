@@ -1,3 +1,0 @@
-Agent-Class: aicoder.inject.Agent
-Can-Retransform-Classes: true
-Main-Class: aicoder.inject.Injector
