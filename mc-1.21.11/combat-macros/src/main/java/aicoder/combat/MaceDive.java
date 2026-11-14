@@ -24,15 +24,16 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Elytra and mace, on a loop, against the nearest player: take off, climb on fireworks until high enough
- * above them, dive at them on one more firework, put the chestplate on just before arriving so the fall
- * counts, hit with the mace, put the elytra back on and climb again.
+ * Elytra and mace, on a loop, against the nearest player: take off, climb straight up on fireworks until
+ * high enough above them, dive at them at a slant on one more firework, put the chestplate on just before
+ * arriving so the fall counts, hit with the mace, put the elytra back on and climb again.
  *
- * <p>The two chest pieces trade places through the off hand: wear one and hold the other there. Pressing
- * use with a sword or mace in the main hand does nothing for the main hand, so the game equips what the
- * off hand holds, and the main hand never changes. That matters for the hit: with a sword held through
- * the dive and the mace selected only for the click, the blow keeps the sword's attack damage and charge
- * and adds the mace's smash.
+ * <p>Wear one chest piece and keep the other in the hotbar. To trade them the module selects the spare,
+ * presses use (the game swaps it with what is worn) and selects the weapon again, all within one tick. The
+ * server only looks at what is in the main hand once per tick, so it never sees the weapon leave the hand
+ * and the sword keeps its charge. With a sword held through the dive and the mace selected only for the
+ * click, the blow has the sword's attack damage and the mace's smash. A spare held in the off hand works
+ * too: use with a weapon in the main hand equips what the off hand holds.
  *
  * <p>Everything is a key press (jump, use, attack, hotbar slots) and the view really turns.
  */
@@ -79,11 +80,11 @@ public class MaceDive extends Module {
     );
 
     private final Setting<Double> climbPitch = sgGeneral.add(new DoubleSetting.Builder()
-        .name("climb-angle")
-        .description("How steeply to climb, in degrees above level.")
-        .defaultValue(60)
-        .range(20, 85)
-        .sliderRange(20, 85)
+        .name("climb-steepness")
+        .description("How steeply to climb, in degrees above level. 90 is straight up, so the dive comes down at a slant.")
+        .defaultValue(90)
+        .range(20, 90)
+        .sliderRange(20, 90)
         .build()
     );
 
@@ -182,7 +183,6 @@ public class MaceDive extends Module {
         }
 
         boolean wearingElytra = mc.player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA);
-        boolean elytraInOffhand = mc.player.getOffHandStack().isOf(Items.ELYTRA);
         Vec3d eye = mc.player.getEyePos();
         double distance = distanceTo(target, eye);
         double speed = mc.player.getVelocity().length();
@@ -191,14 +191,16 @@ public class MaceDive extends Module {
             case Prepare, Recover -> {
                 setJump(false);
                 if (wearingElytra) {
+                    if (findChestplate() < 0 && !isChestplate(mc.player.getOffHandStack())) {
+                        warning("No chestplate in your hotbar. Without one the mace hit does no fall damage.");
+                        toggle();
+                        return;
+                    }
                     go(Stage.Launch);
-                } else if (elytraInOffhand) {
-                    // Use with a weapon in the main hand: the game equips what the off hand holds
-                    holdWeapon();
-                    pressUse();
+                } else if (wear(true)) {
                     wait = 1;
                 } else {
-                    warning("Wear the elytra and hold the chestplate in your off hand (or the other way round).");
+                    warning("No elytra: wear it or keep it in your hotbar, with the chestplate in the other place.");
                     toggle();
                 }
             }
@@ -249,10 +251,7 @@ public class MaceDive extends Module {
                 holdWeapon();
 
                 // The chestplate has to be on for a tick before the hit, or the fall does not count for the mace
-                if (distance <= reach.get() + speed * 1.5) {
-                    pressUse();
-                    go(Stage.Strike);
-                }
+                if (distance <= reach.get() + speed * 1.5 && wear(false)) go(Stage.Strike);
             }
 
             case Strike -> {
@@ -284,6 +283,41 @@ public class MaceDive extends Module {
     /** One press of the use key; the game handles it later in this same tick. */
     private void pressUse() {
         KeyBinding.onKeyPressed(((KeyBindingAccessor) mc.options.useKey).meteor$getKey());
+    }
+
+    /**
+     * Puts on the elytra or the chestplate, taking it from the hotbar (or the off hand) and leaving the
+     * piece that was worn in its place. Returns false when the piece is not to hand.
+     */
+    private boolean wear(boolean elytra) {
+        int slot = elytra ? find(Items.ELYTRA) : findChestplate();
+        if (slot >= 0) {
+            // Select, use, select the weapon again: one tick, so the server never sees the weapon put away
+            mc.player.getInventory().setSelectedSlot(slot);
+            Clicks.useItem();
+            holdWeapon();
+            return true;
+        }
+
+        ItemStack off = mc.player.getOffHandStack();
+        if (elytra ? off.isOf(Items.ELYTRA) : isChestplate(off)) {
+            // Use with a weapon in the main hand: the game equips what the off hand holds
+            holdWeapon();
+            pressUse();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isChestplate(ItemStack stack) {
+        return !stack.isEmpty() && Registries.ITEM.getId(stack.getItem()).getPath().endsWith("_chestplate");
+    }
+
+    private int findChestplate() {
+        for (int i = 0; i < 9; i++) {
+            if (isChestplate(mc.player.getInventory().getStack(i))) return i;
+        }
+        return -1;
     }
 
     private boolean firework() {

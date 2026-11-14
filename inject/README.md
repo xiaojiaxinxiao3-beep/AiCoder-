@@ -6,6 +6,7 @@
 ## 內容
 - 九個模組，和 `combat-macros/` 是同一份原始碼：Anchor Macro、Crystal Macro、Crosshair Drift、Left Clicker、Mace Dive、Mace Swap、Right Clicker、Spear Lunge、Wind Pearl
 - 兩個介面，可以在選單上方切換：**COLUMNS**（每個分類一欄）和 **WINDOW**（單視窗三欄）。`MOTION` 是動態的開關
+- 每個模組都能綁一個鍵盤按鍵：在模組設定最下面的 BIND 區，`Key` 點一下再按鍵（Esc 或右鍵清除），`Mode` 選 TOGGLE 或 HOLD
 - 設定存在遊戲資料夾的 `aicoder-assist.properties`
 
 ## 使用
@@ -14,7 +15,7 @@
 3. 回到遊戲按右 Shift
 
 防毒軟體可能會擋下 `.exe`：它沒有簽章，而且做的事（找到別的行程、把程式載入進去）正是防毒會注意的行為。這裡不會為了通過掃描去改它。
-`launcher/AiCoderAssist.bat` 用一段看得懂的腳本做同樣的事，和 `AiCoderAssist.jar` 放在同一個資料夾執行即可（**還沒有在 Windows 上跑過**）。
+`launcher/AiCoderAssist.bat` 用一段看得懂的腳本做同樣的事，和 `AiCoderAssist.jar` 放在同一個資料夾執行即可。使用者在 Windows 上回報用這個方式注入成功。
 
 沒有 `.exe` 可用的環境（Linux、macOS）：`java -jar AiCoderAssist.jar`，需要 JDK 21 以上。
 

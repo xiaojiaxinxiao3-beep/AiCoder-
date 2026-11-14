@@ -103,9 +103,28 @@ public final class Client {
         }
     }
 
-    /** From the game's keyboard handler. The menu itself opens on the next tick, outside the key handling. */
-    static void keyPressed(int key) {
-        if (key == MENU_KEY) menuRequested = true;
+    /**
+     * From the game's keyboard handler. The menu itself opens on the next tick, outside the key handling.
+     * Module binds only act while no screen is open, so typing in chat does not switch modules; a release
+     * always counts, so a held module cannot get stuck on when a screen opens over it.
+     */
+    static void key(int key, boolean pressed) {
+        if (pressed && key == MENU_KEY) menuRequested = true;
+
+        for (Module module : modules) {
+            if (module.bind != key) continue;
+
+            if (module.holdBind) {
+                if (!pressed) module.setActive(false);
+                else if (mc.screen == null) module.setActive(true);
+            } else if (pressed && mc.screen == null) {
+                module.toggle();
+            }
+        }
+    }
+
+    public static boolean isMenuKey(int key) {
+        return key == MENU_KEY;
     }
 
     static void tick() {
@@ -141,7 +160,10 @@ public final class Client {
         out.setProperty("ui.layout", layout);
         out.setProperty("ui.animations", String.valueOf(animations));
         for (Module module : modules) {
-            out.setProperty(module.name + ".enabled", String.valueOf(module.isActive()));
+            // A module that is only on because its key is held right now is saved as off
+            out.setProperty(module.name + ".enabled", String.valueOf(module.isActive() && !(module.holdBind && module.bind >= 0)));
+            out.setProperty(module.name + ".bind", String.valueOf(module.bind));
+            out.setProperty(module.name + ".bind-mode", module.holdBind ? "hold" : "toggle");
             for (SettingGroup group : module.settings.groups) {
                 for (Setting<?> setting : group.settings) out.setProperty(module.name + "." + setting.name, setting.save());
             }
@@ -181,6 +203,12 @@ public final class Client {
                     }
                 }
             }
+            try {
+                module.bind = Integer.parseInt(in.getProperty(module.name + ".bind", "-1").trim());
+            } catch (NumberFormatException ignored) {
+                module.bind = -1;
+            }
+            module.holdBind = "hold".equals(in.getProperty(module.name + ".bind-mode"));
             if (Boolean.parseBoolean(in.getProperty(module.name + ".enabled"))) module.setActive(true);
         }
     }

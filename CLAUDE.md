@@ -195,7 +195,8 @@
 - 九個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`、`SpearLunge`、`MaceDive`
 - `SpearLunge` 是「按住才動作」：模組開著只是待命，用 `Input.isKeyPressed()` 看 `hold-key` 設定的按鍵（列舉，鍵碼取自 `InputConstants.KEY_*`，這樣 Meteor 版和注入版可以共用，不需要按鍵綁定設定）。一輪是：`keyJump.setDown(true)` → 選長矛欄位並 `KeyMapping.click(攻擊鍵)` → 下一個 tick 選回原欄位。新增模組時三處都要加：`CombatAddon`、`inject/src/aicoder/assist/Client.java`、`inject/tools/port_modules.py` 的 `FILES`
 - `MaceDive`（鞘翅＋重錘循環）要點：
-  - 鞘翅與胸甲透過**副手**互換：主手拿劍或重錘時按右鍵，主手的「使用」沒有作用，原版會改用副手的物品，也就是把副手那件穿上。這樣主手不會變，劍的蓄力不會被重置
+  - 鞘翅與胸甲的互換：備用的那件放快捷列。同一個 tick 內「選那一格 → `Clicks.useItem()`（直接呼叫，立刻生效）→ 選回武器」。伺服器每個 tick 只在最後比對一次主手物品，所以它看不到武器離手，劍的蓄力不會被重置。備用那件放副手也行（主手拿武器按右鍵，原版會改用副手的物品）。使用者回報過：沒有換上胸甲就完全沒有傷害，所以 Prepare 階段找不到胸甲會直接警告並關閉
+  - 爬升預設垂直往上（`climb-steepness` 90），俯衝才對準目標，所以是斜著打下來，不會先飛到目標正上方
   - 胸甲要在命中**前一個 tick** 換上：伺服器在自己的 tick 才清掉滑翔狀態，滑翔中重錘沒有落下加成。所以距離 ≤ 攻擊距離 + 1.5 × 速度時先換，進到攻擊距離才選重錘並按左鍵
   - 起飛是每個 tick 交替按放跳躍鍵：第一下離地，空中的下一下打開鞘翅
   - 所有「使用」都用 `KeyMapping.click(使用鍵)`，由原版在同一個 tick 稍後處理，所以每個 tick 只安排一個動作
@@ -221,7 +222,8 @@
 - 繪圖：`gfx/GuiRenderer` 把四邊形收成一個實作 `GuiElementRenderState` 的 `Mesh`，交給 `GuiGraphics` 裡的 `guiRenderState`（package-private，用反射拿）。座標是 framebuffer 像素，用 pose 縮回 GUI 單位。和 Meteor 一樣，一個 scissor 內先送色塊、再跑 `post()` 的工作（文字）
 - 字體：`gfx/TextRenderer` 照 Meteor 的 `CustomTextRenderer`（五種高度 27～81、`getWidth` 除以 1.5 等）實作，量出來的寬高一致，所以 `Fx` 的排版不用改
 - 官方啟動器附的 Java 21 runtime 含 `java.instrument` 和 `jdk.attach`（查過 Windows 與 Linux 的 `release` 檔），所以 `.exe` 直接用遊戲行程旁邊的 `java.exe` 來注入
-- `.exe` 是 `launcher/launcher.c`（mingw 編譯）後面接上 jar；Java 從檔尾讀 jar，所以同一個檔案可以當 `-jar` 的參數，也可以當 agent。**`.exe` 沒有在 Windows 上執行過**
+- `.exe` 是 `launcher/launcher.c`（mingw 編譯）後面接上 jar；Java 從檔尾讀 jar，所以同一個檔案可以當 `-jar` 的參數，也可以當 agent。`.exe` 在使用者的 Windows 上執行過舊版（能找到 Java 並啟動注入器），之後被防毒擋下；`launcher/AiCoderAssist.bat`＋jar 的版本使用者回報注入成功
+- 按鍵綁定（注入版自己的；Meteor 版用 Meteor 內建的）：`Module.bind`（GLFW 鍵碼，-1 是沒有）與 `holdBind`。`Client.key()` 由鍵盤掛鉤呼叫：按下只在沒有開畫面時生效，放開一律生效（按住的模組不會因為開了聊天而卡在開啟）。按住模式的模組存檔時一律存成關閉。設定畫面的 BIND 區在 `AuroraScreen.settings()` 的最後，等待按鍵時由 `keyPressed()` 接手
 - 原則和戰鬥巨集一樣，另外明確不做躲避偵測的功能
 - 測試：`inject/test.sh`（手動用快取裡的官方 jar 啟動原版，再注入）。腳本裡不要用 `| tail` 接它的輸出，背景的遊戲會讓管線等不到結束
 

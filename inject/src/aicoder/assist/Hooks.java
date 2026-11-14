@@ -65,10 +65,10 @@ public final class Hooks {
         }
     }
 
-    /** A key went down, up or repeated. {@code action} is GLFW's: 1 is a press. */
+    /** A key went down, up or repeated. {@code action} is GLFW's: 1 is a press, 0 a release. */
     public static void key(int action, Object event) {
         try {
-            if (action == 1) Client.keyPressed(((KeyEvent) event).key());
+            if (action == 0 || action == 1) Client.key(((KeyEvent) event).key(), action == 1);
         } catch (Throwable t) {
             t.printStackTrace();
         }

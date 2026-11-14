@@ -13,6 +13,11 @@ public abstract class Module {
     public final String description;
     public final Settings settings = new Settings();
 
+    /** Key that switches this module, as a GLFW key code; -1 for none. */
+    public int bind = -1;
+    /** With a bind: true keeps the module on only while the key is held, false flips it on each press. */
+    public boolean holdBind;
+
     private boolean active;
 
     protected Module(Category category, String name, String description) {

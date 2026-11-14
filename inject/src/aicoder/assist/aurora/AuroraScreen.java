@@ -14,7 +14,10 @@ import aicoder.assist.gfx.GuiRenderer;
 import aicoder.assist.gfx.GuiTheme;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import org.lwjgl.glfw.GLFW;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -74,6 +77,7 @@ public class AuroraScreen extends Screen {
 
     @Override
     public void onClose() {
+        listening = null;
         Client.save();
         super.onClose();
     }
@@ -516,6 +520,9 @@ public class AuroraScreen extends Screen {
 
     private static final double ROW = 41, GROUP = 44;
 
+    /** The module whose bind row is waiting for a key press. */
+    private Module listening;
+
     private double settingsHeight(Module module, double w) {
         double h = Fx.lineHeight(theme, 19, u) + 12 * u + wrap(module.description, w, 14).size() * Fx.lineHeight(theme, 14, u) * 1.3 + 8 * u;
         for (SettingGroup group : module.settings.groups) {
@@ -523,7 +530,8 @@ public class AuroraScreen extends Screen {
             for (Setting<?> setting : group.settings) if (setting.isVisible()) visible++;
             if (visible > 0) h += GROUP * u + visible * ROW * u;
         }
-        return h;
+        // The bind group: key and mode
+        return h + GROUP * u + 2 * ROW * u;
     }
 
     private void settings(Module module, double x, double y, double w, double clipTop, double clipBottom) {
@@ -563,6 +571,53 @@ public class AuroraScreen extends Screen {
                 y += ROW * u;
             }
         }
+
+        // Bind: which key switches the module, and whether it is held or pressed once
+        double gy = y + GROUP * u - 16 * u;
+        text.put("BIND", x, Fx.centerY(theme, gy, 12, u), 12, S.green, 3.4, Fx.BOLD);
+        double lx = x + Fx.textWidth(theme, "BIND", 12, 3.4, u) + 14 * u, half = (x + w - lx) / 2;
+        if (half > 0) {
+            R.quad(lx, gy, half, Fx.hair(u), Fx.a(S.green, 0.55), Fx.a(S.violet, 0.25));
+            R.quad(lx + half, gy, half, Fx.hair(u), Fx.a(S.violet, 0.25), Fx.a(S.violet, 0));
+        }
+        y += GROUP * u;
+
+        String key = listening == module ? "PRESS A KEY" : module.bind < 0 ? "NONE" : keyName(module.bind);
+        choiceRow(text, "Key", key, "The key that switches this module. Click, then press a key. Esc or right click clears it.", x, y, w, clipTop, clipBottom,
+            listening == module, () -> listening = listening == module ? null : module, () -> {
+                module.bind = -1;
+                listening = null;
+            });
+        y += ROW * u;
+        choiceRow(text, "Mode", module.holdBind ? "HOLD" : "TOGGLE", "Toggle: each press switches the module on or off. Hold: it is on only while the key is down.", x, y, w, clipTop, clipBottom,
+            false, () -> module.holdBind = !module.holdBind, () -> module.holdBind = !module.holdBind);
+    }
+
+    private static String keyName(int key) {
+        return InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString().toUpperCase(Locale.ROOT);
+    }
+
+    /** A labelled value in a dark field that changes when clicked; used by the bind rows. */
+    private void choiceRow(Fx.TextBatch text, String label, String value, String help, double x, double y, double w, double clipTop, double clipBottom,
+                           boolean lit, Runnable left, Runnable right) {
+        double h = ROW * u, cy = y + h / 2;
+        if (y + h <= clipTop || y >= clipBottom) return;
+
+        boolean inClip = my >= clipTop && my < clipBottom;
+        text.put(label, x, Fx.centerY(theme, cy, 14.5, u), 14.5, S.text);
+        if (inClip && over(x, y, 170 * u, h)) {
+            tip = help;
+            tipX = mx + 14 * u;
+            tipY = my + 18 * u;
+        }
+
+        double wx = x + Math.min(190 * u, w * 0.38), fw = Math.min(190 * u, x + w - wx), fh = 30 * u, fy = cy - fh / 2;
+        boolean hot = lit || (inClip && over(wx, fy, fw, fh));
+        Chrome.field(R, S, wx, fy, fw, fh, u, hot, lit);
+        text.put(value, wx + 11 * u, Fx.centerY(theme, cy, 13, u), 13, lit ? S.green : S.title, 1, 0);
+
+        double top = Math.max(y, clipTop), bottom = Math.min(y + h, clipBottom);
+        hit(wx, top, fw, bottom - top, left, right);
     }
 
     private void settingRow(Fx.TextBatch text, Module module, Setting<?> setting, double x, double y, double w, double clipTop, double clipBottom) {
@@ -717,6 +772,19 @@ public class AuroraScreen extends Screen {
             return true;
         }
         return super.mouseClicked(click, doubled);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (listening != null) {
+            int key = event.key();
+            // Esc clears; the menu's own key cannot be taken
+            if (key == GLFW.GLFW_KEY_ESCAPE) listening.bind = -1;
+            else if (!Client.isMenuKey(key)) listening.bind = key;
+            listening = null;
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     @Override
