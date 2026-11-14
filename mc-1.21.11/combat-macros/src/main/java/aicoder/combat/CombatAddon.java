@@ -20,6 +20,7 @@ public class CombatAddon extends MeteorAddon {
         modules.add(new WindPearl());
         modules.add(new RightClicker());
         modules.add(new LeftClicker());
+        modules.add(new MaceSwap());
     }
 
     @Override

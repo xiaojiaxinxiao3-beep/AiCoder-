@@ -118,7 +118,12 @@ GAMEPLAY = [
     ('mc.options.keyAttack', 'mc.options.attackKey'),
     ('.setDown(', '.setPressed('),
     # Methods
+    ('net.minecraft.core.registries.BuiltInRegistries', 'net.minecraft.registry.Registries'),
+    ('BuiltInRegistries.ITEM.getKey(', 'Registries.ITEM.getId('),
     ('.getMainHandItem()', '.getMainHandStack()'),
+    ('.getAttackStrengthScale(', '.getAttackCooldownProgress('),
+    ('.entityInteractionRange()', '.getEntityInteractionRange()'),
+    ('.getLocation()', '.getPos()'),
     ('.getOffhandItem()', '.getOffHandStack()'),
     ('.getItemInHand(', '.getStackInHand('),
     ('.getInventory().getItem(', '.getInventory().getStack('),
