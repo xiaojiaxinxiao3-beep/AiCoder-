@@ -144,17 +144,19 @@ cd aurora-glass      # 或 aurora-columns
 
 # AiCoder 戰鬥巨集（`combat-macros/`）
 
-不是主題，而是四個 Meteor 模組（都在 Combat 分類），產出 `AiCoder戰鬥巨集.jar`；1.21.11 版在 `mc-1.21.11/combat-macros/`。
+不是主題，而是六個 Meteor 模組（都在 Combat 分類），產出 `AiCoder戰鬥巨集.jar`；1.21.11 版在 `mc-1.21.11/combat-macros/`。
 共同原則：只做「幫你按按鍵」的事——切快捷列、對準心指到的東西按右鍵或左鍵、真的轉動視角。送出的封包和原版客戶端按同樣按鍵時一樣。
 
 | 模組 | 做什麼 | 主要設定 |
 |---|---|---|
 | `anchor-macro` | 你親手放下重生錨後，切到螢光石補一格、切回來再點一下引爆 | `switch-delay`、`click-delay`、`random-delay`、`explode` |
-| `crystal-macro` | 你放下終界水晶後，準心在水晶上時幫你按左鍵。按住右鍵就會一直放、一直炸 | `attack-delay`、`random-delay`、`only-my-crystals` |
+| `crystal-macro` | 你放下終界水晶後，準心在水晶上時幫你按左鍵。按住右鍵就會一直放、一直炸。開 `auto-obsidian` 後，點到不能放水晶的方塊會先從快捷列放一塊黑曜石，再把水晶放上去 | `attack-delay`、`random-delay`、`only-my-crystals`、`auto-obsidian`、`obsidian-delay`、`crystal-delay` |
 | `crosshair-drift` | 設定距離內有玩家時，視角慢慢轉向他（有速度上限，靠近時減速，準心到了就放手） | `range`、`speed`（度／秒）、`softness`、`cone`、`aim-at` |
+| `right-clicker` | 長按右鍵超過 `start-after` 之後變成連點右鍵，放開就停 | `start-after`、`interval`（1 = 每秒 20 下，2 = 每秒 10 下）、`random-delay` |
+| `left-clicker` | 同上，但是左鍵；和右鍵是兩個獨立的模組。預設準心在方塊上時不連點，所以長按仍然可以正常挖方塊 | `start-after`、`interval`、`random-delay`、`not-on-blocks` |
 | `wind-pearl` | 丟出終界珍珠後自動補丟風彈，預判兩者在空中相遇，珍珠在那裡觸發 | `delay`、`extra-lead`、`ping-compensation`、`report-result` |
 
-- 重生錨、水晶、風彈都要放在**快捷列**；模組不會開背包搬東西。
+- 重生錨、螢光石、水晶、黑曜石、風彈都要放在**快捷列**；模組不會開背包搬東西。
 - `anchor-macro` 在地獄不會動作（那裡點重生錨是設重生點）；按住潛行時也不動作。
 - `wind-pearl`：珍珠碰到風彈的範圍只有大約半格，所以時機很重要。在流暢的單人世界裡從接近水平到垂直都打得中；
   延遲高或掉幀時平拋比較容易錯過，往上丟最穩。可以開 `report-result` 看風彈是從珍珠前面還是後面經過，再調 `extra-lead`。

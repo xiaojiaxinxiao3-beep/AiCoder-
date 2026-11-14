@@ -114,6 +114,9 @@ GAMEPLAY = [
     ('mc.gameMode.useItemOn(', 'mc.interactionManager.interactBlock('),
     ('mc.gameMode.useItem(', 'mc.interactionManager.interactItem('),
     ('mc.gameMode', 'mc.interactionManager'),
+    ('mc.options.keyUse', 'mc.options.useKey'),
+    ('mc.options.keyAttack', 'mc.options.attackKey'),
+    ('.setDown(', '.setPressed('),
     # Methods
     ('.getMainHandItem()', '.getMainHandStack()'),
     ('.getOffhandItem()', '.getOffHandStack()'),

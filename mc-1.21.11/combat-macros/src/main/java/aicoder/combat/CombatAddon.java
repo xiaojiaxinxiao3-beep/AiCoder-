@@ -18,6 +18,8 @@ public class CombatAddon extends MeteorAddon {
         modules.add(new CrystalMacro());
         modules.add(new CrosshairDrift());
         modules.add(new WindPearl());
+        modules.add(new RightClicker());
+        modules.add(new LeftClicker());
     }
 
     @Override

@@ -191,7 +191,9 @@
 
 ## 模組 addon：戰鬥巨集（`combat-macros/`）
 - 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`，沒有 mixin。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
-- 四個模組都在 `Categories.Combat`：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`
+- 六個模組都在 `Categories.Combat`：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`
+- `CrystalMacro` 的 `auto-obsidian`：切到黑曜石、點擊、切回水晶在**同一個 tick** 內做完，否則玩家按住右鍵時原版的連續使用會多放一塊
+- 連點模組用 `Input.isPressed(keyUse／keyAttack)` 判斷實體按鍵，點擊用 Meteor 的 `Utils.rightClick()`／`Utils.leftClick()`（就是呼叫原版的 `startUseItem()`／`startAttack()`）。`Utils.leftClick()` 結束時會把攻擊鍵設成放開，所以之後要再 `setDown(true)`
 - **原則是只做原版按鍵會做的事**。所有點擊都走 `Clicks.java`，呼叫順序照抄 `Minecraft.startUseItem()`／`startAttack()`（先取揮手動畫、再 `useItemOn`／`useItem`／`attack`、結果是 `PREDICTED` 才揮手）。切物品只用 `inventory.setSelectedSlot()`，點方塊只用 `mc.hitResult`，不偽造視角
 - 偵測「玩家自己放的」：`InteractBlockEvent`（重生錨、水晶）、`InteractItemEvent` 加 `EntityAddedEvent`（珍珠）。模組自己的點擊也會觸發這些事件，所以用 `clicking` 旗標擋掉
 - `WindPearl` 的物理（從 26.3 的 bytecode 查到的）：

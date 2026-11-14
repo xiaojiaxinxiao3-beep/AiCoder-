@@ -11,8 +11,13 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.Hand;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.item.Items;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.hit.EntityHitResult;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -59,6 +64,50 @@ public class CrystalMacro extends Module {
         .build()
     );
 
+    private final SettingGroup sgObsidian = settings.createGroup("Obsidian");
+
+    private final Setting<Boolean> autoObsidian = sgObsidian.add(new BoolSetting.Builder()
+        .name("auto-obsidian")
+        .description("When you right click with a crystal on a block that cannot hold one, place obsidian from your hotbar there first, then the crystal on top.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Integer> obsidianDelay = sgObsidian.add(new IntSetting.Builder()
+        .name("obsidian-delay")
+        .description("Ticks between your click and the obsidian being placed.")
+        .defaultValue(1)
+        .range(0, 40)
+        .sliderRange(0, 20)
+        .visible(autoObsidian::get)
+        .build()
+    );
+
+    private final Setting<Integer> crystalDelay = sgObsidian.add(new IntSetting.Builder()
+        .name("crystal-delay")
+        .description("Ticks between the obsidian and the crystal placed on it.")
+        .defaultValue(1)
+        .range(0, 40)
+        .sliderRange(0, 20)
+        .visible(autoObsidian::get)
+        .build()
+    );
+
+    private enum Base {
+        None,
+        /** Waiting to put obsidian against the block that was clicked. */
+        Obsidian,
+        /** Obsidian is down; waiting to put the crystal on it. */
+        Crystal
+    }
+
+    private Base base = Base.None;
+    /** Where the obsidian may end up: the clicked block if it gets replaced (grass, snow), otherwise the block beside the clicked face. */
+    private BlockPos clicked, beside;
+    private int baseWait, baseBlocked, crystalSlot;
+    /** True while this module performs a click, so its own clicks are not mistaken for the player's. */
+    private boolean clicking;
+
     /** Where the placed crystal stands: the block above the one that was clicked. */
     private BlockPos placedAt;
     private int armed;
@@ -75,6 +124,7 @@ public class CrystalMacro extends Module {
     }
 
     private void reset() {
+        base = Base.None;
         placedAt = null;
         armed = 0;
         wait = -1;
@@ -83,20 +133,108 @@ public class CrystalMacro extends Module {
 
     @EventHandler(priority = EventPriority.LOWEST)
     private void onInteractBlock(InteractBlockEvent event) {
-        if (event.isCancelled() || mc.player == null) return;
+        if (clicking || event.isCancelled() || mc.player == null || mc.world == null) return;
         if (!mc.player.getStackInHand(event.hand).isOf(Items.END_CRYSTAL)) return;
 
-        placedAt = event.result.getBlockPos().up();
-        armed = window.get();
+        BlockPos pos = event.result.getBlockPos();
+        if (holdsCrystals(pos)) {
+            placedAt = pos.up();
+            armed = window.get();
+            return;
+        }
+
+        // Not a block a crystal can stand on: lay obsidian first, if asked to
+        if (!autoObsidian.get() || base != Base.None || event.hand != Hand.MAIN_HAND) return;
+        if (mc.player.isSneaking() || findObsidian() < 0) return;
+
+        clicked = pos.toImmutable();
+        beside = clicked.offset(event.result.getSide());
+        crystalSlot = mc.player.getInventory().getSelectedSlot();
+        base = Base.Obsidian;
+        baseWait = obsidianDelay.get();
+        baseBlocked = 0;
+    }
+
+    private boolean holdsCrystals(BlockPos pos) {
+        BlockState state = mc.world.getBlockState(pos);
+        return state.isOf(Blocks.OBSIDIAN) || state.isOf(Blocks.BEDROCK);
+    }
+
+    private int findObsidian() {
+        for (int i = 0; i < 9; i++) {
+            if (mc.player.getInventory().getStack(i).isOf(Items.OBSIDIAN)) return i;
+        }
+        return -1;
+    }
+
+    /** One right click on the block under the crosshair, if that block is {@code pos}. */
+    private boolean clickBlock(BlockPos pos) {
+        if (!(mc.crosshairTarget instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK || !hit.getBlockPos().equals(pos)) return false;
+
+        clicking = true;
+        try {
+            Clicks.useOnBlock(hit);
+        } finally {
+            clicking = false;
+        }
+        return true;
+    }
+
+    /** The obsidian steps. Returns true while they are still running. */
+    private boolean tickBase() {
+        if (base == Base.None) return false;
+
+        if (baseWait > 0) {
+            baseWait--;
+            return true;
+        }
+
+        if (base == Base.Obsidian) {
+            int slot = findObsidian();
+            if (slot < 0 || mc.player.isUsingItem()) {
+                base = Base.None;
+                return false;
+            }
+
+            // Switch, click and switch back within the tick, so a held use key cannot add a second block
+            mc.player.getInventory().setSelectedSlot(slot);
+            boolean done = clickBlock(clicked);
+            mc.player.getInventory().setSelectedSlot(crystalSlot);
+
+            if (done) {
+                base = Base.Crystal;
+                baseWait = crystalDelay.get();
+                baseBlocked = 0;
+            } else if (++baseBlocked > 10) {
+                base = Base.None;
+            }
+            return true;
+        }
+
+        // Crystal: find where the obsidian landed and click it once the crosshair is on it
+        BlockPos obsidian = mc.world.getBlockState(beside).isOf(Blocks.OBSIDIAN) ? beside
+            : mc.world.getBlockState(clicked).isOf(Blocks.OBSIDIAN) ? clicked : null;
+
+        if (obsidian != null && mc.player.getMainHandStack().isOf(Items.END_CRYSTAL) && clickBlock(obsidian)) {
+            placedAt = obsidian.up();
+            armed = window.get();
+            base = Base.None;
+            return false;
+        }
+
+        if (++baseBlocked > 20) base = Base.None;
+        return true;
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (armed <= 0) return;
+        if (armed <= 0 && base == Base.None) return;
         if (mc.player == null || mc.world == null || mc.interactionManager == null || mc.currentScreen != null) {
             reset();
             return;
         }
+
+        if (tickBase() || armed <= 0) return;
         armed--;
 
         EndCrystalEntity crystal = underCrosshair();
