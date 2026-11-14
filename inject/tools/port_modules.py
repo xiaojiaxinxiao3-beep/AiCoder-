@@ -11,7 +11,7 @@ import os, re
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(HERE, '..', 'combat-macros', 'src', 'main', 'java', 'aicoder', 'combat')
 DST = os.path.join(HERE, 'src', 'aicoder', 'assist', 'modules')
-FILES = ['AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'Clicks']
+FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'Clicks']
 
 
 def port(text):
@@ -27,7 +27,7 @@ def port(text):
 
     # There is no friends list here: drop the setting and the check
     text = re.sub(r'    private final Setting<Boolean> (friends|ignoreFriends) = .*?\n    \);\n\n', '', text, flags=re.S)
-    text = re.sub(r'\n *if \((friends|ignoreFriends)\.get\(\) && Friends\.get\(\)\.isFriend\(player\)\) return( false)?;', '', text)
+    text = re.sub(r'\n *if \((friends|ignoreFriends)\.get\(\) && Friends\.get\(\)\.isFriend\(player\)\) (return( false)?|continue);', '', text)
     text = re.sub(r'if \(target instanceof Player player\) \{\n\s*\} else if \(([^\n]*)\) \{', r'if (!(target instanceof Player) && \1) {', text)
 
     # 1.21.11: an arm swing does not name an animation, and a predicted swing is called CLIENT

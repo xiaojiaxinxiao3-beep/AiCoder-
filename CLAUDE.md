@@ -192,8 +192,14 @@
 ## 模組 addon：戰鬥巨集（`combat-macros/`）
 - 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
 - **自己的分頁**（`AiCoderTab`，做法和 Shoreline 一樣）：`Tabs.add()` 加一個分頁，`createScreen()` 直接回傳 `theme.modulesScreen()`，所以任何主題都能用。兩個 mixin（都是 `remap = false`，目標是 Meteor 的類別）：`ModulesMixin` 攔 `Modules.loopCategories()`，目前畫面是 AiCoder 分頁時只回傳自己的三個分類、是 Modules 分頁時回傳其他分類、其餘情況回傳全部；`TabScreenAccessor` 把畫面的 `tab` 欄位（final）改成自己的分頁，分頁列才會標對。判斷「目前是哪個分頁」用 `mc.gui.screen()` 的 `tab`，建構期間另外用 `creating` 旗標
-- 八個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`、`SpearLunge`
+- 九個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`、`SpearLunge`、`MaceDive`
 - `SpearLunge` 是「按住才動作」：模組開著只是待命，用 `Input.isKeyPressed()` 看 `hold-key` 設定的按鍵（列舉，鍵碼取自 `InputConstants.KEY_*`，這樣 Meteor 版和注入版可以共用，不需要按鍵綁定設定）。一輪是：`keyJump.setDown(true)` → 選長矛欄位並 `KeyMapping.click(攻擊鍵)` → 下一個 tick 選回原欄位。新增模組時三處都要加：`CombatAddon`、`inject/src/aicoder/assist/Client.java`、`inject/tools/port_modules.py` 的 `FILES`
+- `MaceDive`（鞘翅＋重錘循環）要點：
+  - 鞘翅與胸甲透過**副手**互換：主手拿劍或重錘時按右鍵，主手的「使用」沒有作用，原版會改用副手的物品，也就是把副手那件穿上。這樣主手不會變，劍的蓄力不會被重置
+  - 胸甲要在命中**前一個 tick** 換上：伺服器在自己的 tick 才清掉滑翔狀態，滑翔中重錘沒有落下加成。所以距離 ≤ 攻擊距離 + 1.5 × 速度時先換，進到攻擊距離才選重錘並按左鍵
+  - 起飛是每個 tick 交替按放跳躍鍵：第一下離地，空中的下一下打開鞘翅
+  - 所有「使用」都用 `KeyMapping.click(使用鍵)`，由原版在同一個 tick 稍後處理，所以每個 tick 只安排一個動作
+  - 實測（1.21.11、對鐵巨人）：循環約 3.5 秒一次，一次命中 36.6 點。測試時要給目標加 tag 並清掉其他生物，`mobs` 選項會選最近的任何生物；聊天視窗開著時模組會暫停
 - `MaceSwap` 掛在 `DoAttackEvent`（`startAttack()` 的開頭，原版還沒讀手上物品之前）改選取的欄位，之後原版的 `attack()` 會先送換欄位封包再送攻擊封包。伺服器要到下一個 tick 才套用新物品的屬性並重置蓄力，所以這一擊是「重錘當武器、原武器的攻擊力」：實測鐵巨人扣的是鑽石劍的 7 點，扣耐久的是重錘。判斷武器用登錄名稱（`BuiltInRegistries.ITEM.getKey`），不要用 `Item.toString()`，1.21.11 沒有覆寫它
 - `CrystalMacro` 的 `auto-obsidian`：切到黑曜石、點擊、切回水晶在**同一個 tick** 內做完，否則玩家按住右鍵時原版的連續使用會多放一塊
 - 連點模組用 `Input.isPressed(keyUse／keyAttack)` 判斷實體按鍵；每一下點擊是 `KeyMapping.click(綁定的按鍵)`（按鍵用 Meteor 的 `KeyMappingAccessor.meteor$getKey()` 取得），等於多按一次，由原版的 `handleKeybinds()` 在同一個 tick 逐一處理，所以一個 tick 可以有好幾下（100 CPS = 每 tick 5 下）。不要用 `Utils.rightClick()`，它一個 tick 只會點一次

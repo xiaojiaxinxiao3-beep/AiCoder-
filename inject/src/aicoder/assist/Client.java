@@ -10,6 +10,7 @@ import aicoder.assist.modules.AnchorMacro;
 import aicoder.assist.modules.CrosshairDrift;
 import aicoder.assist.modules.CrystalMacro;
 import aicoder.assist.modules.LeftClicker;
+import aicoder.assist.modules.MaceDive;
 import aicoder.assist.modules.MaceSwap;
 import aicoder.assist.modules.RightClicker;
 import aicoder.assist.modules.SpearLunge;
@@ -61,6 +62,7 @@ public final class Client {
         add(new CrystalMacro());
         add(new CrosshairDrift());
         add(new LeftClicker());
+        add(new MaceDive());
         add(new MaceSwap());
         add(new RightClicker());
         add(new SpearLunge());
