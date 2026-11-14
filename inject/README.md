@@ -19,7 +19,8 @@
 - 測過：Linux 上手動啟動的原版 1.21.11。注入、五個掛鉤、兩個介面、設定視窗，以及五個模組的實際效果
   （Anchor Macro、Crystal Macro 含自動黑曜石、Right Clicker、Mace Swap、Wind Pearl）
 - 測過：把 `.exe` 這個檔案直接當成注入內容（它的結尾就是 jar），可以注入
-- **沒測過：`.exe` 本身**。它是 Windows 程式，這裡沒有 Windows 可以執行；找遊戲行程、啟動 Java 的那段完全沒有實測
+- `.exe`：使用者在 Windows 上回報過一次，確認它能執行、找得到 Java 行程並啟動注入器；當時注入器自己找不到遊戲（見下一點），修正後的版本還沒有在 Windows 上確認
+- 注入器不能靠 `VirtualMachine.list()` 找遊戲：遊戲若以 `-XX:-UsePerfData` 啟動（不少第三方啟動器會這樣），那份清單是空的。現在由 `.exe` 把所有 Java 行程的編號傳進來，注入器逐一 attach，用 `sun.java.command` 判斷哪個是 Minecraft。這個情況已在 Linux 上重現並驗證
 - 沒測過：官方啟動器啟動的遊戲、Crosshair Drift、Left Clicker
 - 只支援 1.21.11。其他版本會拒絕注入並顯示訊息，因為遊戲內部的名稱每個版本都不同
 - 不支援已經裝了 Fabric 或其他載入器的遊戲

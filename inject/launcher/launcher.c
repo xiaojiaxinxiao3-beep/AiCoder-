@@ -38,6 +38,8 @@ int wmain(void) {
     /* Folders of every running java.exe / javaw.exe: one of them is the game's */
     wchar_t dirs[MAX_DIRS][MAX_PATH * 2];
     int count = 0;
+    /* Their process ids, handed to the injector so it does not have to find the game by itself */
+    wchar_t ids[1024] = L"";
 
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot != INVALID_HANDLE_VALUE) {
@@ -46,6 +48,10 @@ int wmain(void) {
         if (Process32FirstW(snapshot, &entry)) {
             do {
                 if (_wcsicmp(entry.szExeFile, L"javaw.exe") != 0 && _wcsicmp(entry.szExeFile, L"java.exe") != 0) continue;
+
+                wchar_t id[32];
+                _snwprintf(id, 32, L" %lu", (unsigned long) entry.th32ProcessID);
+                if (wcslen(ids) + wcslen(id) < 1000) wcscat(ids, id);
 
                 HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, entry.th32ProcessID);
                 if (!process) continue;
@@ -73,14 +79,16 @@ int wmain(void) {
         return 2;
     }
 
-    DWORD result = 2;
+    /* 3 = no Java could be started at all; the injector itself answers 0 (in), 1 (refused) or 2 (no game) */
+    DWORD result = 3;
+    /* Several Java installations may be running (a launcher often is one itself); try each until one gets in */
     for (int i = 0; i < count && result != 0; i++) {
         wchar_t java[MAX_PATH * 2];
         _snwprintf(java, MAX_PATH * 2, L"%ls\\java.exe", dirs[i]);
         if (GetFileAttributesW(java) == INVALID_FILE_ATTRIBUTES) continue;
 
         wchar_t command[MAX_PATH * 8];
-        _snwprintf(command, MAX_PATH * 8, L"\"%ls\" -jar \"%ls\"", java, self);
+        _snwprintf(command, MAX_PATH * 8, L"\"%ls\" -jar \"%ls\"%ls", java, self, ids);
 
         STARTUPINFOW startup;
         PROCESS_INFORMATION info;
@@ -94,7 +102,7 @@ int wmain(void) {
         CloseHandle(info.hThread);
     }
 
-    if (result == 2) wprintf(L"No running Minecraft was found among the Java programs on this computer.\n");
+    if (result == 3) wprintf(L"Found a running Java program, but could not start its java.exe.\n");
     wait_for_key();
     return (int) result;
 }
