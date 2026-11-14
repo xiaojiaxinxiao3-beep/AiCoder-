@@ -149,11 +149,11 @@ cd aurora-glass      # 或 aurora-columns
 
 | 模組 | 做什麼 | 主要設定 |
 |---|---|---|
-| `anchor-macro` | 你親手放下重生錨後，切到螢光石補一格、切回來再點一下引爆 | `switch-delay`、`click-delay`、`random-delay`、`explode` |
+| `anchor-macro` | 你親手放下重生錨後，切到螢光石補一格、切回來再點一下引爆 | `swap-delay`、`use-delay`（預設都是 0：放下後的下一個 tick 就補完並引爆）、`random-delay`、`explode` |
 | `crystal-macro` | 你放下終界水晶後，準心在水晶上時幫你按左鍵。按住右鍵就會一直放、一直炸。開 `auto-obsidian` 後，點到不能放水晶的方塊會先從快捷列放一塊黑曜石，再把水晶放上去 | `attack-delay`、`random-delay`、`only-my-crystals`、`auto-obsidian`、`obsidian-delay`、`crystal-delay` |
 | `crosshair-drift` | 設定距離內有玩家時，視角慢慢轉向他（有速度上限，靠近時減速，準心到了就放手） | `range`、`speed`（度／秒）、`softness`、`cone`、`aim-at` |
-| `right-clicker` | 長按右鍵超過 `start-after` 之後變成連點右鍵，放開就停 | `start-after`、`interval`（1 = 每秒 20 下，2 = 每秒 10 下）、`random-delay` |
-| `left-clicker` | 同上，但是左鍵；和右鍵是兩個獨立的模組。預設準心在方塊上時不連點，所以長按仍然可以正常挖方塊 | `start-after`、`interval`、`random-delay`、`not-on-blocks` |
+| `right-clicker` | 長按右鍵超過 `start-after` 之後變成連點右鍵，放開就停 | `cps`（每秒點擊數，1～100）、`variation`、`start-after` |
+| `left-clicker` | 同上，但是左鍵；和右鍵是兩個獨立的模組。預設準心在方塊上時不連點，所以長按仍然可以正常挖方塊 | `cps`、`variation`、`start-after`、`not-on-blocks` |
 | `mace-swap` | 拿著劍、斧、長矛或三叉戟打人時，如果快捷列有重錘，出手前先切到重錘，幾個 tick 後切回來。這一擊以重錘為武器（重擊加成、附魔），但用的是原本武器的攻擊力和蓄力 | `swap-back-delay`、`min-fall`、`charged-only`、`players-only`、`weapons-only` |
 | `wind-pearl` | 丟出終界珍珠後自動補丟風彈，預判兩者在空中相遇，珍珠在那裡觸發 | `delay`、`extra-lead`、`ping-compensation`、`report-result` |
 

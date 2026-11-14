@@ -58,18 +58,18 @@ public class AnchorMacro extends Module {
     );
 
     private final Setting<Integer> switchDelay = sgDelay.add(new IntSetting.Builder()
-        .name("switch-delay")
+        .name("swap-delay")
         .description("Ticks to wait before each hotbar switch (after placing, and after charging).")
-        .defaultValue(1)
+        .defaultValue(0)
         .range(0, 40)
         .sliderRange(0, 20)
         .build()
     );
 
     private final Setting<Integer> clickDelay = sgDelay.add(new IntSetting.Builder()
-        .name("click-delay")
+        .name("use-delay")
         .description("Ticks to wait between switching the hotbar slot and the right click that follows.")
-        .defaultValue(1)
+        .defaultValue(0)
         .range(0, 40)
         .sliderRange(0, 20)
         .build()
@@ -168,6 +168,15 @@ public class AnchorMacro extends Module {
             return;
         }
 
+        // With the delays at 0 the steps follow each other inside one tick: switch, click, switch, click
+        for (int i = 0; i < 8; i++) {
+            Stage before = stage;
+            step();
+            if (stage == Stage.Idle || stage == before || wait > 0) break;
+        }
+    }
+
+    private void step() {
         switch (stage) {
             case Placed -> {
                 if (isAnchor(candidateB)) anchor = candidateB;
@@ -206,12 +215,15 @@ public class AnchorMacro extends Module {
                     reset();
                     return;
                 }
+                if (charges() == 0 && (!mc.player.getMainHandStack().isOf(Items.GLOWSTONE) || !click())) {
+                    stall();
+                    return;
+                }
+                // The game shows the charge at once, without waiting for the server
                 if (charges() > 0) {
                     advance(explode.get() ? Stage.SelectBack : Stage.Idle, switchDelay.get());
                     if (stage == Stage.Idle) restoreSlot();
-                    return;
                 }
-                if (!mc.player.getMainHandStack().isOf(Items.GLOWSTONE) || !click()) stall();
             }
 
             case SelectBack -> {

@@ -195,7 +195,8 @@
 - 七個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`
 - `MaceSwap` 掛在 `DoAttackEvent`（`startAttack()` 的開頭，原版還沒讀手上物品之前）改選取的欄位，之後原版的 `attack()` 會先送換欄位封包再送攻擊封包。伺服器要到下一個 tick 才套用新物品的屬性並重置蓄力，所以這一擊是「重錘當武器、原武器的攻擊力」：實測鐵巨人扣的是鑽石劍的 7 點，扣耐久的是重錘。判斷武器用登錄名稱（`BuiltInRegistries.ITEM.getKey`），不要用 `Item.toString()`，1.21.11 沒有覆寫它
 - `CrystalMacro` 的 `auto-obsidian`：切到黑曜石、點擊、切回水晶在**同一個 tick** 內做完，否則玩家按住右鍵時原版的連續使用會多放一塊
-- 連點模組用 `Input.isPressed(keyUse／keyAttack)` 判斷實體按鍵，點擊用 Meteor 的 `Utils.rightClick()`／`Utils.leftClick()`（就是呼叫原版的 `startUseItem()`／`startAttack()`）。`Utils.leftClick()` 結束時會把攻擊鍵設成放開，所以之後要再 `setDown(true)`
+- 連點模組用 `Input.isPressed(keyUse／keyAttack)` 判斷實體按鍵；每一下點擊是 `KeyMapping.click(綁定的按鍵)`（按鍵用 Meteor 的 `KeyMappingAccessor.meteor$getKey()` 取得），等於多按一次，由原版的 `handleKeybinds()` 在同一個 tick 逐一處理，所以一個 tick 可以有好幾下（100 CPS = 每 tick 5 下）。不要用 `Utils.rightClick()`，它一個 tick 只會點一次
+- `AnchorMacro` 的延遲都是 0 時，`onTick()` 的迴圈會在同一個 tick 內走完切換、補充、切回、引爆（補充後方塊狀態是客戶端預測的，不用等伺服器）。改過預設值的設定要換名字（`swap-delay`、`use-delay`），否則玩家存檔裡的舊值會蓋掉新預設
 - **原則是只做原版按鍵會做的事**。所有點擊都走 `Clicks.java`，呼叫順序照抄 `Minecraft.startUseItem()`／`startAttack()`（先取揮手動畫、再 `useItemOn`／`useItem`／`attack`、結果是 `PREDICTED` 才揮手）。切物品只用 `inventory.setSelectedSlot()`，點方塊只用 `mc.hitResult`，不偽造視角
 - 偵測「玩家自己放的」：`InteractBlockEvent`（重生錨、水晶）、`InteractItemEvent` 加 `EntityAddedEvent`（珍珠）。模組自己的點擊也會觸發這些事件，所以用 `clicking` 旗標擋掉
 - `WindPearl` 的物理（從 26.3 的 bytecode 查到的）：
