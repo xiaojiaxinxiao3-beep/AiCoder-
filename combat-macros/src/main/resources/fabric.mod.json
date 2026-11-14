@@ -16,6 +16,9 @@
       "aicoder.combat.CombatAddon"
     ]
   },
+  "mixins": [
+    "aicoder-combat.mixins.json"
+  ],
   "custom": {
     "meteor-client:color": "255,170,60",
     "modmenu": {

@@ -7,7 +7,6 @@ import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.friends.Friends;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.orbit.EventHandler;
@@ -113,7 +112,7 @@ public class CrosshairDrift extends Module {
     );
 
     public CrosshairDrift() {
-        super(Categories.Combat, "crosshair-drift", "When a player is within the range you set, your crosshair slowly drifts towards them.");
+        super(AiCoderTab.MELEE, "crosshair-drift", "When a player is within the range you set, your crosshair slowly drifts towards them.");
     }
 
     @EventHandler

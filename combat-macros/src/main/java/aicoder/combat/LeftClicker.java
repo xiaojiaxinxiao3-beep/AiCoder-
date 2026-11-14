@@ -5,7 +5,6 @@ import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.misc.input.Input;
@@ -60,7 +59,7 @@ public class LeftClicker extends Module {
     private int wait;
 
     public LeftClicker() {
-        super(Categories.Combat, "left-clicker", "Hold the left mouse button and it turns into repeated left clicks, at the pace you set.");
+        super(AiCoderTab.MELEE, "left-clicker", "Hold the left mouse button and it turns into repeated left clicks, at the pace you set.");
     }
 
     @Override

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "aicoder.combat.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ModulesMixin",
+    "TabScreenAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

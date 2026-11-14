@@ -6,7 +6,6 @@ import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
@@ -115,7 +114,7 @@ public class CrystalMacro extends Module {
     private EndCrystal target;
 
     public CrystalMacro() {
-        super(Categories.Combat, "crystal-macro", "Hits the end crystal you just placed, after a delay you choose. Hold right click to keep placing; the module adds the left clicks.");
+        super(AiCoderTab.EXPLOSIVES, "crystal-macro", "Hits the end crystal you just placed, after a delay you choose. Hold right click to keep placing; the module adds the left clicks.");
     }
 
     @Override

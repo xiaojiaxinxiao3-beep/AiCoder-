@@ -8,7 +8,6 @@ import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.orbit.EventHandler;
@@ -135,7 +134,7 @@ public class WindPearl extends Module {
     private double miss;
 
     public WindPearl() {
-        super(Categories.Combat, "wind-pearl", "After you throw an ender pearl, throws a wind charge aimed to meet it in the air, so the pearl goes off there and takes you with it.");
+        super(AiCoderTab.UTILITY, "wind-pearl", "After you throw an ender pearl, throws a wind charge aimed to meet it in the air, so the pearl goes off there and takes you with it.");
     }
 
     @Override

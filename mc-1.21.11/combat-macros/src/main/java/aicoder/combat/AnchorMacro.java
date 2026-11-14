@@ -6,7 +6,6 @@ import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
@@ -105,7 +104,7 @@ public class AnchorMacro extends Module {
     private boolean clicking;
 
     public AnchorMacro() {
-        super(Categories.Combat, "anchor-macro", "After you place a respawn anchor by hand, charges it with one glowstone from your hotbar and sets it off. Plain key presses and clicks only.");
+        super(AiCoderTab.EXPLOSIVES, "anchor-macro", "After you place a respawn anchor by hand, charges it with one glowstone from your hotbar and sets it off. Plain key presses and clicks only.");
     }
 
     @Override

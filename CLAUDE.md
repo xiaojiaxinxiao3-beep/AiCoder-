@@ -190,8 +190,9 @@
 - 沒做到的：開啟 GUI 時「96% → 100% 放大」的動畫（只有 Meteor 本身的淡入）；等寬字（Meteor 的字型沒有等寬字，編號與數值用同一種字）；沒有用 Shoreline 實測過
 
 ## 模組 addon：戰鬥巨集（`combat-macros/`）
-- 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`，沒有 mixin。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
-- 七個模組都在 `Categories.Combat`：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`
+- 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
+- **自己的分頁**（`AiCoderTab`，做法和 Shoreline 一樣）：`Tabs.add()` 加一個分頁，`createScreen()` 直接回傳 `theme.modulesScreen()`，所以任何主題都能用。兩個 mixin（都是 `remap = false`，目標是 Meteor 的類別）：`ModulesMixin` 攔 `Modules.loopCategories()`，目前畫面是 AiCoder 分頁時只回傳自己的三個分類、是 Modules 分頁時回傳其他分類、其餘情況回傳全部；`TabScreenAccessor` 把畫面的 `tab` 欄位（final）改成自己的分頁，分頁列才會標對。判斷「目前是哪個分頁」用 `mc.gui.screen()` 的 `tab`，建構期間另外用 `creating` 旗標
+- 七個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`
 - `MaceSwap` 掛在 `DoAttackEvent`（`startAttack()` 的開頭，原版還沒讀手上物品之前）改選取的欄位，之後原版的 `attack()` 會先送換欄位封包再送攻擊封包。伺服器要到下一個 tick 才套用新物品的屬性並重置蓄力，所以這一擊是「重錘當武器、原武器的攻擊力」：實測鐵巨人扣的是鑽石劍的 7 點，扣耐久的是重錘。判斷武器用登錄名稱（`BuiltInRegistries.ITEM.getKey`），不要用 `Item.toString()`，1.21.11 沒有覆寫它
 - `CrystalMacro` 的 `auto-obsidian`：切到黑曜石、點擊、切回水晶在**同一個 tick** 內做完，否則玩家按住右鍵時原版的連續使用會多放一塊
 - 連點模組用 `Input.isPressed(keyUse／keyAttack)` 判斷實體按鍵，點擊用 Meteor 的 `Utils.rightClick()`／`Utils.leftClick()`（就是呼叫原版的 `startUseItem()`／`startAttack()`）。`Utils.leftClick()` 結束時會把攻擊鍵設成放開，所以之後要再 `setDown(true)`

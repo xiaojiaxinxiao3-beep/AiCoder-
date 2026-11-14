@@ -4,7 +4,6 @@ import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.misc.input.Input;
@@ -51,7 +50,7 @@ public class RightClicker extends Module {
     private int wait;
 
     public RightClicker() {
-        super(Categories.Combat, "right-clicker", "Hold the right mouse button and it turns into repeated right clicks, at the pace you set.");
+        super(AiCoderTab.UTILITY, "right-clicker", "Hold the right mouse button and it turns into repeated right clicks, at the pace you set.");
     }
 
     @Override

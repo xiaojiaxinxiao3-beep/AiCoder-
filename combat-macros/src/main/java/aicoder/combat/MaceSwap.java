@@ -8,7 +8,6 @@ import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.friends.Friends;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
@@ -93,7 +92,7 @@ public class MaceSwap extends Module {
     private int wait;
 
     public MaceSwap() {
-        super(Categories.Combat, "mace-swap", "When you hit someone with another weapon and have a mace in your hotbar, switches to the mace for that hit and back again shortly after.");
+        super(AiCoderTab.MELEE, "mace-swap", "When you hit someone with another weapon and have a mace in your hotbar, switches to the mace for that hit and back again shortly after.");
     }
 
     @Override
