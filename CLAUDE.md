@@ -239,3 +239,8 @@
 - 兩版的主要差異都列在 `port.py` 裡：`DrawContext`、`Click`／`KeyInput`、GLFW 常數與游標、`NbtCompound`、`net.minecraft.util.Pair`、`PositionedSoundInstance.ui`、`TextureFormat`；1.21.11 的 `TextRenderer.begin()` 不需要 graphics，所以沒有 `GuiRendererAccessor` mixin；沒有 `modulesHelpText()`
 - 建置：Loom 用 `net.fabricmc.fabric-loom-remap` 外掛（Gradle 以 JDK 25 執行、編譯目標 Java 21），最終檔名設在 `remapJar` 而不是 `jar`
 - 這個環境可以用 OpenGL 跑 1.21.11（26.3 只能走軟體 Vulkan）
+
+## Zorynth 外掛：AiCoder Themes（`zorynth-plugin/`）
+- 另一個客戶端（Zorynth，外掛 API 1）的主題外掛，結構照使用者朋友給的模板；說明與限制在 `zorynth-plugin/README.md`。不用 Gradle 也能建：`./build.sh`
+- 模板沒附 SDK jar。`sdk-stub/` 只宣告從模板的範例編譯檔與說明書能確認的簽名；**不要用任何沒確認過的 API**（背景層用 `Layer.values()` 找，不寫常數名）
+- 13 個模組＝13 個主題（`Style.java`），背景都在 `Backdrops.java`，只用 `fill` 和 `text`。`preview/Preview.java` 是假宿主，用來出預覽圖；沒有在真的客戶端跑過

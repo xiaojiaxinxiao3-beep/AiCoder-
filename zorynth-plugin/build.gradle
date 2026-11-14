@@ -1,0 +1,7 @@
+plugins { id 'java' }
+group = 'aicoder'
+version = '1.0.0'
+base { archivesName = 'aicoder-themes' }
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+dependencies { compileOnly files('sdk/zorynth-plugin-api-1.jar') }
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 25 }
