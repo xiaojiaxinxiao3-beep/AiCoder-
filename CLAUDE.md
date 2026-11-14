@@ -189,6 +189,18 @@
 - 分頁列在單視窗版置中、在直立式版靠右（`AuroraGuiTheme.topBarRight()`，由 `WAuroraTopBar.calculateWidgetPositions()` 改 x）
 - 沒做到的：開啟 GUI 時「96% → 100% 放大」的動畫（只有 Meteor 本身的淡入）；等寬字（Meteor 的字型沒有等寬字，編號與數值用同一種字）；沒有用 Shoreline 實測過
 
+## 模組 addon：戰鬥巨集（`combat-macros/`）
+- 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`，沒有 mixin。只有 26.3 版：`port.py` 只會轉 GUI 相關的命名，這個專案沒有列進去
+- 四個模組都在 `Categories.Combat`：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`
+- **原則是只做原版按鍵會做的事**。所有點擊都走 `Clicks.java`，呼叫順序照抄 `Minecraft.startUseItem()`／`startAttack()`（先取揮手動畫、再 `useItemOn`／`useItem`／`attack`、結果是 `PREDICTED` 才揮手）。切物品只用 `inventory.setSelectedSlot()`，點方塊只用 `mc.hitResult`，不偽造視角
+- 偵測「玩家自己放的」：`InteractBlockEvent`（重生錨、水晶）、`InteractItemEvent` 加 `EntityAddedEvent`（珍珠）。模組自己的點擊也會觸發這些事件，所以用 `clicking` 旗標擋掉
+- `WindPearl` 的物理（從 26.3 的 bytecode 查到的）：
+  - 珍珠每 tick：`vy -= 0.03`，速度 `*= 0.99`，再移動
+  - 玩家丟的風彈 `accelerationPower = 0`、慣性 1.0：固定每 tick 1.5 格直線飛，沒有重力
+  - 珍珠能打到風彈是因為 `Projectile.isPickable()` 對 `REDIRECTABLE_PROJECTILE` 標籤回傳 true；碰撞框只多出 `computeMargin()` 的 0～0.3 格，所以實際要在約 0.45 格內
+  - `CLIENT_LAG = 2`：畫面上的珍珠比伺服器慢的 tick 數，是在單人世界試出來的。這個環境只有 5 FPS，試驗結果有雜訊
+- 實測方式：`--quickPlaySingleplayer "New World"` 直接進世界，用聊天指令給物品、`/tp @s x y z yaw pitch` 設定視角（xdotool 的相對滑鼠移動在這裡無效）、`/data get entity @s Pos` 讀結果。超平坦世界要先 `/difficulty peaceful`，否則史萊姆會把人推走
+
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
 - `gui/Wallpaper.java`（兩個專案各一份，只有 namespace 不同）。圖片**只畫在面板裡**，不是全螢幕背景：`frame()` 每個畫面算一次「鋪滿螢幕」的排版，`renderIn()` 由 `Chrome.panel()` 呼叫，用自己的 `Renderer2D` 畫該面板範圍的那一塊（UV 依螢幕座標），圓角用水平細條拼
 - `renderIn()` 用自己的 scissor 立刻送出，所以面板之後畫的染色、反光、亮邊都疊在圖片上面

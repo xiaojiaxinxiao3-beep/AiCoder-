@@ -142,6 +142,28 @@ cd aurora-glass      # 或 aurora-columns
 - 版面以 1920×1080 為基準，遊戲視窗比較小的時候整個 GUI（包含 Meteor 內建的元件）會等比縮小，最小到 60%。
 - 1.21.11 版在 `mc-1.21.11/aurora-glass/`、`mc-1.21.11/aurora-columns/`，一樣由 `port.py` 產生。
 
+# AiCoder 戰鬥巨集（`combat-macros/`）
+
+不是主題，而是四個 Meteor 模組（都在 Combat 分類），產出 `AiCoder戰鬥巨集.jar`，只有 Minecraft 26.3 版。
+共同原則：只做「幫你按按鍵」的事——切快捷列、對準心指到的東西按右鍵或左鍵、真的轉動視角。送出的封包和原版客戶端按同樣按鍵時一樣。
+
+| 模組 | 做什麼 | 主要設定 |
+|---|---|---|
+| `anchor-macro` | 你親手放下重生錨後，切到螢光石補一格、切回來再點一下引爆 | `switch-delay`、`click-delay`、`random-delay`、`explode` |
+| `crystal-macro` | 你放下終界水晶後，準心在水晶上時幫你按左鍵。按住右鍵就會一直放、一直炸 | `attack-delay`、`random-delay`、`only-my-crystals` |
+| `crosshair-drift` | 設定距離內有玩家時，視角慢慢轉向他（有速度上限，靠近時減速，準心到了就放手） | `range`、`speed`（度／秒）、`softness`、`cone`、`aim-at` |
+| `wind-pearl` | 丟出終界珍珠後自動補丟風彈，預判兩者在空中相遇，珍珠在那裡觸發 | `delay`、`extra-lead`、`ping-compensation`、`report-result` |
+
+- 重生錨、水晶、風彈都要放在**快捷列**；模組不會開背包搬東西。
+- `anchor-macro` 在地獄不會動作（那裡點重生錨是設重生點）；按住潛行時也不動作。
+- `wind-pearl`：珍珠碰到風彈的範圍只有大約半格。往上丟（仰角 45° 以上）最穩；平拋時差一個 tick 就會錯過，
+  可以開 `report-result` 看風彈是從珍珠前面還是後面經過，再調 `extra-lead`。`delay` 越大，相遇點越遠（往上丟就是越高）。
+
+```
+cd combat-macros
+./gradlew build      # 系統語系要是 UTF-8
+```
+
 # 壁紙（液態玻璃、液態玻璃直立式）
 
 兩個液態玻璃 addon 的面板裡可以顯示一張圖片：圖片以「鋪滿整個畫面」的方式排版，但只有面板內看得到，

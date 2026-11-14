@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-combat",
+  "version": "${version}",
+  "name": "AiCoder Combat Macros",
+  "description": "Meteor Client modules that finish what you start by hand: anchor and crystal follow-ups, a gentle crosshair drift, and a wind charge that catches your ender pearl in the air.",
+  "authors": [
+    "AiCoder"
+  ],
+  "contact": {
+    "sources": "https://github.com/xiaojiaxinxiao3-beep/AiCoder-"
+  },
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.combat.CombatAddon"
+    ]
+  },
+  "custom": {
+    "meteor-client:color": "255,170,60",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}

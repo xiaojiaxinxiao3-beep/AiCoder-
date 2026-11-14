@@ -49,6 +49,10 @@ jobs:
         working-directory: aurora-columns
         run: ./gradlew build
 
+      - name: Build combat-macros addon
+        working-directory: combat-macros
+        run: ./gradlew build
+
       - name: Build the Minecraft 1.21.11 ports
         run: |
           for project in cyber earth-science liquid-glass columns glass-columns aurora-glass aurora-columns; do
