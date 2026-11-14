@@ -22,6 +22,9 @@ for key, owner, name, args in TARGETS:
     out[key] = m.cls(owner).replace('.', '/')
     out['%s.%s' % (key, name)], out['%s.%s.desc' % (key, name)] = m.method(owner, name, args)
 
+# Fields read by reflection because the game keeps them private
+out['GuiGraphics.guiRenderState'] = m.field(C + 'gui.GuiGraphics', 'guiRenderState')[0]
+
 os.makedirs(os.path.dirname(sys.argv[2]), exist_ok=True)
 with open(sys.argv[2], 'w') as f:
     f.write(''.join('%s=%s\n' % kv for kv in sorted(out.items())))

@@ -206,6 +206,18 @@
   - `CLIENT_LAG = 2`：畫面上的珍珠比伺服器慢的 tick 數，是在單人世界試出來的。26.3 在這個環境只有 5 FPS，結果有雜訊；1.21.11（OpenGL，流暢）用這個值從仰角 15° 到 85° 六次全中
 - 實測方式：`--quickPlaySingleplayer "New World"` 直接進世界，用聊天指令給物品、`/tp @s x y z yaw pitch` 設定視角（xdotool 的相對滑鼠移動在這裡無效）、`/data get entity @s Pos` 讀結果。超平坦世界要先 `/difficulty peaceful`，否則史萊姆會把人推走
 
+## 注入式客戶端：AiCoder Assist（`inject/`）
+- 不靠 Fabric、不靠 Meteor：注入到執行中的**原版 1.21.11**。產物 `inject/work/AiCoderAssist.jar` 與 `.exe`（`work/` 不進 repo）。說明、測試範圍與建置流程都在 `inject/README.md`
+- **`inject/src/aicoder/assist/modules/` 與 `aurora/{Fx,Chrome,Aurora,Style}.java` 是產生出來的**：`inject/tools/port_modules.py` 從 `combat-macros/` 和 `aurora-glass/` 轉過來，改那兩邊再重跑 `./build.sh`
+- 程式對著 Mojang 的名稱寫（`work/minecraft-named.jar`），建置時用 tiny-remapper 整包轉成混淆名稱。只有兩種東西要查表（`tools/gen_names.py` → `names.properties`）：被 ASM 改寫的方法、用反射讀的 private 欄位
+- 掛鉤只能是「在方法開頭插入一行靜態呼叫」（執行中的 JVM 不允許加欄位或方法）。目前六個：`Minecraft.tick`、`startAttack`、`GameRenderer.render`、`MultiPlayerGameMode.useItemOn`／`useItem`、`ClientLevel.addEntity`、`KeyboardHandler.keyPress`。在 return 前插入的寫法曾讓 `Gui.render` 驗證失敗，沒有再用
+- 繪圖：`gfx/GuiRenderer` 把四邊形收成一個實作 `GuiElementRenderState` 的 `Mesh`，交給 `GuiGraphics` 裡的 `guiRenderState`（package-private，用反射拿）。座標是 framebuffer 像素，用 pose 縮回 GUI 單位。和 Meteor 一樣，一個 scissor 內先送色塊、再跑 `post()` 的工作（文字）
+- 字體：`gfx/TextRenderer` 照 Meteor 的 `CustomTextRenderer`（五種高度 27～81、`getWidth` 除以 1.5 等）實作，量出來的寬高一致，所以 `Fx` 的排版不用改
+- 官方啟動器附的 Java 21 runtime 含 `java.instrument` 和 `jdk.attach`（查過 Windows 與 Linux 的 `release` 檔），所以 `.exe` 直接用遊戲行程旁邊的 `java.exe` 來注入
+- `.exe` 是 `launcher/launcher.c`（mingw 編譯）後面接上 jar；Java 從檔尾讀 jar，所以同一個檔案可以當 `-jar` 的參數，也可以當 agent。**`.exe` 沒有在 Windows 上執行過**
+- 原則和戰鬥巨集一樣，另外明確不做躲避偵測的功能
+- 測試：`inject/test.sh`（手動用快取裡的官方 jar 啟動原版，再注入）。腳本裡不要用 `| tail` 接它的輸出，背景的遊戲會讓管線等不到結束
+
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
 - `gui/Wallpaper.java`（兩個專案各一份，只有 namespace 不同）。圖片**只畫在面板裡**，不是全螢幕背景：`frame()` 每個畫面算一次「鋪滿螢幕」的排版，`renderIn()` 由 `Chrome.panel()` 呼叫，用自己的 `Renderer2D` 畫該面板範圍的那一塊（UV 依螢幕座標），圓角用水平細條拼
 - `renderIn()` 用自己的 scissor 立刻送出，所以面板之後畫的染色、反光、亮邊都疊在圖片上面

@@ -169,6 +169,11 @@ cd combat-macros
 ./gradlew build      # 系統語系要是 UTF-8
 ```
 
+# AiCoder Assist 注入式客戶端（`inject/`）
+
+不需要 Fabric 和 Meteor：啟動原版 Minecraft 1.21.11 後執行 `AiCoderAssist.exe`，把七個模組和兩個極光玻璃介面注入到正在執行的遊戲裡，按右 Shift 開啟。
+詳細說明、測過與沒測過的範圍在 [`inject/README.md`](inject/README.md)。
+
 # 壁紙（液態玻璃、液態玻璃直立式）
 
 兩個液態玻璃 addon 的面板裡可以顯示一張圖片：圖片以「鋪滿整個畫面」的方式排版，但只有面板內看得到，

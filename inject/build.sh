@@ -35,6 +35,13 @@ $REMAP $W/named.jar $W/official.jar $W/mojang.tiny named official $W/minecraft-n
 # 5. One jar: our classes, ASM, the patch targets, and a manifest that makes it both injector and payload
 rm -rf $W/pack && mkdir -p $W/pack && (cd $W/pack && unzip -qo ../official.jar && unzip -qo ../asm-moved.jar -x 'META-INF/*')
 python3 tools/gen_names.py $W/client.txt $W/pack/aicoder/assist/names.properties
+cp -r res/. $W/pack/
 printf 'Main-Class: aicoder.assist.Injector\nAgent-Class: aicoder.assist.Agent\nCan-Retransform-Classes: true\n' > $W/manifest.txt
 $JD/jar cfm $W/AiCoderAssist.jar $W/manifest.txt -C $W/pack .
-ls -la $W/AiCoderAssist.jar
+
+# 6. The Windows program: a small launcher with the jar appended (Java reads a jar from the end of a file)
+if command -v x86_64-w64-mingw32-gcc > /dev/null; then
+  x86_64-w64-mingw32-gcc -O2 -s -municode -o $W/launcher.exe launcher/launcher.c
+  cat $W/launcher.exe $W/AiCoderAssist.jar > $W/AiCoderAssist.exe
+fi
+ls -la $W/AiCoderAssist.jar $W/AiCoderAssist.exe

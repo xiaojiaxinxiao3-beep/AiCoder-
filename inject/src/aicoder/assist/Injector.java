@@ -15,16 +15,24 @@ public final class Injector {
         for (VirtualMachineDescriptor vm : VirtualMachine.list()) {
             if (!vm.displayName().contains("net.minecraft.client.main.Main")) continue;
 
-            System.out.println("Minecraft found, process " + vm.id());
-            VirtualMachine machine = VirtualMachine.attach(vm);
+            System.out.println("Minecraft found (process " + vm.id() + ").");
             try {
-                machine.loadAgent(payload);
-            } finally {
-                machine.detach();
+                VirtualMachine machine = VirtualMachine.attach(vm);
+                try {
+                    machine.loadAgent(payload);
+                } finally {
+                    machine.detach();
+                }
+            } catch (Exception e) {
+                System.out.println("Could not inject: " + e.getMessage());
+                System.out.println("This build only works with Minecraft 1.21.11, started without mods.");
+                System.exit(1);
             }
-            System.out.println("AiCoder Assist injected. Press Right Shift in the game.");
-            return;
+            System.out.println("AiCoder Assist is in. Press Right Shift in the game to open the menu.");
+            System.exit(0);
         }
-        System.out.println("Minecraft is not running. Start the game first, then run this again.");
+
+        System.out.println("Minecraft is not running. Start Minecraft 1.21.11 first, then run this again.");
+        System.exit(2);
     }
 }

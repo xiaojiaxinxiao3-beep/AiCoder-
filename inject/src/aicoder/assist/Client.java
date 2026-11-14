@@ -5,7 +5,7 @@ import aicoder.assist.api.Events;
 import aicoder.assist.api.Module;
 import aicoder.assist.api.Setting;
 import aicoder.assist.api.SettingGroup;
-import aicoder.assist.gui.ClickGui;
+import aicoder.assist.aurora.AuroraScreen;
 import aicoder.assist.modules.AnchorMacro;
 import aicoder.assist.modules.CrosshairDrift;
 import aicoder.assist.modules.CrystalMacro;
@@ -42,6 +42,11 @@ public final class Client {
 
     private static final Map<Class<?>, List<Handler>> handlers = new HashMap<>();
     private static final Events.TickEvent.Pre TICK = new Events.TickEvent.Pre();
+    /** Which of the two aurora layouts the menu shows: "columns" or "window". */
+    public static String layout = "columns";
+    /** Drifting aurora, breathing highlights and fades. */
+    public static boolean animations = true;
+
     private static final int MENU_KEY = GLFW.GLFW_KEY_RIGHT_SHIFT;
     private static boolean menuRequested;
     private static boolean started;
@@ -107,7 +112,7 @@ public final class Client {
 
         if (menuRequested) {
             menuRequested = false;
-            if (mc.screen == null || mc.screen instanceof TitleScreen) mc.setScreen(new ClickGui());
+            if (mc.screen == null || mc.screen instanceof TitleScreen) mc.setScreen(new AuroraScreen());
         }
 
         post(TICK);
@@ -129,6 +134,8 @@ public final class Client {
 
     public static void save() {
         Properties out = new Properties();
+        out.setProperty("ui.layout", layout);
+        out.setProperty("ui.animations", String.valueOf(animations));
         for (Module module : modules) {
             out.setProperty(module.name + ".enabled", String.valueOf(module.isActive()));
             for (SettingGroup group : module.settings.groups) {
@@ -154,6 +161,9 @@ public final class Client {
             e.printStackTrace();
             return;
         }
+
+        layout = "window".equals(in.getProperty("ui.layout")) ? "window" : "columns";
+        animations = !"false".equals(in.getProperty("ui.animations"));
 
         for (Module module : modules) {
             for (SettingGroup group : module.settings.groups) {

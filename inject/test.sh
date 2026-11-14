@@ -1,4 +1,5 @@
 #!/bin/bash
+# PAYLOAD=work/AiCoderAssist.exe ./test.sh ... injects with the Windows file instead of the jar.
 # Starts an unmodified Minecraft 1.21.11 (official jar, no mod loader) on a virtual display, waits for it to
 # load, then injects work/AiCoderAssist.jar.   ./test.sh [extra game arguments, e.g. --quickPlaySingleplayer "New World"]
 cd "$(dirname "$0")"; unset JAVA_TOOL_OPTIONS; export LC_ALL=C.UTF-8
@@ -13,5 +14,5 @@ W=$PWD/work
   --assetsDir $HOME/.gradle/caches/fabric-loom/assets --assetIndex 1.21.11-29 --width 1280 --height 720 "$@" > $W/game.log 2>&1 < /dev/null &)
 for i in $(seq 1 90); do sleep 2; grep -qE "OpenAL|Sound engine|Exception in thread|logged in with entity" work/game.log && break; done
 sleep ${SETTLE:-14}
-$JD/java -jar work/AiCoderAssist.jar 2>&1 | head -4
+$JD/java -jar ${PAYLOAD:-work/AiCoderAssist.jar} 2>&1 | head -4
 sleep 3; grep -n "AiCoder Assist\]\|VerifyError\|at aicoder" work/game.log | tail -8 | cut -c1-200

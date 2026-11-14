@@ -27,9 +27,16 @@ public final class Agent {
     private record Patch(String owner, String method, String desc, String hook, String... arguments) {
     }
 
+    private static final String GAME_VERSION = "1.21.11";
     private static boolean loaded;
 
     public static void agentmain(String args, Instrumentation inst) throws Exception {
+        // The names this build knows belong to one game version only; in any other they would point at the wrong things
+        String version = gameVersion();
+        if (!GAME_VERSION.equals(version)) {
+            throw new IllegalStateException(Client.NAME + " is built for Minecraft " + GAME_VERSION + ", this is " + version);
+        }
+
         if (loaded) {
             System.out.println("[" + Client.NAME + "] already injected.");
             return;
@@ -91,6 +98,18 @@ public final class Agent {
             }
         }
         System.out.println("[" + Client.NAME + "] injected, patched " + done + " of " + wanted + " classes");
+    }
+
+    /** The version the running game says it is, read from the version.json inside its jar. */
+    private static String gameVersion() {
+        try (java.io.InputStream in = ClassLoader.getSystemResourceAsStream("version.json")) {
+            if (in == null) return "unknown";
+            String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"").matcher(text);
+            return m.find() ? m.group(1) : "unknown";
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 
     private static Patch patch(Names names, String key, String hook, String... slots) {

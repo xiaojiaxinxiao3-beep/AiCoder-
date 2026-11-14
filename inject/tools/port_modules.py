@@ -40,6 +40,28 @@ def port(text):
     return text
 
 
+def port_theme(text):
+    """Fx, Chrome, Aurora and Style of the aurora theme, moved onto the stand-in renderer."""
+    text = text.replace('package aicoder.aurora.gui;', 'package aicoder.assist.aurora;')
+    text = re.sub(r'import aicoder\.aurora\.mixin\.[^\n]*\n', '', text)
+    text = re.sub(r'import meteordevelopment\.meteorclient\.(gui\.GuiTheme|gui\.renderer\.GuiRenderer|renderer\.text\.TextRenderer|utils\.render\.color\.Color);',
+                  lambda m: 'import aicoder.assist.gfx.%s;' % m.group(1).split('.')[-1], text)
+    text = re.sub(r'import meteordevelopment\.[^\n]*\n', '', text)
+    text = re.sub(r'import net\.minecraft\.client\.gui\.GuiGraphicsExtractor;\n', '', text)
+    # Text here always goes through the bundled font
+    text = text.replace('return !Config.get().customFont.get();', 'return false;')
+    text = re.sub(r'\n *GuiGraphicsExtractor graphics = [^\n]*\n', '\n', text)
+    text = text.replace('tr.begin(graphics, first.scale);', 'tr.begin(first.scale);')
+    return text
+
+
+THEME_SRC = os.path.join(HERE, '..', 'aurora-glass', 'src', 'main', 'java', 'aicoder', 'aurora', 'gui')
+THEME_DST = os.path.join(HERE, 'src', 'aicoder', 'assist', 'aurora')
+os.makedirs(THEME_DST, exist_ok=True)
+for name in ['Fx', 'Chrome', 'Aurora', 'Style']:
+    source = open(os.path.join(THEME_SRC, name + '.java'), encoding='utf-8').read()
+    open(os.path.join(THEME_DST, name + '.java'), 'w', encoding='utf-8').write(port_theme(source))
+
 os.makedirs(DST, exist_ok=True)
 for name in FILES:
     source = open(os.path.join(SRC, name + '.java'), encoding='utf-8').read()
