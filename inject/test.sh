@@ -9,8 +9,8 @@ mkdir -p $XDG_RUNTIME_DIR work/game; chmod 700 $XDG_RUNTIME_DIR
 pkill -f "net.minecraft.client.main.Main"; sleep 2
 pgrep -f "Xvfb :77" >/dev/null || { (Xvfb :77 -screen 0 1280x720x24 +extension GLX +render -noreset >/dev/null 2>&1 &); sleep 1; }
 W=$PWD/work
-(cd work/game && nohup $JD/java -Xmx2G -cp "$(cat $W/cp.txt)" net.minecraft.client.main.Main --version 1.21.11 --accessToken 0 --username Tester --gameDir . \
-  --assetsDir $HOME/.gradle/caches/fabric-loom/assets --assetIndex 1.21.11-29 --width 1280 --height 720 "$@" > $W/game.log 2>&1 &)
+(cd work/game && nohup setsid $JD/java -Xmx2G -cp "$(cat $W/cp.txt)" net.minecraft.client.main.Main --version 1.21.11 --accessToken 0 --username Tester --gameDir . \
+  --assetsDir $HOME/.gradle/caches/fabric-loom/assets --assetIndex 1.21.11-29 --width 1280 --height 720 "$@" > $W/game.log 2>&1 < /dev/null &)
 for i in $(seq 1 90); do sleep 2; grep -qE "OpenAL|Sound engine|Exception in thread|logged in with entity" work/game.log && break; done
 sleep ${SETTLE:-14}
 $JD/java -jar work/AiCoderAssist.jar 2>&1 | head -4
