@@ -48,7 +48,7 @@ public final class Agent {
         String version = gameVersion();
         if (!GAME_VERSION.equals(version)) {
             throw new IllegalStateException("this download is for Minecraft " + GAME_VERSION + ", but the running game says it is " + version
-                + (version.equals("unknown") ? " (its jar has no version.json: a modified or repacked game)" : ""));
+                + (version.equals("unknown") ? " (no version.json where a plain game has one)" : "") + "; " + describeGame());
         }
 
         if (loaded) {
@@ -114,16 +114,37 @@ public final class Agent {
         System.out.println("[" + Client.NAME + "] injected, patched " + done + " of " + wanted + " classes");
     }
 
-    /** The version the running game says it is, read from the version.json inside its jar. */
+    /**
+     * The version the running game says it is, read from the version.json inside its jar. Every
+     * version.json on the class path is looked at: some launchers put other jars that carry one
+     * (an installer, a wrapper) ahead of the game. The build's own version wins if any of them names it.
+     */
     private static String gameVersion() {
-        try (java.io.InputStream in = ClassLoader.getSystemResourceAsStream("version.json")) {
-            if (in == null) return "unknown";
-            String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"").matcher(text);
-            return m.find() ? m.group(1) : "unknown";
-        } catch (Exception e) {
-            return "unknown";
+        java.util.List<String> found = new ArrayList<>();
+        try {
+            java.util.Enumeration<java.net.URL> all = ClassLoader.getSystemResources("version.json");
+            while (all.hasMoreElements()) {
+                try (java.io.InputStream in = all.nextElement().openStream()) {
+                    String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"").matcher(text);
+                    if (m.find()) found.add(m.group(1));
+                } catch (Exception ignored) {
+                    // An unreadable one tells nothing either way
+                }
+            }
+        } catch (Exception ignored) {
+            // Falls through to "unknown"
         }
+        if (found.contains(GAME_VERSION)) return GAME_VERSION;
+        return found.isEmpty() ? "unknown" : String.join(" / ", found);
+    }
+
+    /** What the game was started with, for the reason shown when injection is refused. */
+    private static String describeGame() {
+        String command = System.getProperty("sun.java.command", "");
+        String main = command.isEmpty() ? "?" : command.split(" ")[0];
+        boolean vanillaMain = main.equals("net.minecraft.client.main.Main");
+        return "started through " + main + (vanillaMain ? "" : " (not the plain game: a mod loader or a launcher wrapper)") + ", Java " + System.getProperty("java.version");
     }
 
     private static Patch patch(Names names, String key, String hook, String... slots) {

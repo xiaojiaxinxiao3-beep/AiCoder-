@@ -20,6 +20,37 @@ public final class Injector {
     public static void main(String[] args) throws Exception {
         String payload = new File(Injector.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
 
+        // Everything shown in the window also goes to a text file beside the jar, so it can be sent along
+        try {
+            java.io.PrintStream file = new java.io.PrintStream(new java.io.FileOutputStream(new File(new File(payload).getParentFile(), "AiCoderAssist-log.txt")), true, "UTF-8");
+            java.io.PrintStream window = System.out;
+            System.setOut(new java.io.PrintStream(new java.io.OutputStream() {
+                @Override public void write(int b) { window.write(b); file.write(b); }
+                @Override public void write(byte[] b, int off, int len) { window.write(b, off, len); file.write(b, off, len); }
+                @Override public void flush() { window.flush(); file.flush(); }
+            }, true));
+        } catch (Exception ignored) {
+            // A folder that cannot be written to: the window alone will do
+        }
+
+        // The game is told where this jar is as plain text, and on Windows a folder name outside ASCII
+        // (Chinese, accents) can arrive garbled, so the game finds no file. Use a copy with a plain path then.
+        if (!payload.chars().allMatch(c -> c < 128)) {
+            for (String folder : new String[]{System.getProperty("java.io.tmpdir"), "C:\\Users\\Public", "C:\\ProgramData"}) {
+                try {
+                    if (folder == null || !folder.chars().allMatch(c -> c < 128) || !new File(folder).isDirectory()) continue;
+                    File copy = new File(new File(folder, "AiCoderAssist"), new File(payload).getName().replaceAll("[^A-Za-z0-9._-]", "_"));
+                    copy.getParentFile().mkdirs();
+                    java.nio.file.Files.copy(new File(payload).toPath(), copy.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    System.out.println("This folder's name has non-English characters; using a copy at " + copy.getAbsolutePath());
+                    payload = copy.getAbsolutePath();
+                    break;
+                } catch (Exception ignored) {
+                    // Try the next place
+                }
+            }
+        }
+
         List<String> ids = new ArrayList<>();
         for (String arg : args) {
             if (arg.matches("\\d+")) ids.add(arg);
@@ -50,7 +81,7 @@ public final class Injector {
                 if (!command.toLowerCase(Locale.ROOT).contains("minecraft")) continue;
 
                 sawGame = true;
-                System.out.println("Minecraft found (process " + id + ").");
+                System.out.println("Minecraft found (process " + id + "): " + properties.getProperty("sun.java.command", "").split(" ")[0] + ", Java " + properties.getProperty("java.version", "?"));
                 machine.loadAgent(payload);
                 System.out.println("AiCoder Assist is in. Press Right Shift in the game to open the menu.");
                 System.exit(0);
@@ -63,6 +94,7 @@ public final class Injector {
                 }
                 System.out.println("Could not inject into process " + id + ".");
                 System.out.println("Reason: " + (reason != null ? reason : e.getMessage()));
+                System.out.println("(" + e + ")");
                 if (reason != null && reason.contains("this download is for Minecraft") && !reason.contains("for Minecraft 1.21.11,")) {
                     // The game still holds the classes of the package tried before; nothing loaded now can replace them
                     System.out.println();
