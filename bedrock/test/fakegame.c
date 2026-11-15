@@ -2,13 +2,14 @@
 #define UNICODE
 #include <windows.h>
 #include <stdio.h>
-static int L, R, K[10]; static int hide = 1;
-static void dump(void) { FILE* f = fopen("fakegame.log", "w"); if (!f) return; fprintf(f, "left=%d right=%d", L, R); for (int i = 1; i < 10; i++) fprintf(f, " k%d=%d", i, K[i]); fprintf(f, " hidden=%d\n", hide); fclose(f); }
+#include <string.h>
+static int L, R, K[10], SP; static char order[400]; static int hide = 1;
+static void dump(void) { FILE* f = fopen("fakegame.log", "w"); if (!f) return; fprintf(f, "left=%d right=%d", L, R); for (int i = 1; i < 10; i++) fprintf(f, " k%d=%d", i, K[i]); fprintf(f, " hidden=%d order=%s\n", hide, order); fclose(f); }
 static LRESULT CALLBACK proc(HWND h, UINT m, WPARAM w, LPARAM l) {
     switch (m) {
-        case WM_LBUTTONDOWN: L++; dump(); return 0;
-        case WM_RBUTTONDOWN: R++; dump(); return 0;
-        case WM_KEYDOWN: if (w >= '1' && w <= '9') K[w - '0']++; if (w == 'C') { hide = !hide; ShowCursor(!hide); } if (w == 'Z') { L = R = 0; for (int i = 0; i < 10; i++) K[i] = 0; } dump(); return 0;
+        case WM_LBUTTONDOWN: L++; strcat(order, "L "); dump(); return 0;
+        case WM_RBUTTONDOWN: R++; strcat(order, "R "); dump(); return 0;
+        case WM_KEYDOWN: if (strlen(order) > 380) order[0] = 0; if (w >= '1' && w <= '9') { K[w - '0']++; char t[4] = {(char) w, ' ', 0}; strcat(order, t); } if (w == VK_SPACE) { SP++; strcat(order, "J "); } if (w == 'C') { hide = !hide; ShowCursor(!hide); } if (w == 'Z') { L = R = SP = 0; order[0] = 0; for (int i = 0; i < 10; i++) K[i] = 0; } dump(); return 0;
         case WM_PAINT: { PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps); RECT r; GetClientRect(h, &r); HBRUSH b = CreateSolidBrush(RGB(90, 140, 90)); FillRect(dc, &r, b); DeleteObject(b); EndPaint(h, &ps); return 0; }
         case WM_DESTROY: PostQuitMessage(0); return 0;
     }

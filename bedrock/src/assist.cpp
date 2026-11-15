@@ -35,6 +35,7 @@ struct Setting {
 struct Module {
     const wchar_t* name; const wchar_t* id; const wchar_t* category; const wchar_t* description;
     std::vector<Setting> settings;
+    bool oneShot = false;   // runs once when switched on, then switches itself off
     bool on = false; int bind = 0; bool hold = false;
     bool keyWasDown = false;
     double get(int i) const { return settings[i].value; }
@@ -46,11 +47,24 @@ static std::vector<Module> g_modules = {
     {L"Right Clicker", L"right_clicker", L"Clicker", L"Hold the right mouse button: it keeps clicking for you.",
         {{L"CPS", L"cps", 14, 1, 100, 1, L""}, {L"Variation", L"variation", 15, 0, 50, 1, L"%"}, {L"Start After", L"start_after", 150, 0, 1000, 10, L"ms"}}},
     {L"Crystal Clicker", L"crystal_clicker", L"Explosives", L"Hold right click with crystals: place, hit, repeat.",
-        {{L"Hit Delay", L"hit_delay", 50, 0, 500, 5, L"ms"}, {L"Place Delay", L"place_delay", 50, 0, 500, 5, L"ms"}}},
+        {{L"Hit Delay", L"hit_delay", 50, 0, 500, 5, L"ms"}, {L"Place Delay", L"place_delay", 50, 0, 500, 5, L"ms"},
+         {L"Obsidian Slot (0 off)", L"obsidian_slot", 0, 0, 9, 1, L""}, {L"Crystal Slot", L"crystal_slot", 1, 1, 9, 1, L""}}},
     {L"Anchor Macro", L"anchor_macro", L"Explosives", L"Place an anchor by hand: it charges and detonates it.",
         {{L"Glowstone Slot", L"glowstone_slot", 2, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Step Delay", L"step_delay", 40, 0, 500, 5, L"ms"}}},
+    {L"Mace Swap", L"mace_swap", L"Melee", L"Your left click becomes: mace slot, hit, back to your weapon.",
+        {{L"Mace Slot", L"mace_slot", 2, 1, 9, 1, L""}, {L"Weapon Slot", L"weapon_slot", 1, 1, 9, 1, L""}, {L"Swap Delay", L"swap_delay", 40, 0, 300, 5, L"ms"}, {L"Back After", L"back_after", 60, 0, 500, 5, L"ms"}}},
+    {L"Spear Lunge", L"spear_lunge", L"Melee", L"While on: jump, spear slot, attack, back. Bind it as HOLD.",
+        {{L"Spear Slot", L"spear_slot", 3, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Jump (0 off)", L"jump", 1, 0, 1, 1, L""},
+         {L"Jump Lead", L"jump_lead", 60, 0, 500, 10, L"ms"}, {L"Step Delay", L"step_delay", 40, 0, 300, 5, L"ms"}, {L"Repeat Delay", L"repeat_delay", 250, 50, 2000, 10, L"ms"}}},
+    {L"Wind Pearl", L"wind_pearl", L"Movement", L"Throw a pearl by hand: it throws a wind charge after it.",
+        {{L"Wind Slot", L"wind_slot", 4, 1, 9, 1, L""}, {L"Pearl Slot", L"pearl_slot", 3, 1, 9, 1, L""}, {L"Delay", L"delay", 150, 0, 2000, 10, L"ms"},
+         {L"Aim Shift", L"aim_shift", 0, -400, 400, 5, L"px"}, {L"Step Delay", L"step_delay", 40, 0, 300, 5, L"ms"}}},
+    {L"Elytra Launch", L"elytra_launch", L"Movement", L"One press: jump, open the elytra, use a firework.",
+        {{L"Firework Slot", L"firework_slot", 5, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Open After", L"open_after", 250, 50, 1000, 10, L"ms"}, {L"Step Delay", L"step_delay", 60, 0, 300, 5, L"ms"}}, true},
+    {L"Dive Strike", L"dive_strike", L"Movement", L"One press: chestplate on, mace hit, elytra back on.",
+        {{L"Armor Slot", L"armor_slot", 6, 1, 9, 1, L""}, {L"Mace Slot", L"mace_slot", 2, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Step Delay", L"step_delay", 50, 0, 300, 5, L"ms"}}, true},
 };
-enum { LEFT, RIGHT, CRYSTAL, ANCHOR };
+enum { LEFT, RIGHT, CRYSTAL, ANCHOR, MACE, SPEAR, WIND, LAUNCH, DIVE };
 
 // ---------------------------------------------------------------- shared state
 
@@ -58,7 +72,8 @@ static HMODULE g_self;
 static HWND g_game, g_overlay;
 static volatile bool g_running = true, g_menu = false;
 static volatile bool g_physLeft = false, g_physRight = false;
-static volatile LONG g_rightPresses = 0;
+static volatile LONG g_rightPresses = 0, g_leftRequests = 0;
+static volatile bool g_swallowLeft = false, g_swallowedDown = false;
 static volatile ULONGLONG g_leftSince = 0, g_rightSince = 0;
 static HHOOK g_mouseHook;
 static DWORD g_hookThread;
@@ -132,7 +147,7 @@ static void mouse(DWORD flags) {
 /** One more press of a button. If the player is holding it, release first so the game sees a new press. */
 static void click(bool right) {
     DWORD down = right ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_LEFTDOWN, up = right ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_LEFTUP;
-    bool held = right ? g_physRight : g_physLeft;
+    bool held = right ? g_physRight : (g_physLeft && !g_swallowedDown);
     if (held) { mouse(up); mouse(down); }
     else { mouse(down); mouse(up); }
 }
@@ -152,8 +167,15 @@ static LRESULT CALLBACK mouseProc(int code, WPARAM wp, LPARAM lp) {
         auto* info = (MSLLHOOKSTRUCT*) lp;
         if (!(info->flags & LLMHF_INJECTED)) {
             switch (wp) {
-                case WM_LBUTTONDOWN: g_physLeft = true; g_leftSince = nowMs(); break;
-                case WM_LBUTTONUP: g_physLeft = false; break;
+                case WM_LBUTTONDOWN:
+                    g_physLeft = true; g_leftSince = nowMs();
+                    // Mace Swap: this press is replaced by "slot key, click, slot key", so the game must not get it first.
+                    if (g_swallowLeft) { g_swallowedDown = true; InterlockedIncrement(&g_leftRequests); return 1; }
+                    break;
+                case WM_LBUTTONUP:
+                    g_physLeft = false;
+                    if (g_swallowedDown) { g_swallowedDown = false; return 1; }
+                    break;
                 case WM_RBUTTONDOWN: g_physRight = true; g_rightSince = nowMs(); InterlockedIncrement(&g_rightPresses); break;
                 case WM_RBUTTONUP: g_physRight = false; break;
             }
@@ -176,11 +198,33 @@ static double jitter(double interval, double percent) {
     return interval * (1 + r * percent / 100);
 }
 
+/** One step of a scripted sequence, then how long to wait before the next. */
+struct Step { enum Type { KEY, LCLICK, RCLICK, SPACE_DOWN, SPACE_UP, MOVE, WAIT } type; int arg; int wait; };
+
+static void space(bool down) {
+    INPUT in{}; in.type = INPUT_KEYBOARD; in.ki.wVk = VK_SPACE; in.ki.wScan = 0x39; in.ki.dwFlags = down ? 0 : KEYEVENTF_KEYUP;
+    SendInput(1, &in, sizeof(INPUT));
+}
+
+static void run(const Step& step) {
+    switch (step.type) {
+        case Step::KEY: slotKey(step.arg); break;
+        case Step::LCLICK: click(false); break;
+        case Step::RCLICK: click(true); break;
+        case Step::SPACE_DOWN: space(true); break;
+        case Step::SPACE_UP: space(false); break;
+        case Step::MOVE: { INPUT in{}; in.type = INPUT_MOUSE; in.mi.dy = step.arg; in.mi.dwFlags = MOUSEEVENTF_MOVE; SendInput(1, &in, sizeof(INPUT)); break; }
+        case Step::WAIT: break;
+    }
+}
+
 static DWORD WINAPI macroThread(LPVOID) {
     timeBeginPeriod(1);
-    ULONGLONG nextLeft = 0, nextRight = 0, crystalAt = 0, anchorAt = 0;
-    int crystalStep = 0, anchorStep = -1;
-    LONG seenPresses = g_rightPresses;
+    ULONGLONG nextLeft = 0, nextRight = 0, crystalAt = 0, stepAt = 0, spearAt = 0;
+    int crystalStep = 0;
+    std::vector<Step> sequence; size_t at = 0;
+    bool spaceHeld = false;
+    LONG seenRight = g_rightPresses, seenLeft = g_leftRequests;
     while (g_running) {
         Sleep(1);
         ULONGLONG now = nowMs();
@@ -190,49 +234,90 @@ static DWORD WINAPI macroThread(LPVOID) {
         EnterCriticalSection(&g_lock);
         for (auto& m : g_modules) {
             bool down = m.bind && (GetAsyncKeyState(m.bind) & 0x8000);
-            if (down && !m.keyWasDown && active) m.on = m.hold ? true : !m.on;
-            if (!down && m.keyWasDown && m.hold) m.on = false;
+            if (down && !m.keyWasDown && active) m.on = m.hold && !m.oneShot ? true : !m.on;
+            if (!down && m.keyWasDown && m.hold && !m.oneShot) m.on = false;
             m.keyWasDown = down;
         }
-        Module left = g_modules[LEFT], right = g_modules[RIGHT], crystal = g_modules[CRYSTAL], anchor = g_modules[ANCHOR];
+        bool launch = g_modules[LAUNCH].on, dive = g_modules[DIVE].on;
+        if (active && sequence.empty()) { g_modules[LAUNCH].on = false; g_modules[DIVE].on = false; }
+        std::vector<Module> m = g_modules;
         LeaveCriticalSection(&g_lock);
 
-        LONG presses = g_rightPresses;
-        bool rightPressed = presses != seenPresses;
-        seenPresses = presses;
-        if (!active) { crystalStep = 0; anchorStep = -1; continue; }
-
-        // Anchor: runs once after each right click made by hand.
-        if (anchor.on && anchorStep < 0 && rightPressed) { anchorStep = 0; anchorAt = now + (ULONGLONG) anchor.get(2); }
-        if (anchorStep >= 0 && now >= anchorAt) {
-            switch (anchorStep) {
-                case 0: slotKey((int) anchor.get(0)); break;
-                case 1: click(true); break;
-                case 2: slotKey((int) anchor.get(1)); break;
-                case 3: click(true); break;
-            }
-            anchorAt = now + (ULONGLONG) anchor.get(2);
-            if (++anchorStep > 3) anchorStep = -1;
+        g_swallowLeft = active && m[MACE].on;
+        LONG rights = g_rightPresses, lefts = g_leftRequests;
+        bool rightPressed = rights != seenRight, attack = lefts != seenLeft;
+        seenRight = rights; seenLeft = lefts;
+        if (!active) {
+            if (spaceHeld) { space(false); spaceHeld = false; }
+            sequence.clear(); at = 0; crystalStep = 0;
             continue;
         }
-        if (anchorStep >= 0) continue;
 
-        // Crystal: while right is held, alternate hit and place.
-        if (crystal.on && g_physRight) {
-            if (crystalStep == 0) { crystalStep = 1; crystalAt = now + (ULONGLONG) crystal.get(0); }
+        // A running sequence owns the input until it ends.
+        if (!sequence.empty()) {
+            if (now < stepAt) continue;
+            const Step& step = sequence[at];
+            run(step);
+            if (step.type == Step::SPACE_DOWN) spaceHeld = true;
+            if (step.type == Step::SPACE_UP) spaceHeld = false;
+            stepAt = now + step.wait;
+            if (++at >= sequence.size()) { sequence.clear(); at = 0; }
+            continue;
+        }
+
+        auto start = [&](std::vector<Step> steps, int delay) { sequence = std::move(steps); at = 0; stepAt = now + delay; };
+        if (dive) {
+            int d = (int) m[DIVE].get(3), armor = (int) m[DIVE].get(0);
+            start({{Step::KEY, armor, d}, {Step::RCLICK, 0, d}, {Step::KEY, (int) m[DIVE].get(1), d}, {Step::LCLICK, 0, d},
+                   {Step::KEY, armor, d}, {Step::RCLICK, 0, d}, {Step::KEY, (int) m[DIVE].get(2), d}}, 0);
+        } else if (launch) {
+            int d = (int) m[LAUNCH].get(3);
+            start({{Step::SPACE_DOWN, 0, 40}, {Step::SPACE_UP, 0, (int) m[LAUNCH].get(2)}, {Step::SPACE_DOWN, 0, 40}, {Step::SPACE_UP, 0, d},
+                   {Step::KEY, (int) m[LAUNCH].get(0), d}, {Step::RCLICK, 0, d}, {Step::KEY, (int) m[LAUNCH].get(1), d}}, 0);
+        } else if (m[MACE].on && attack) {
+            start({{Step::KEY, (int) m[MACE].get(0), (int) m[MACE].get(2)}, {Step::LCLICK, 0, (int) m[MACE].get(3)}, {Step::KEY, (int) m[MACE].get(1), (int) m[MACE].get(2)}}, 0);
+        } else if (m[ANCHOR].on && rightPressed) {
+            int d = (int) m[ANCHOR].get(2);
+            start({{Step::KEY, (int) m[ANCHOR].get(0), d}, {Step::RCLICK, 0, d}, {Step::KEY, (int) m[ANCHOR].get(1), d}, {Step::RCLICK, 0, d}}, d);
+        } else if (m[WIND].on && rightPressed) {
+            int d = (int) m[WIND].get(4), shift = (int) m[WIND].get(3);
+            std::vector<Step> steps = {{Step::KEY, (int) m[WIND].get(0), d}};
+            if (shift) steps.push_back({Step::MOVE, shift, d});
+            steps.push_back({Step::RCLICK, 0, d});
+            if (shift) steps.push_back({Step::MOVE, -shift, d});
+            steps.push_back({Step::KEY, (int) m[WIND].get(1), d});
+            start(steps, (int) m[WIND].get(2));
+        } else if (m[SPEAR].on && now >= spearAt) {
+            int d = (int) m[SPEAR].get(4);
+            std::vector<Step> steps;
+            if (m[SPEAR].get(2) > 0) { steps.push_back({Step::SPACE_DOWN, 0, 40}); steps.push_back({Step::SPACE_UP, 0, (int) m[SPEAR].get(3)}); }
+            steps.push_back({Step::KEY, (int) m[SPEAR].get(0), d}); steps.push_back({Step::LCLICK, 0, d}); steps.push_back({Step::KEY, (int) m[SPEAR].get(1), d});
+            start(steps, 0);
+            spearAt = now + (ULONGLONG) m[SPEAR].get(5);
+        }
+        if (!sequence.empty()) { crystalStep = 0; continue; }
+
+        // Crystal: while right is held, alternate hit and place (optionally obsidian first).
+        if (m[CRYSTAL].on && g_physRight) {
+            int obsidian = (int) m[CRYSTAL].get(2);
+            if (crystalStep == 0) { crystalStep = 1; crystalAt = now + (ULONGLONG) m[CRYSTAL].get(0); }
             else if (now >= crystalAt) {
-                if (crystalStep == 1) { click(false); crystalStep = 2; crystalAt = now + (ULONGLONG) crystal.get(1); }
-                else { click(true); crystalStep = 1; crystalAt = now + (ULONGLONG) crystal.get(0); }
+                if (crystalStep == 1) { click(false); crystalStep = 2; crystalAt = now + (ULONGLONG) m[CRYSTAL].get(1); }
+                else if (obsidian) {
+                    start({{Step::KEY, obsidian, 40}, {Step::RCLICK, 0, 40}, {Step::KEY, (int) m[CRYSTAL].get(3), 40}, {Step::RCLICK, 0, 0}}, 0);
+                    crystalStep = 1; crystalAt = now + 120 + (ULONGLONG) m[CRYSTAL].get(0);
+                } else { click(true); crystalStep = 1; crystalAt = now + (ULONGLONG) m[CRYSTAL].get(0); }
             }
         } else crystalStep = 0;
 
-        if (left.on && g_physLeft && now - g_leftSince >= (ULONGLONG) left.get(2)) {
-            if (now >= nextLeft) { click(false); nextLeft = now + (ULONGLONG) std::max(1.0, jitter(1000.0 / left.get(0), left.get(1))); }
+        if (m[LEFT].on && !m[MACE].on && g_physLeft && now - g_leftSince >= (ULONGLONG) m[LEFT].get(2)) {
+            if (now >= nextLeft) { click(false); nextLeft = now + (ULONGLONG) std::max(1.0, jitter(1000.0 / m[LEFT].get(0), m[LEFT].get(1))); }
         }
-        if (right.on && !crystal.on && g_physRight && now - g_rightSince >= (ULONGLONG) right.get(2)) {
-            if (now >= nextRight) { click(true); nextRight = now + (ULONGLONG) std::max(1.0, jitter(1000.0 / right.get(0), right.get(1))); }
+        if (m[RIGHT].on && !m[CRYSTAL].on && g_physRight && now - g_rightSince >= (ULONGLONG) m[RIGHT].get(2)) {
+            if (now >= nextRight) { click(true); nextRight = now + (ULONGLONG) std::max(1.0, jitter(1000.0 / m[RIGHT].get(0), m[RIGHT].get(1))); }
         }
     }
+    g_swallowLeft = false;
     timeEndPeriod(1);
     return 0;
 }
@@ -528,7 +613,8 @@ static void render(Graphics& g, float w, float h) {
         if (g_popup) {
             SolidBrush dim(rgba(2, 6, 16, 150)); g.FillRectangle(&dim, 0.f, 0.f, w, h);
             hit(RectF(0, 0, w, h), [](int) { g_popup = nullptr; g_binding = nullptr; });
-            RectF box((w - 520) / 2, (h - 420) / 2, 520, 420);
+            float ph = std::min(h - 40, 296 + g_popup->settings.size() * 34.f);
+            RectF box((w - 520) / 2, (h - ph) / 2, 520, ph);
             panel(g, box, 26, w, h);
             hit(box, [](int) {});
             settings(g, *g_popup, RectF(box.X + 30, box.Y + 28, box.Width - 60, box.Height - 56));
