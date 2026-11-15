@@ -245,3 +245,9 @@
 - 13 個模組＝13 個主題（`Style.java` 一列一個，配色抄自 Meteor 版）。開啟後用 `replaceScreen(MODULES)` 換掉整個模組介面：`ThemeScreen.java`（WINDOW 三欄與 COLUMNS 直立式兩種版面、設定、綁定、搜尋；每個畫面重建點擊區 `hits` 與滾動區 `zones`），`Draw.java`（依主題的圓角／切角方塊、面板、開關圖示），`Backdrops.java`（背景）
 - 客戶端沒有 UI 擴充 2 時退回 `context.ui` 的背景層＋四角框
 - `preview/Preview.java` 是用 Java2D 實作 Canvas 的假宿主，出圖並模擬點擊；沒有在真的客戶端跑過
+
+## 基岩版注入客戶端（`bedrock/`）
+- C++（mingw 交叉編譯）：`src/assist.cpp` 是 DLL，`src/injector.c` 是用 `LoadLibraryW` 遠端執行緒載入它的 exe。說明、拿掉的功能與原因、沒驗證的假設在 `bedrock/README.md`
+- **刻意不碰遊戲內部**（沒有特徵碼、沒有掛鉤）：選單是自己的 layered window（GDI+ 畫、`UpdateLayeredWindow`），模組只用 `SendInput`。所以只留下不需要遊戲狀態的四個模組；需要讀記憶體的功能不要加
+- 三個執行緒：UI（畫面與右 Shift）、巨集（1ms 迴圈）、滑鼠 LL 掛鉤（只記實體按鍵狀態，忽略 `LLMHF_INJECTED`；獨立執行緒才不會讓滑鼠卡）
+- 測試：這個環境裝得起 Wine（`apt-get install wine64 wine`）。`Xvfb :78` 下跑 `work/Minecraft.Windows.exe`（替身，`test/fakegame.c`，把收到的輸入寫到 `fakegame.log`；按 Z 歸零、按 C 切換游標），再跑注入器（stdin 接 `/dev/null`），用 xdotool 操作。`xdotool key Shift_R` 太短的敲擊靠 `GetAsyncKeyState` 的低位元補抓
