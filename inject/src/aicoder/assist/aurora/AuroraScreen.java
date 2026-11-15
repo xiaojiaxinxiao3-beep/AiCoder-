@@ -78,6 +78,7 @@ public class AuroraScreen extends Screen {
     @Override
     public void onClose() {
         listening = null;
+        if (Arcade.open) Arcade.leave();
         Client.save();
         super.onClose();
     }
@@ -109,7 +110,8 @@ public class AuroraScreen extends Screen {
         Ui.frame(R, S, width, height);
 
         R.scissorStart(0, 0, width, height);
-        if (columns()) renderColumns();
+        if (Arcade.open) Arcade.render(R, theme, S, u, width, height, mx, my, (hx, hy, hw, hh, action) -> hit(hx, hy, hw, hh, action, null));
+        else if (columns()) renderColumns();
         else renderWindow();
         renderTopBar();
         R.scissorEnd();
@@ -166,7 +168,7 @@ public class AuroraScreen extends Screen {
     // Top bar: the two layouts, and the motion switch
 
     private void renderTopBar() {
-        String[] labels = {"WINDOW", "COLUMNS", Client.animations ? "MOTION ON" : "MOTION OFF", "STYLE"};
+        String[] labels = {"WINDOW", "COLUMNS", Client.animations ? "MOTION ON" : "MOTION OFF", "STYLE", "GAMES"};
         double font = 13.5, tracking = 2.6, pad = 20 * u, inset = 6 * u;
         double barH = 46 * u, top = 22 * u;
 
@@ -183,7 +185,7 @@ public class AuroraScreen extends Screen {
         Fx.TextBatch text = Fx.text(R, u);
         double tx = x + inset;
         for (int i = 0; i < labels.length; i++) {
-            boolean on = i == 0 ? !columns() : i == 1 && columns();
+            boolean on = Arcade.open ? i == 4 : i == 0 ? !columns() : i == 1 && columns();
             boolean hover = over(tx, top, widths[i], barH);
             double h = fade("tab" + i, hover, 8.3);
             double cx = tx + 2 * u, cw = widths[i] - 4 * u, cy = top + inset, ch = barH - inset * 2;
@@ -202,9 +204,16 @@ public class AuroraScreen extends Screen {
             int index = i;
             hit(tx, top, widths[i], barH, () -> {
                 popup = null;
-                if (index == 0) Client.layout = "window";
-                else if (index == 1) Client.layout = "columns";
-                else if (index == 2) Client.animations = !Client.animations;
+                if (index == 4) {
+                    Arcade.open = !Arcade.open;
+                    if (!Arcade.open) Arcade.leave();
+                    return;
+                }
+                if (index == 0 || index == 1) {
+                    if (Arcade.open) Arcade.leave();
+                    Arcade.open = false;
+                    Client.layout = index == 0 ? "window" : "columns";
+                } else if (index == 2) Client.animations = !Client.animations;
                 else openPopup(Client.look);
             }, null);
             tx += widths[i];
@@ -776,6 +785,13 @@ public class AuroraScreen extends Screen {
             }
             return true;
         }
+        if (Arcade.open && popup == null) {
+            mx = px;
+            my = py;
+            Arcade.mx = px;
+            Arcade.my = py;
+            if (Arcade.mouse(click.button(), true)) return true;
+        }
         return super.mouseClicked(click, doubled);
     }
 
@@ -789,18 +805,30 @@ public class AuroraScreen extends Screen {
             listening = null;
             return true;
         }
+        if (Arcade.open && popup == null && event.key() != GLFW.GLFW_KEY_ESCAPE && !Client.isMenuKey(event.key())) return Arcade.key(event.key(), true);
         return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (Arcade.open) Arcade.key(event.key(), false);
+        return super.keyReleased(event);
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
         dragging = null;
+        if (Arcade.open) Arcade.mouse(click.button(), false);
         return super.mouseReleased(click);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
         double step = -vertical * 60 * u;
+        if (Arcade.open && popup == null) {
+            Arcade.scroll(vertical);
+            return true;
+        }
         if (popup != null) {
             popupScroll = Math.max(0, Math.min(popupMax, popupScroll + step));
         } else if (columns()) {

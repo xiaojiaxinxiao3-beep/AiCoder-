@@ -226,6 +226,7 @@
 - `.exe` 是 `launcher/launcher.c`（mingw 編譯）後面接上 jar；Java 從檔尾讀 jar，所以同一個檔案可以當 `-jar` 的參數，也可以當 agent。`.exe` 在使用者的 Windows 上執行過舊版（能找到 Java 並啟動注入器），之後被防毒擋下；`launcher/AiCoderAssist.bat`＋jar 的版本使用者回報注入成功
 - 按鍵綁定（注入版自己的；Meteor 版用 Meteor 內建的）：`Module.bind`（GLFW 鍵碼，-1 是沒有）與 `holdBind`。`Client.key()` 由鍵盤掛鉤呼叫：按下只在沒有開畫面時生效，放開一律生效（按住的模組不會因為開了聊天而卡在開啟）。按住模式的模組存檔時一律存成關閉。設定畫面的 BIND 區在 `AuroraScreen.settings()` 的最後，等待按鍵時由 `keyPressed()` 接手
 - 外觀有兩套（極光／液態玻璃），由 `aurora/Look.java` 的設定決定（它借用 `Module` 的設定機制但不在模組清單裡，用上方的 STYLE 開啟，存成 `style.*`）。`AuroraScreen` 的繪圖都經過 `aurora/Ui.java`，再分派到產生出來的 `Chrome`（極光）或手寫的 `aurora/Glass.java`（液態玻璃，照 `liquid-glass/` 的 `Chrome` 改寫）；`Ui.frame()` 每個畫面也會把 `Style` 裡的顏色改成對應外觀的配色。背景圖在 `gfx/Wallpaper.java`：用 `ImageIO` 解碼成 `DynamicTexture`，`renderIn()` 用自己的 scissor 立刻送出一塊圓角貼圖；玩家的圖放 `<遊戲資料夾>/aicoder-assist-wallpapers/`，內建圖在 `res/aicoder/assist/wallpapers/`
+- 小遊戲在 `aurora/Arcade.java`（GAMES 分頁：左邊清單、右邊遊戲區；每個畫面把繪圖用的東西放進 static 欄位再呼叫遊戲的 `update`／`draw`）與六個 `aurora/Game*.java`（`Arcade.Game` 的子類別）。`AuroraScreen` 在 `Arcade.open` 時把鍵盤、滑鼠、滾輪轉給它（Esc 與選單鍵除外）。名稱與外觀都是自己的，不要改成既有遊戲的名字或樣子。`GameDig` 是 2D 沙盒：世界是 `byte[W*H]`，存成 gzip 的 `aicoder-assist-dig.dat`
 - 原則和戰鬥巨集一樣，另外明確不做躲避偵測的功能
 - 測試：`inject/test.sh`（手動用快取裡的官方 jar 啟動原版，再注入）。腳本裡不要用 `| tail` 接它的輸出，背景的遊戲會讓管線等不到結束
 
