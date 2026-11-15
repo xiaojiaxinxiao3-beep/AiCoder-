@@ -11,11 +11,17 @@ final class Backdrops {
 
     private static final String HEX = "0123456789ABCDEF";
 
-    static void render(Canvas g, Style s, double t, double strength) {
+    /** True on clients with UI extension 2: gradients and circles instead of blocks of rectangles. */
+    private static boolean smooth;
+
+    static void render(Canvas g, Style s, double t, double strength) { render(g, s, t, strength, false); }
+
+    static void render(Canvas g, Style s, double t, double strength, boolean smoothShapes) {
+        smooth = smoothShapes;
         int w = g.width(), h = g.height();
         if (w <= 0 || h <= 0) return;
         double o = strength;
-        if (s.kind() == Style.Kind.AURORA) { aurora(g, w, h, t, o); return; }
+        if (s.kind() == Style.Kind.AURORA) { if (smooth) auroraSmooth(g, w, h, t, o); else aurora(g, w, h, t, o); return; }
         gradient(g, w, h, s.top(), s.bottom(), (int) (215 * o));
         switch (s.kind()) {
             case CYBER -> {
@@ -121,6 +127,7 @@ final class Backdrops {
     // ---- pieces ----
 
     private static void gradient(Canvas g, int w, int h, int top, int bottom, int alpha) {
+        if (smooth) { g.gradient(0, 0, w, h, argb(alpha, top), argb(alpha, bottom), false); return; }
         int bands = 24;
         for (int i = 0; i < bands; i++) {
             int y0 = h * i / bands, y1 = h * (i + 1) / bands;
@@ -130,8 +137,17 @@ final class Backdrops {
 
     /** Soft round light: a coarse grid of cells whose alpha falls off with distance. */
     private static void glow(Canvas g, int w, int h, double cx, double cy, double radius, int rgb, double alpha) {
-        int cell = Math.max(4, w / 48);
         double px = cx * w, py = cy * h, r = radius * w;
+        if (smooth) {
+            // Stacked discs: each adds a little, so the light builds up smoothly towards the centre.
+            int rings = 26;
+            for (int i = 0; i < rings; i++) {
+                double f = (i + 1.0) / rings;
+                g.circle(px, py, r * (1 - f * .96), argb(alpha * 2.2 * f / rings + .5, rgb));
+            }
+            return;
+        }
+        int cell = Math.max(4, w / 48);
         int x0 = Math.max(0, (int) ((px - r) / cell)), x1 = Math.min((w - 1) / cell, (int) ((px + r) / cell));
         int y0 = Math.max(0, (int) ((py - r) / cell)), y1 = Math.min((h - 1) / cell, (int) ((py + r) / cell));
         for (int j = y0; j <= y1; j++) for (int i = x0; i <= x1; i++) {
@@ -188,9 +204,31 @@ final class Backdrops {
         sparkle(g, w, h * 3 / 5, t, 90, 131, 0xFFFFFF, 190 * o);
     }
 
+    /** The same sky with vertical gradients: every thin column gets each ribbon as a fade in and a longer fade out. */
+    private static void auroraSmooth(Canvas g, int w, int h, double t, double o) {
+        g.gradient(0, 0, w, h, argb(235 * o, 0x06122A), argb(235 * o, 0x02040E), false);
+        int[] ribbon = {0x4DFFB8, 0x2FE6E0, 0x8F7BFF, 0xFF6FD8};
+        int step = Math.max(2, w / 240);
+        for (int k = 0; k < 3; k++) for (int x = 0; x < w; x += step) {
+            double u = (x + step * .5) / w;
+            double c = .26 + .15 * k + .07 * Math.sin(u * (3.2 + k) + t * (.20 + .05 * k) + k * 2.1) + .03 * Math.sin(u * 9 - t * .33 + k);
+            double width = .09 + .03 * Math.sin(u * 5 + t * .15 + k);
+            double f = .55 + .45 * Math.sin(u * 14 + t * .6 + k * 1.3) * Math.sin(u * 3.1 - t * .2);
+            f *= 1 - .5 * (u - .5) * (u - .5) * 4 * .6;
+            if (f < .03) continue;
+            int col = mix(ribbon[k], ribbon[k + 1], .5 + .5 * Math.sin(u * 4 + t * .1 + k));
+            int peak = argb(150 * o * f, col), clear = argb(0, col);
+            int cy = (int) (c * h), up = Math.max(2, (int) (width * h * 1.1)), down = Math.max(2, (int) (width * h * 2.6));
+            g.gradient(x, cy - up, step, up, clear, peak, false);
+            g.gradient(x, cy, step, down, peak, clear, false);
+        }
+        sparkle(g, w, h * 3 / 5, t, 90, 131, 0xFFFFFF, 190 * o);
+    }
+
     /** Stacked wavy bands filling the lower part of the screen (rock layers, ice shelves). */
     private static void waves(Canvas g, int w, int h, double t, int[] colors, double from, int step, double alpha) {
         int n = colors.length * 2;
+        if (smooth) step = Math.max(1, step / 3);
         for (int x = 0; x < w; x += step) {
             double u = (double) x / w;
             int prev = h;
@@ -226,6 +264,13 @@ final class Backdrops {
 
     /** A light shaft from the surface, widening downwards. */
     private static void ray(Canvas g, int w, int h, double cx, double half, int rgb, double alpha) {
+        if (smooth) {
+            for (int i = 0; i < 4; i++) {
+                double top = half * w * (1 - i * .22), bottom = (half + .06) * w * (1 - i * .22), x0 = cx * w, x1 = cx * w + w * .05;
+                g.polygon(new double[]{x0 - top / 2, 0, x0 + top / 2, 0, x1 + bottom / 2, h, x1 - bottom / 2, h}, argb(alpha * .3, rgb));
+            }
+            return;
+        }
         int bands = 16;
         for (int j = 0; j < bands; j++) {
             double v = j / (double) bands, width = (half + v * .06) * w;
@@ -237,9 +282,11 @@ final class Backdrops {
     private static void lines(Canvas g, int w, int h, double t, int count, int rgb, double alpha, double amp, double speed, int thick) {
         for (int k = 0; k < count; k++) {
             double base = (k + .5) / count;
-            for (int x = 0; x < w; x += 4) {
+            double last = Double.NaN;
+            for (int x = 0; x < w + 8; x += smooth ? 8 : 4) {
                 double u = (double) x / w;
                 double y = base + amp * Math.sin(u * 5 + k * .9 + t * speed) + amp * .4 * Math.sin(u * 11 - t * speed * .6 + k);
+                if (smooth) { if (!Double.isNaN(last)) g.line(x - 8, last * h, x, y * h, thick, argb(alpha, rgb)); last = y; continue; }
                 g.fill(x, (int) (y * h), 4, thick, argb(alpha, rgb));
             }
         }
@@ -248,12 +295,14 @@ final class Backdrops {
     /** One seismograph trace: quiet noise with a burst travelling along it. */
     private static void trace(Canvas g, int w, int h, double t, double at, int rgb, double alpha, double gain) {
         int prev = (int) (at * h);
+        double prevY = at * h;
         double burst = mod(t * .12, 1.4) - .2;
         for (int x = 0; x < w; x++) {
             double u = (double) x / w, d = (u - burst) / .09;
             double env = .08 + Math.exp(-d * d) * (u > burst ? 1 : .5);
             double v = env * (Math.sin(u * 180 + t * 3) * .6 + Math.sin(u * 77 - t * 5) * .4 + Math.sin(u * 311) * .3);
             int y = (int) (at * h + v * gain * h * .09);
+            if (smooth) { if (x > 0) g.line(x - 1, prevY, x, at * h + v * gain * h * .09, 1, argb(alpha, rgb)); prevY = at * h + v * gain * h * .09; continue; }
             g.fill(x, Math.min(y, prev), 1, Math.abs(y - prev) + 1, argb(alpha, rgb));
             prev = y;
         }

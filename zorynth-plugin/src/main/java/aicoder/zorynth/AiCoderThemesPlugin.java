@@ -35,7 +35,8 @@ public final class AiCoderThemesPlugin implements PluginApi.Plugin {
             var strength = module.number("strength", "Backdrop Strength", .8, .2, 1, .05);
             context.theme(style.id(), priority, new PluginApi.Theme(style.primary(), style.light() ? 0xFFF4F6FA : style.text(), style.light() ? 0xFFA8B0BC : style.secondary()));
             if (full) {
-                ThemeScreen screen = new ThemeScreen(style, host, layout, backdrop, animations, strength, new ThemeScreen.Actions() {
+                var smoothFont = module.bool("smooth_font", "Smooth Font", true);
+                ThemeScreen screen = new ThemeScreen(style, host, layout, backdrop, animations, strength, new Type(host, smoothFont), new ThemeScreen.Actions() {
                     @Override public void theme(int step) {
                         int next = Math.floorMod(index + step, entries.size());
                         entries.get(next).module().setEnabled(true);

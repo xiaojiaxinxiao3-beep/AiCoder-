@@ -34,6 +34,7 @@ final class ThemeScreen implements PluginApi.Ui {
     private final PluginApi.Value<Boolean> backdrop, animations;
     private final PluginApi.Value<Double> strength;
     private final Actions actions;
+    private final Type type;
 
     private final List<Hit> hits = new ArrayList<>();
     private final List<Zone> zones = new ArrayList<>();
@@ -48,9 +49,9 @@ final class ThemeScreen implements PluginApi.Ui {
     private double t;
 
     ThemeScreen(Style s, PluginApi.UiHost host, PluginApi.Value<String> layout, PluginApi.Value<Boolean> backdrop,
-                PluginApi.Value<Boolean> animations, PluginApi.Value<Double> strength, Actions actions) {
+                PluginApi.Value<Boolean> animations, PluginApi.Value<Double> strength, Type type, Actions actions) {
         this.s = s; this.host = host; this.layout = layout; this.backdrop = backdrop;
-        this.animations = animations; this.strength = strength; this.actions = actions;
+        this.animations = animations; this.strength = strength; this.type = type; this.actions = actions;
     }
 
     // ---- render ----
@@ -60,7 +61,7 @@ final class ThemeScreen implements PluginApi.Ui {
         t = animations.get() ? (System.currentTimeMillis() % 3_600_000L) / 1000.0 : 0;
         int w = view.width(), h = view.height();
         mouseX = view.mouseX(); mouseY = view.mouseY();
-        if (backdrop.get()) Backdrops.render(c, s, t, strength.get());
+        if (backdrop.get()) Backdrops.render(c, s, t, strength.get(), true);
         else c.fill(0, 0, w, h, 0x90000000);
         List<ModuleControl> modules = host.modules();
         List<String> categories = new ArrayList<>();
@@ -74,8 +75,8 @@ final class ThemeScreen implements PluginApi.Ui {
 
     private void topBar(Canvas c, int w, boolean columns) {
         String name = s.name().replace("AiCoder ", "");
-        int nameW = Math.max(74, c.textWidth(name) + 12);
-        int[] widths = {c.textWidth("WINDOW") + 12, c.textWidth("COLUMNS") + 12, 14, nameW, 14, c.textWidth("ORIGINAL UI") + 12};
+        int nameW = Math.max(74, type.width(c, name) + 12);
+        int[] widths = {type.width(c, "WINDOW") + 12, type.width(c, "COLUMNS") + 12, 14, nameW, 14, type.width(c, "ORIGINAL UI") + 12};
         int total = 5 * 4 + 8;
         for (int v : widths) total += v;
         int x = Math.max(4, (w - total) / 2), y = 6;
@@ -83,7 +84,7 @@ final class ThemeScreen implements PluginApi.Ui {
         x = button(c, "COLUMNS", x, y, widths[1], columns, () -> { layout.set("Columns"); host.save(); }) + 12;
         x = button(c, "<", x, y, widths[2], false, () -> actions.theme(-1)) + 4;
         Draw.framed(c, x, y, nameW, 16, s.rowCorner(), Draw.opaque(s.field(), 0xC0), s.fieldLine());
-        c.text(name, x + (nameW - c.textWidth(name)) / 2, y + 4, s.accent(), false);
+        type.text(c, name, x + (nameW - type.width(c, name)) / 2, y + 4, s.accent(), false);
         x += nameW + 4;
         x = button(c, ">", x, y, widths[4], false, () -> actions.theme(1)) + 12;
         button(c, "ORIGINAL UI", x, y, widths[5], false, actions::original);
@@ -91,7 +92,7 @@ final class ThemeScreen implements PluginApi.Ui {
 
     private int button(Canvas c, String label, int x, int y, int width, boolean active, Runnable action) {
         Draw.framed(c, x, y, width, 16, s.rowCorner(), active ? Draw.opaque(s.plateSelected(), 0xD0) : Draw.opaque(s.field(), 0xC0), active ? s.accent() : s.fieldLine());
-        c.text(label, x + (width - c.textWidth(label)) / 2, y + 4, active ? (s.light() ? s.text() : 0xFFFFFFFF) : s.light() ? s.text() : s.dim(), false);
+        type.text(c, label, x + (width - type.width(c, label)) / 2, y + 4, active ? (s.light() ? s.text() : 0xFFFFFFFF) : s.light() ? s.text() : s.dim(), false);
         hit(x, y, width, 16, action, null, null);
         return x + width;
     }
@@ -105,10 +106,10 @@ final class ThemeScreen implements PluginApi.Ui {
 
         // Header
         int pad = Math.max(8, Math.abs(s.corner()));
-        c.text("AICODER", x + pad + 2, y + 9, s.light() ? s.text() : 0xFFFFFFFF, !s.light());
-        c.text("// " + s.tag(), x + pad + 8 + c.textWidth("AICODER"), y + 9, s.accent2(), false);
+        type.text(c, "AICODER", x + pad + 2, y + 9, s.light() ? s.text() : 0xFFFFFFFF, !s.light());
+        type.text(c, "// " + s.tag(), x + pad + 8 + type.width(c, "AICODER"), y + 9, s.accent2(), false);
         String find = search.isEmpty() ? "TYPE TO SEARCH" : "SEARCH: " + search + (blink() ? "_" : "");
-        c.text(find, x + ww - pad - 2 - c.textWidth(find), y + 9, search.isEmpty() ? s.faint() : s.accent(), false);
+        type.text(c, find, x + ww - pad - 2 - type.width(c, find), y + 9, search.isEmpty() ? s.faint() : s.accent(), false);
         c.fill(x + 6, y + 25, ww - 12, 1, Draw.alpha(s.accent(), 70));
         if (s.kind() == Style.Kind.CYBER) for (int i = x + 6; i < x + ww - 6; i += 12) c.fill(i, y + 26, 1, 2, Draw.alpha(s.accent(), 110));
 
@@ -117,11 +118,11 @@ final class ThemeScreen implements PluginApi.Ui {
         c.fill(x + 6, fy, ww - 12, 1, Draw.alpha(s.accent(), 40));
         int fx = x + pad + 2;
         if (s.kind() == Style.Kind.CYBER) { hazard(c, fx, fy + 5); fx += 46; }
-        c.text(Draw.fit(c, s.footer(), ww - 150), fx, fy + 5, s.dim(), false);
+        type.text(c, type.fit(c, s.footer(), ww - 150), fx, fy + 5, s.dim(), false);
         int on = 0;
         for (ModuleControl m : modules) if (m.enabled()) on++;
         String count = on + " / " + modules.size() + " ON";
-        c.text(count, x + ww - pad - 2 - c.textWidth(count), fy + 5, s.accent(), false);
+        type.text(c, count, x + ww - pad - 2 - type.width(c, count), fy + 5, s.accent(), false);
 
         int top = y + 30, height = fy - top - 3;
         int cw = Math.max(84, Math.min(170, ww / 5)), mw = Math.max(120, Math.min(280, ww * 34 / 100));
@@ -135,8 +136,8 @@ final class ThemeScreen implements PluginApi.Ui {
             boolean active = name.equals(category) && search.isEmpty();
             Draw.box(c, cx, ry, cw, ROW, s.rowCorner(), active ? s.plateSelected() : s.plate());
             if (active) c.fill(cx, ry + 3, 2, ROW - 6, s.accent2());
-            c.text(String.format("%02d", i + 1), cx + 7, ry + 6, active ? s.accent2() : s.faint(), false);
-            c.text(Draw.fit(c, name.toUpperCase(Locale.ROOT), cw - 30), cx + 24, ry + 6, active ? (s.light() ? s.text() : 0xFFFFFFFF) : s.dim(), false);
+            type.text(c, String.format("%02d", i + 1), cx + 7, ry + 6, active ? s.accent2() : s.faint(), false);
+            type.text(c, type.fit(c, name.toUpperCase(Locale.ROOT), cw - 30), cx + 24, ry + 6, active ? (s.light() ? s.text() : 0xFFFFFFFF) : s.dim(), false);
             hit(cx, ry, cw, ROW, () -> { category = name; search = ""; moduleScroll = 0; }, null, null);
         }
         c.fill(mx - 4, top, 1, height, Draw.alpha(s.accent(), 34));
@@ -158,7 +159,7 @@ final class ThemeScreen implements PluginApi.Ui {
                 c.fill(mx, ry + 3, 2, ROW - 4, s.accent2());
                 if (s.kind() == Style.Kind.CYBER) flow(c, mx + 3, ry + ROW, mw - 10);
             }
-            c.text(Draw.fit(c, m.name(), mw - 34), mx + 8, ry + 7, m.enabled() ? (s.light() ? s.text() : 0xFFFFFFFF) : s.light() ? s.dim() : s.text(), false);
+            type.text(c, type.fit(c, m.name(), mw - 34), mx + 8, ry + 7, m.enabled() ? (s.light() ? s.text() : 0xFFFFFFFF) : s.light() ? s.dim() : s.text(), false);
             Draw.toggle(c, s, mx + mw - 13, ry + 11, m.enabled(), t);
             hit(mx, ry, mw, ROW + 2, () -> select(m), () -> toggle(m), null);
             hit(mx + mw - 24, ry, 24, ROW + 2, () -> toggle(m), () -> toggle(m), null);
@@ -168,8 +169,8 @@ final class ThemeScreen implements PluginApi.Ui {
 
         // Settings
         if (selected == null) {
-            c.text("Select a module", sx + 8, top + 8, s.dim(), false);
-            c.text("Left click: select   Right click or switch: toggle", sx + 8, top + 22, s.faint(), false);
+            type.text(c, "Select a module", sx + 8, top + 8, s.dim(), false);
+            type.text(c, "Left click: select   Right click or switch: toggle", sx + 8, top + 22, s.faint(), false);
         } else settings(c, selected, sx, top, sw, height);
     }
 
@@ -189,8 +190,8 @@ final class ThemeScreen implements PluginApi.Ui {
             int y0 = top + i / perRow * (rowH + gap);
             int content = list.size() * 17, height = Math.min(rowH, 24 + content + 4);
             Draw.panel(c, s, x0, y0, cw, height, t + i);
-            c.text(String.format("%02d", i + 1), x0 + 7, y0 + 7, s.accent2(), false);
-            c.text(Draw.fit(c, name.toUpperCase(Locale.ROOT), cw - 30), x0 + 23, y0 + 7, s.light() ? s.text() : 0xFFFFFFFF, false);
+            type.text(c, String.format("%02d", i + 1), x0 + 7, y0 + 7, s.accent2(), false);
+            type.text(c, type.fit(c, name.toUpperCase(Locale.ROOT), cw - 30), x0 + 23, y0 + 7, s.light() ? s.text() : 0xFFFFFFFF, false);
             c.fill(x0 + 5, y0 + 19, cw - 10, 1, Draw.alpha(s.accent(), 80));
             int listTop = y0 + 22, listH = height - 26;
             int scroll = clamp(columnScroll.getOrDefault(name, 0), 0, Math.max(0, content - listH));
@@ -206,15 +207,15 @@ final class ThemeScreen implements PluginApi.Ui {
                     Draw.box(c, x0 + 3, ry, cw - 6, 16, s.rowCorner(), s.plateSelected());
                     c.fill(x0 + 3, ry + 3, 2, 10, s.accent());
                 } else if (hover) Draw.box(c, x0 + 3, ry, cw - 6, 16, s.rowCorner(), s.plate());
-                c.text(Draw.fit(c, m.name(), cw - 18), x0 + 9, ry + 4, m.enabled() ? (s.light() ? s.text() : 0xFFFFFFFF) : hover ? s.text() : s.dim(), false);
+                type.text(c, type.fit(c, m.name(), cw - 18), x0 + 9, ry + 4, m.enabled() ? (s.light() ? s.text() : 0xFFFFFFFF) : hover ? s.text() : s.dim(), false);
                 hit(x0 + 3, ry, cw - 6, 16, () -> toggle(m), () -> { popup = m; settingScroll = 0; editing = null; binding = null; }, null);
             }
             unclip(c);
         }
         String foot = search.isEmpty() ? s.footer() : "SEARCH: " + search + (blink() ? "_" : "");
-        c.text(foot, 10, h - 14, search.isEmpty() ? s.dim() : s.accent(), true);
+        type.text(c, foot, 10, h - 14, search.isEmpty() ? s.dim() : s.accent(), true);
         String help = "LMB toggle   RMB settings   type to search";
-        c.text(help, w - 10 - c.textWidth(help), h - 14, s.faint(), true);
+        type.text(c, help, w - 10 - type.width(c, help), h - 14, s.faint(), true);
     }
 
     private void popup(Canvas c, int w, int h) {
@@ -230,9 +231,9 @@ final class ThemeScreen implements PluginApi.Ui {
     // ---- settings ----
 
     private void settings(Canvas c, ModuleControl m, int x, int y, int w, int h) {
-        c.text(Draw.fit(c, m.name().toUpperCase(Locale.ROOT), w - 80), x + 6, y + 4, s.light() ? s.text() : 0xFFFFFFFF, !s.light());
-        c.text("// SETTINGS", x + 12 + c.textWidth(Draw.fit(c, m.name().toUpperCase(Locale.ROOT), w - 80)), y + 4, s.accent(), false);
-        c.text(m.category() + (m.alwaysOn() ? "   always on" : m.enabled() ? "   ON" : "   OFF"), x + 6, y + 16, s.dim(), false);
+        type.text(c, type.fit(c, m.name().toUpperCase(Locale.ROOT), w - 80), x + 6, y + 4, s.light() ? s.text() : 0xFFFFFFFF, !s.light());
+        type.text(c, "// SETTINGS", x + 12 + type.width(c, type.fit(c, m.name().toUpperCase(Locale.ROOT), w - 80)), y + 4, s.accent(), false);
+        type.text(c, m.category() + (m.alwaysOn() ? "   always on" : m.enabled() ? "   ON" : "   OFF"), x + 6, y + 16, s.dim(), false);
         int top = y + 30, height = h - 30, cy = top - settingScroll, start = cy;
         zones.add(new Zone(x, top, w, height, d -> settingScroll -= d * ROW));
         clip(c, x, top, w, height);
@@ -248,12 +249,12 @@ final class ThemeScreen implements PluginApi.Ui {
         header(c, "BIND", x, cy, w);
         cy += 16;
         int fx = x + w * 45 / 100, fw = x + w - 6 - fx;
-        c.text("Key", x + 6, cy + 6, s.text(), false);
+        type.text(c, "Key", x + 6, cy + 6, s.text(), false);
         boolean waiting = binding != null && binding.id().equals(m.id());
         field(c, fx, cy + 2, fw, waiting ? "PRESS A KEY" : keyName(m.bindKey()), waiting);
         hit(fx, cy + 2, fw, 16, () -> { binding = m; editing = null; }, () -> { m.bind(-1, m.bindMode()); binding = null; host.save(); }, null);
         cy += ROW;
-        c.text("Mode", x + 6, cy + 6, s.text(), false);
+        type.text(c, "Mode", x + 6, cy + 6, s.text(), false);
         field(c, fx, cy + 2, fw, String.valueOf(m.bindMode()).toUpperCase(Locale.ROOT), false);
         Runnable flip = () -> { m.bind(m.bindKey(), otherMode(m.bindMode())); host.save(); };
         hit(fx, cy + 2, fw, 16, flip, flip, null);
@@ -266,15 +267,15 @@ final class ThemeScreen implements PluginApi.Ui {
 
     private void header(Canvas c, String label, int x, int y, int w) {
         String text = label.toUpperCase(Locale.ROOT);
-        c.text(text, x + 6, y + 5, s.accent(), false);
-        int from = x + 12 + c.textWidth(text);
+        type.text(c, text, x + 6, y + 5, s.accent(), false);
+        int from = x + 12 + type.width(c, text);
         c.fill(from, y + 9, Math.max(0, x + w - 8 - from), 1, Draw.alpha(s.accent(), 90));
     }
 
     private void row(Canvas c, SettingControl setting, int x, int y, int w) {
         var info = setting.info();
         int fx = x + w * 45 / 100, fw = x + w - 6 - fx;
-        c.text(Draw.fit(c, info.name(), fx - x - 10), x + 6, y + 6, s.text(), false);
+        type.text(c, type.fit(c, info.name(), fx - x - 10), x + 6, y + 6, s.text(), false);
         Object value = setting.get();
         boolean active = editing != null && editing.info().id().equals(info.id());
         switch (info.kind()) {
@@ -303,7 +304,7 @@ final class ThemeScreen implements PluginApi.Ui {
             }
             case CHOICE -> {
                 field(c, fx, y + 2, fw, String.valueOf(value), false);
-                c.text("v", fx + fw - 9, y + 5, s.accent(), false);
+                type.text(c, "v", fx + fw - 9, y + 5, s.accent(), false);
                 List<String> choices = info.choices();
                 if (!choices.isEmpty()) {
                     int at = choices.indexOf(String.valueOf(value)), n = choices.size();
@@ -330,7 +331,7 @@ final class ThemeScreen implements PluginApi.Ui {
 
     private void field(Canvas c, int x, int y, int w, String text, boolean active) {
         Draw.framed(c, x, y, w, 16, s.rowCorner(), s.field(), active ? s.accent() : s.fieldLine());
-        c.text(Draw.fit(c, text, w - 10), x + 5, y + 4, active ? s.accent() : s.light() ? s.text() : s.accent(), false);
+        type.text(c, type.fit(c, text, w - 10), x + 5, y + 4, active ? s.accent() : s.light() ? s.text() : s.accent(), false);
     }
 
     private void slider(Canvas c, int x, int y, int w, double f) {

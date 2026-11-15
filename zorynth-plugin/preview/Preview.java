@@ -39,6 +39,11 @@ public class Preview {
         public void roundedRect(int x, int y, int w, int h, double r, int c) { draws++; g.setColor(col(c)); g.fill(new RoundRectangle2D.Double(x, y, w, h, r * 2, r * 2)); }
         public void line(double a, double b, double c2, double d, double th, int c) { draws++; g.setColor(col(c)); g.setStroke(new BasicStroke((float) th)); g.draw(new Line2D.Double(a, b, c2, d)); }
         public void circle(double x, double y, double r, int c) { draws++; g.setColor(col(c)); g.fill(new Ellipse2D.Double(x - r, y - r, r * 2, r * 2)); }
+        final Map<String, BufferedImage> images = new HashMap<>();
+        public void image(String tex, int x, int y, int w, int h, float u0, float v0, float u1, float v1) { draws++;
+            BufferedImage im = images.computeIfAbsent(tex, k -> { try { return javax.imageio.ImageIO.read(Preview.class.getClassLoader().getResourceAsStream(k)); } catch (Exception e) { throw new RuntimeException(e); } });
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(im, x, y, x + w, y + h, Math.round(u0 * im.getWidth()), Math.round(v0 * im.getHeight()), Math.round(u1 * im.getWidth()), Math.round(v1 * im.getHeight()), null); }
         public void polygon(double[] p, int c) { draws++; Path2D.Double path = new Path2D.Double(); path.moveTo(p[0], p[1]); for (int i = 2; i < p.length; i += 2) path.lineTo(p[i], p[i + 1]); path.closePath(); g.setColor(col(c)); g.fill(path); }
     };
     static BufferedImage frame(Ui ui, double mx, double my) throws Exception {
