@@ -54,6 +54,9 @@ public final class Client {
     public static boolean animations = true;
 
     private static final int MENU_KEY = GLFW.GLFW_KEY_RIGHT_SHIFT;
+    /** A second key for the menu, for keyboards without a right Shift or where it is taken by something else. */
+    private static final int MENU_KEY_2 = GLFW.GLFW_KEY_INSERT;
+    private static boolean announced;
     private static boolean menuRequested;
     private static boolean started;
 
@@ -115,7 +118,7 @@ public final class Client {
      * always counts, so a held module cannot get stuck on when a screen opens over it.
      */
     static void key(int key, boolean pressed) {
-        if (pressed && key == MENU_KEY) menuRequested = true;
+        if (pressed && isMenuKey(key)) menuRequested = true;
 
         for (Module module : modules) {
             if (module.bind != key) continue;
@@ -130,13 +133,19 @@ public final class Client {
     }
 
     public static boolean isMenuKey(int key) {
-        return key == MENU_KEY;
+        return key == MENU_KEY || key == MENU_KEY_2;
     }
 
     static void tick() {
         if (!started) {
             started = true;
             start();
+        }
+
+        // Say so in the game itself, once, the first time there is a world to say it in
+        if (!announced && mc.level != null && mc.gui != null) {
+            announced = true;
+            chat(NAME, "loaded. Press Right Shift (or Insert) to open the menu.", 0xFF4DFFB8);
         }
 
         if (menuRequested) {
