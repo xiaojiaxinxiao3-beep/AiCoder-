@@ -27,6 +27,7 @@ public class CombatAddon extends MeteorAddon {
         modules.add(new MaceSwap());
         modules.add(new SpearLunge());
         modules.add(new WindJump());
+        modules.add(new TriggerBot());
         modules.add(new MaceDive());
     }
 
