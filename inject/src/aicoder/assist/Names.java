@@ -16,7 +16,8 @@ public final class Names {
     public static synchronized Names shared() {
         if (shared == null) {
             try {
-                shared = load();
+                // Loaded by Fabric's class loader, this is the copy that speaks intermediary names
+                shared = load(Names.class.getClassLoader() == ClassLoader.getSystemClassLoader() ? "names.properties" : "names-intermediary.properties");
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
@@ -25,8 +26,14 @@ public final class Names {
     }
 
     static Names load() throws Exception {
+        return load("names.properties");
+    }
+
+    /** {@code file} is names.properties for the plain game, names-intermediary.properties under Fabric Loader. */
+    static Names load(String file) throws Exception {
         Names names = new Names();
-        try (InputStream in = Names.class.getResourceAsStream("/aicoder/assist/names.properties")) {
+        try (InputStream in = Names.class.getResourceAsStream("/aicoder/assist/" + file)) {
+            if (in == null) throw new IllegalStateException("this download has no " + file);
             names.table.load(in);
         }
         return names;

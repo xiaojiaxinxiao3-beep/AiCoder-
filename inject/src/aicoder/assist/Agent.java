@@ -44,8 +44,15 @@ public final class Agent {
     }
 
     private static void start(Instrumentation inst) throws Exception {
+        // Where the game's classes live: the ordinary class path for the plain game, a loader of its own under Fabric
+        ClassLoader game = ClassLoader.getSystemClassLoader();
+        for (Class<?> c : inst.getAllLoadedClasses()) {
+            if (c.getName().equals("net.minecraft.client.main.Main") && c.getClassLoader() != null) game = c.getClassLoader();
+        }
+        boolean wrapped = game != ClassLoader.getSystemClassLoader();
+
         // The names this build knows belong to one game version only; in any other they would point at the wrong things
-        String version = gameVersion();
+        String version = gameVersion(game);
         if (!GAME_VERSION.equals(version)) {
             throw new IllegalStateException("this download is for Minecraft " + GAME_VERSION + ", but the running game says it is " + version
                 + (version.equals("unknown") ? " (no version.json where a plain game has one)" : "") + "; " + describeGame());
@@ -57,7 +64,7 @@ public final class Agent {
         }
         loaded = true;
 
-        Names names = Names.load();
+        Names names = wrapped ? joinFabric() : Names.load();
         List<Patch> patches = new ArrayList<>();
         patches.add(patch(names, "Minecraft.tick", "tick"));
         patches.add(patch(names, "Minecraft.startAttack", "attack"));
@@ -119,10 +126,10 @@ public final class Agent {
      * version.json on the class path is looked at: some launchers put other jars that carry one
      * (an installer, a wrapper) ahead of the game. The build's own version wins if any of them names it.
      */
-    private static String gameVersion() {
+    private static String gameVersion(ClassLoader game) {
         java.util.List<String> found = new ArrayList<>();
         try {
-            java.util.Enumeration<java.net.URL> all = ClassLoader.getSystemResources("version.json");
+            java.util.Enumeration<java.net.URL> all = game.getResources("version.json");
             while (all.hasMoreElements()) {
                 try (java.io.InputStream in = all.nextElement().openStream()) {
                     String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
@@ -137,6 +144,33 @@ public final class Agent {
         }
         if (found.contains(GAME_VERSION)) return GAME_VERSION;
         return found.isEmpty() ? "unknown" : String.join(" / ", found);
+    }
+
+    /**
+     * Under Fabric Loader the game's classes have intermediary names and are loaded by Fabric's own class
+     * loader, which cannot see this jar. So the copy of the client converted to those names (kept inside
+     * this jar) is written out and added to Fabric's class path, through the call Fabric itself uses for mods.
+     */
+    private static Names joinFabric() throws Exception {
+        Class<?> base;
+        try {
+            base = Class.forName("net.fabricmc.loader.impl.launch.FabricLauncherBase");
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("the game runs under a mod loader this download does not support (only the plain game and Fabric); " + describeGame());
+        }
+
+        java.nio.file.Path copy = java.nio.file.Files.createTempFile("aicoder-assist-fabric-", ".jar");
+        copy.toFile().deleteOnExit();
+        try (java.io.InputStream in = Agent.class.getResourceAsStream("/aicoder/assist/fabric-payload.jar")) {
+            if (in == null) throw new IllegalStateException("this download has no Fabric support; " + describeGame());
+            java.nio.file.Files.copy(in, copy, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        Object launcher = base.getMethod("getLauncher").invoke(null);
+        Class.forName("net.fabricmc.loader.impl.launch.FabricLauncher").getMethod("addToClassPath", java.nio.file.Path.class, String[].class)
+            .invoke(launcher, copy, new String[0]);
+        System.out.println("[" + Client.NAME + "] running under Fabric Loader");
+        return Names.load("names-intermediary.properties");
     }
 
     /** What the game was started with, for the reason shown when injection is refused. */

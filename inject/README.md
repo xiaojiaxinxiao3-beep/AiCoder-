@@ -97,3 +97,25 @@ V=1.21.4 ./test.sh --quickPlaySingleplayer "New World"
 - 繪圖方式不同（1.21.4 沒有 1.21.11 的 GUI 繪圖狀態），所以 `gfx/Backend.java` 各有一份：`src/` 的是 1.21.11，`src-1.21.4/` 的是 1.21.4。其他差異（按鍵與滑鼠事件的參數、快捷列欄位、幾個搬過家的套件）由 `tools/port_version.py` 用文字替換處理，每一條替換都必須命中，否則建置失敗
 
 實測（Linux、原版 1.21.4，世界是在遊戲裡新建的）：注入、右 Shift 開關選單、極光與液態玻璃、背景圖、STYLE 視窗、背景模糊、GAMES（Drop、Dig）、Wind Jump（兩次都是 9.1 格）、Trigger Bot（`mobs` 開著打鐵巨人，100 → 44）。其餘模組在 1.21.4 上只確認編譯成功。
+
+## Fabric
+同一個 jar 也能注入到用 **Fabric Loader** 啟動的遊戲（1.21.11 與 1.21.4 都可以），不用另外下載。注入器會自己判斷。
+
+Fabric 和原版有兩個差別，注入版原本因此完全對不上：
+- 遊戲的類別換成了 intermediary 名稱（`class_310`、`method_1574`），不是原版的混淆名稱
+- 遊戲的類別由 Fabric 自己的 class loader（Knot）載入，它看不到注入進來的 jar
+
+做法：建置時把整份客戶端另外轉一份成 intermediary 名稱，放在 jar 裡的 `aicoder/assist/fabric-payload.jar`；掛鉤目標的名稱表也多一份 `names-intermediary.properties`。agent 發現 `net.minecraft.client.main.Main` 不是由系統 class loader 載入時，就把那份寫到暫存檔，用 Fabric 自己加模組的方法（`FabricLauncherBase.getLauncher().addToClassPath`）交給 Knot，再用 intermediary 的名稱表去掛鉤。
+
+```
+python3 tools/fetch_fabric.py 1.21.4 work-1.21.4      # Fabric Loader 與 intermediary 對照表
+V=1.21.4 ./build.sh
+FABRIC=1 V=1.21.4 ./test.sh --quickPlaySingleplayer "New World"
+```
+
+實測（Linux、Fabric Loader 0.20.1、**沒有裝任何模組**）：
+- 1.21.4：注入、選單、液態玻璃與背景圖、GAMES、Wind Jump（8.3 格）、Trigger Bot（鐵巨人 100 → 44）
+- 1.21.11：注入、聊天欄提示、選單
+- 兩個版本的同一個 jar 在原版上仍然正常
+
+沒測過的：裝了 Fabric API、Sodium、Iris 或其他模組的 Fabric；Forge、NeoForge、Quilt、OptiFine（不支援，注入器會說明）。

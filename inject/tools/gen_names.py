@@ -27,6 +27,7 @@ for key, owner, name, args in TARGETS:
 
 # Fields read by reflection because the game keeps them private
 if version == '1.21.11':
+    out['GuiGraphics'] = m.cls(C + 'gui.GuiGraphics').replace('.', '/')
     out['GuiGraphics.guiRenderState'] = m.field(C + 'gui.GuiGraphics', 'guiRenderState')[0]
 
 os.makedirs(os.path.dirname(sys.argv[2]), exist_ok=True)

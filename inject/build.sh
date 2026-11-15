@@ -40,6 +40,16 @@ $REMAP $W/named.jar $W/official.jar $W/mojang.tiny named official $W/minecraft-n
 rm -rf $W/pack && mkdir -p $W/pack && (cd $W/pack && unzip -qo ../official.jar && unzip -qo ../asm-moved.jar -x 'META-INF/*')
 python3 tools/gen_names.py $W/client.txt $W/pack/aicoder/assist/names.properties $V
 cp -r res/. $W/pack/
+
+# 5b. Under Fabric Loader the game's classes carry intermediary names and live in Fabric's own class loader.
+#     When the intermediary mappings are there (tools/fetch_fabric.py), a second copy of the client converted
+#     to those names goes inside the jar; the agent hands it to Fabric's loader when it finds itself in one.
+if [ -f $W/intermediary.tiny ]; then
+  python3 tools/fabric_names.py $W/mojang.tiny $W/intermediary.tiny $W/pack/aicoder/assist/names.properties $W/fabric.tiny $W/pack/aicoder/assist/names-intermediary.properties
+  rm -f $W/fabric-payload.jar
+  $REMAP $W/named.jar $W/fabric-payload.jar $W/fabric.tiny named intermediary $W/minecraft-named.jar > /dev/null
+  cp $W/fabric-payload.jar $W/pack/aicoder/assist/fabric-payload.jar
+fi
 printf 'Main-Class: aicoder.assist.Injector\nAgent-Class: aicoder.assist.Agent\nCan-Retransform-Classes: true\n' > $W/manifest.txt
 $JD/jar cfm $W/$OUT.jar $W/manifest.txt -C $W/pack .
 
