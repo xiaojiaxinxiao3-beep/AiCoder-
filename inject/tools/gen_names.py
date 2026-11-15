@@ -16,6 +16,9 @@ TARGETS = [
     ('ClientLevel', C + 'multiplayer.ClientLevel', 'addEntity', ['net.minecraft.world.entity.Entity']),
     ('KeyboardHandler', C + 'KeyboardHandler', 'keyPress', ['long', 'int', C + 'input.KeyEvent']),
 ]
+version = sys.argv[3] if len(sys.argv) > 3 else '1.21.11'
+if version == '1.21.4':
+    TARGETS[-1] = ('KeyboardHandler', C + 'KeyboardHandler', 'keyPress', ['long', 'int', 'int', 'int', 'int'])
 
 out = {}
 for key, owner, name, args in TARGETS:
@@ -23,7 +26,8 @@ for key, owner, name, args in TARGETS:
     out['%s.%s' % (key, name)], out['%s.%s.desc' % (key, name)] = m.method(owner, name, args)
 
 # Fields read by reflection because the game keeps them private
-out['GuiGraphics.guiRenderState'] = m.field(C + 'gui.GuiGraphics', 'guiRenderState')[0]
+if version == '1.21.11':
+    out['GuiGraphics.guiRenderState'] = m.field(C + 'gui.GuiGraphics', 'guiRenderState')[0]
 
 os.makedirs(os.path.dirname(sys.argv[2]), exist_ok=True)
 with open(sys.argv[2], 'w') as f:

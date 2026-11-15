@@ -141,7 +141,9 @@ public final class Client {
 
         if (menuRequested) {
             menuRequested = false;
-            if (mc.screen == null || mc.screen instanceof TitleScreen) mc.setScreen(new AuroraScreen());
+            // The same key opens the menu and puts it away again
+            if (mc.screen instanceof AuroraScreen) mc.screen.onClose();
+            else if (mc.screen == null || mc.screen instanceof TitleScreen) mc.setScreen(new AuroraScreen());
         }
 
         post(TICK);

@@ -1,11 +1,5 @@
 package aicoder.assist.gfx;
 
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBTTFontinfo;
 import org.lwjgl.stb.STBTTPackContext;
@@ -31,7 +25,7 @@ public final class TextRenderer {
         final float scale, ascent;
         final int size;
         final float[][] glyphs = new float[256][];
-        final DynamicTexture texture;
+        final Object texture;
 
         Font(ByteBuffer ttf, int height) {
             this.height = height;
@@ -69,11 +63,9 @@ public final class TextRenderer {
             }
 
             // White pixels whose alpha is the glyph coverage
-            NativeImage image = new NativeImage(size, size, false);
-            for (int y = 0; y < size; y++) {
-                for (int x = 0; x < size; x++) image.setPixelABGR(x, y, ((bitmap.get(y * size + x) & 0xFF) << 24) | 0xFFFFFF);
-            }
-            texture = new DynamicTexture(() -> "aicoder-assist-font-" + height, image);
+            int[] pixels = new int[size * size];
+            for (int i = 0; i < pixels.length; i++) pixels[i] = ((bitmap.get(i) & 0xFF) << 24) | 0xFFFFFF;
+            texture = Backend.texture("font-" + height, size, size, pixels);
         }
 
         float[] glyph(char c) {
@@ -192,8 +184,7 @@ public final class TextRenderer {
 
     public void end() {
         if (vertices > 0) {
-            TextureSetup texture = TextureSetup.singleTexture(font.texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-            renderer.submit(RenderPipelines.GUI_TEXTURED, texture, Arrays.copyOf(xy, vertices * 2), Arrays.copyOf(uv, vertices * 2),
+            renderer.submit(font.texture, Arrays.copyOf(xy, vertices * 2), Arrays.copyOf(uv, vertices * 2),
                 Arrays.copyOf(colors, vertices), vertices, minX, minY, maxX, maxY);
         }
         vertices = 0;

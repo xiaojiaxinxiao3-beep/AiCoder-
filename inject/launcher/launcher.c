@@ -12,6 +12,9 @@
 #ifndef _UNICODE
 #define _UNICODE
 #endif
+#ifndef GAME_VERSION
+#define GAME_VERSION L"1.21.11"
+#endif
 #include <windows.h>
 #include <tlhelp32.h>
 #include <wchar.h>
@@ -33,7 +36,7 @@ int wmain(void) {
         return 1;
     }
 
-    wprintf(L"AiCoder Assist for Minecraft 1.21.11\n\n");
+    wprintf(L"AiCoder Assist for Minecraft " GAME_VERSION L"\n\n");
 
     /* Folders of every running java.exe / javaw.exe: one of them is the game's */
     wchar_t dirs[MAX_DIRS][MAX_PATH * 2];
@@ -74,7 +77,7 @@ int wmain(void) {
     }
 
     if (count == 0) {
-        wprintf(L"Minecraft is not running.\nStart Minecraft 1.21.11 first, wait for the title screen, then run this again.\n");
+        wprintf(L"Minecraft is not running.\nStart Minecraft " GAME_VERSION L" first, wait for the title screen, then run this again.\n");
         wait_for_key();
         return 2;
     }

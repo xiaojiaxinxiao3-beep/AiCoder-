@@ -1,12 +1,6 @@
 package aicoder.assist.gfx;
 
 import aicoder.assist.Client;
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -37,7 +31,7 @@ public final class Wallpaper {
     public static String selected = BUNDLED;
 
     private static String loaded;
-    private static DynamicTexture texture;
+    private static Object texture;
     private static int imageW, imageH;
     private static double screenW, screenH, opacity;
 
@@ -85,7 +79,7 @@ public final class Wallpaper {
     private static void load() {
         loaded = selected;
         if (texture != null) {
-            texture.close();
+            Backend.close(texture);
             texture = null;
         }
         if (selected.isEmpty()) return;
@@ -110,14 +104,7 @@ public final class Wallpaper {
             g.dispose();
 
             int[] argb = image.getRGB(0, 0, w, h, null, 0, w);
-            NativeImage pixels = new NativeImage(w, h, false);
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int c = argb[y * w + x];
-                    pixels.setPixelABGR(x, y, (c & 0xFF00FF00) | (c >> 16 & 0xFF) | (c & 0xFF) << 16);
-                }
-            }
-            texture = new DynamicTexture(() -> "aicoder-assist-wallpaper", pixels);
+            texture = Backend.texture("wallpaper", w, h, argb);
             imageW = w;
             imageH = h;
         } catch (Throwable t) {
@@ -174,8 +161,7 @@ public final class Wallpaper {
         }
 
         g.scissorStart(x, y, w, h);
-        TextureSetup setup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
-        g.submit(RenderPipelines.GUI_TEXTURED, setup, xy, uv, colors, n, (float) x, (float) y, (float) (x + w), (float) (y + h));
+        g.submit(texture, xy, uv, colors, n, (float) x, (float) y, (float) (x + w), (float) (y + h));
         g.scissorEnd();
     }
 

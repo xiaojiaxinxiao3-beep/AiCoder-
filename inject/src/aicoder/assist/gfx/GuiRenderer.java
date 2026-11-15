@@ -1,15 +1,7 @@
 package aicoder.assist.gfx;
 
-import aicoder.assist.Names;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.navigation.ScreenRectangle;
-import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.gui.render.state.GuiRenderState;
-import net.minecraft.client.renderer.RenderPipelines;
-import org.joml.Matrix3x2f;
 
-import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,12 +18,7 @@ import java.util.List;
 public final class GuiRenderer {
     public final GuiTheme theme = new GuiTheme(this);
 
-    private static Field stateField;
-
-    private GuiGraphics graphics;
-    private GuiRenderState state;
-    private Matrix3x2f pose;
-    private double guiScale = 1;
+    private boolean drawing;
 
     private float[] xy = new float[1 << 14];
     private int[] colors = new int[1 << 13];
@@ -44,10 +31,8 @@ public final class GuiRenderer {
 
     /** Starts a frame. {@code guiScale} is how many framebuffer pixels one of the game's GUI units covers. */
     public void begin(GuiGraphics graphics, double guiScale) {
-        this.graphics = graphics;
-        this.guiScale = guiScale;
-        this.pose = new Matrix3x2f(graphics.pose()).scale((float) (1 / guiScale));
-        this.state = stateOf(graphics);
+        Backend.begin(graphics, guiScale);
+        drawing = true;
         scissors.clear();
         resetBounds();
     }
@@ -57,20 +42,8 @@ public final class GuiRenderer {
         for (int i = 0; i < absolutePosts.size(); i++) absolutePosts.get(i).run();
         absolutePosts.clear();
         flush();
-        graphics = null;
-        state = null;
-    }
-
-    private static GuiRenderState stateOf(GuiGraphics graphics) {
-        try {
-            if (stateField == null) {
-                stateField = GuiGraphics.class.getDeclaredField(Names.shared().get("GuiGraphics.guiRenderState"));
-                stateField.setAccessible(true);
-            }
-            return (GuiRenderState) stateField.get(graphics);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
+        drawing = false;
+        Backend.end();
     }
 
     // Shapes
@@ -153,7 +126,7 @@ public final class GuiRenderer {
     /** Sends the shapes gathered so far to the game as one element, then runs what was posted behind them. */
     private void flush() {
         if (vertices > 0) {
-            submit(RenderPipelines.GUI, TextureSetup.noTexture(), Arrays.copyOf(xy, vertices * 2), null, Arrays.copyOf(colors, vertices), vertices,
+            submit(null, Arrays.copyOf(xy, vertices * 2), null, Arrays.copyOf(colors, vertices), vertices,
                 minX, minY, maxX, maxY);
             vertices = 0;
             resetBounds();
@@ -168,25 +141,9 @@ public final class GuiRenderer {
         }
     }
 
-    void submit(RenderPipeline pipeline, TextureSetup texture, float[] xy, float[] uv, int[] colors, int count, float x0, float y0, float x1, float y1) {
-        if (state == null || count == 0) return;
-
-        ScreenRectangle bounds = rectangle(x0, y0, x1, y1);
-        ScreenRectangle scissor = null;
-        double[] s = scissors.peek();
-        if (s != null) {
-            scissor = rectangle(s[0], s[1], s[2], s[3]);
-            bounds = bounds.intersection(scissor);
-            if (bounds == null) return;
-        }
-
-        state.submitGuiElement(new Mesh(pipeline, texture, pose, xy, uv, colors, count, scissor, bounds.transformMaxBounds(graphics.pose())));
-    }
-
-    /** Framebuffer pixels to the game's GUI units, rounded outwards. */
-    private ScreenRectangle rectangle(double x0, double y0, double x1, double y1) {
-        int left = (int) Math.floor(x0 / guiScale), top = (int) Math.floor(y0 / guiScale);
-        int right = (int) Math.ceil(x1 / guiScale), bottom = (int) Math.ceil(y1 / guiScale);
-        return new ScreenRectangle(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
+    /** One batch of quads, plain or textured (a handle from {@link Backend#texture}), clipped to the open scissor. */
+    void submit(Object texture, float[] xy, float[] uv, int[] colors, int count, float x0, float y0, float x1, float y1) {
+        if (!drawing || count == 0) return;
+        Backend.draw(texture, xy, uv, colors, count, scissors.peek(), x0, y0, x1, y1);
     }
 }

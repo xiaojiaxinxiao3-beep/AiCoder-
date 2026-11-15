@@ -6,10 +6,13 @@
 set -e
 cd "$(dirname "$0")"; unset JAVA_TOOL_OPTIONS; export LC_ALL=C.UTF-8
 JD=${JAVA_HOME:-/opt/jdk/jdk-25.0.5+8}/bin
-GAME=${GAME_JAR:-$HOME/.gradle/caches/fabric-loom/1.21.11/minecraft-client.jar}
-ASM=$(tr ':' '\n' < work/remapper-cp.txt | grep '/asm-9' | head -1)
-REMAP="$JD/java -cp $(cat work/remapper-cp.txt) net.fabricmc.tinyremapper.Main"
-W=work
+# V=1.21.4 ./build.sh builds for another game version: its files are in work-$V/ (see tools/fetch.py), its
+# sources are made from src/ by tools/port_version.py, and the result is work-$V/AiCoderAssist-$V.jar.
+V=${V:-1.21.11}
+if [ "$V" = 1.21.11 ]; then W=work; SRC=src; OUT=AiCoderAssist; GAME=${GAME_JAR:-$HOME/.gradle/caches/fabric-loom/1.21.11/minecraft-client.jar}
+else W=work-$V; SRC=$W/src; OUT=AiCoderAssist-$V; GAME=$W/minecraft-client.jar; [ -f $W/remapper-cp.txt ] || cp work/remapper-cp.txt $W/; fi
+ASM=$(tr ':' '\n' < $W/remapper-cp.txt | grep '/asm-9' | head -1)
+REMAP="$JD/java -cp $(cat $W/remapper-cp.txt) net.fabricmc.tinyremapper.Main"
 
 # 1. Readable copy of the game to compile against, and ASM moved into our own package so it cannot clash
 [ -f $W/mojang.tiny ] || python3 tools/tiny.py $W/client.txt $W/mojang.tiny
@@ -21,11 +24,12 @@ fi
 
 # 2. Modules come from the Meteor addon
 python3 tools/port_modules.py > /dev/null
+[ "$V" = 1.21.11 ] || python3 tools/port_version.py $V $SRC > /dev/null
 
 # 3. Compile against readable names
 rm -rf $W/classes $W/named.jar && mkdir -p $W/classes
 LIBS=$(tr ':' '\n' < $W/cp.txt | grep -v minecraft-client.jar | tr '\n' ':')
-$JD/javac -encoding UTF-8 --release 21 -Xlint:-options -cp "$W/minecraft-named.jar:$W/asm-moved.jar:$LIBS" -d $W/classes $(find src -name '*.java')
+$JD/javac -encoding UTF-8 --release 21 -Xlint:-options -cp "$W/minecraft-named.jar:$W/asm-moved.jar:$LIBS" -d $W/classes $(find $SRC -name '*.java')
 $JD/jar cf $W/named.jar -C $W/classes .
 
 # 4. Convert our classes to the game's real (obfuscated) names
@@ -34,14 +38,14 @@ $REMAP $W/named.jar $W/official.jar $W/mojang.tiny named official $W/minecraft-n
 
 # 5. One jar: our classes, ASM, the patch targets, and a manifest that makes it both injector and payload
 rm -rf $W/pack && mkdir -p $W/pack && (cd $W/pack && unzip -qo ../official.jar && unzip -qo ../asm-moved.jar -x 'META-INF/*')
-python3 tools/gen_names.py $W/client.txt $W/pack/aicoder/assist/names.properties
+python3 tools/gen_names.py $W/client.txt $W/pack/aicoder/assist/names.properties $V
 cp -r res/. $W/pack/
 printf 'Main-Class: aicoder.assist.Injector\nAgent-Class: aicoder.assist.Agent\nCan-Retransform-Classes: true\n' > $W/manifest.txt
-$JD/jar cfm $W/AiCoderAssist.jar $W/manifest.txt -C $W/pack .
+$JD/jar cfm $W/$OUT.jar $W/manifest.txt -C $W/pack .
 
 # 6. The Windows program: a small launcher with the jar appended (Java reads a jar from the end of a file)
 if command -v x86_64-w64-mingw32-gcc > /dev/null; then
-  x86_64-w64-mingw32-gcc -O2 -s -municode -o $W/launcher.exe launcher/launcher.c
-  cat $W/launcher.exe $W/AiCoderAssist.jar > $W/AiCoderAssist.exe
+  x86_64-w64-mingw32-gcc -O2 -s -municode -DGAME_VERSION=L\"$V\" -o $W/launcher.exe launcher/launcher.c
+  cat $W/launcher.exe $W/$OUT.jar > $W/$OUT.exe
 fi
-ls -la $W/AiCoderAssist.jar $W/AiCoderAssist.exe
+ls -la $W/$OUT.jar $W/$OUT.exe
