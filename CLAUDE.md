@@ -192,8 +192,9 @@
 ## 模組 addon：戰鬥巨集（`combat-macros/`）
 - 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
 - **自己的分頁**（`AiCoderTab`，做法和 Shoreline 一樣）：`Tabs.add()` 加一個分頁，`createScreen()` 直接回傳 `theme.modulesScreen()`，所以任何主題都能用。兩個 mixin（都是 `remap = false`，目標是 Meteor 的類別）：`ModulesMixin` 攔 `Modules.loopCategories()`，目前畫面是 AiCoder 分頁時只回傳自己的三個分類、是 Modules 分頁時回傳其他分類、其餘情況回傳全部；`TabScreenAccessor` 把畫面的 `tab` 欄位（final）改成自己的分頁，分頁列才會標對。判斷「目前是哪個分頁」用 `mc.gui.screen()` 的 `tab`，建構期間另外用 `creating` 旗標
-- 九個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`、`SpearLunge`、`MaceDive`
+- 十個模組分在 `AiCoderTab.EXPLOSIVES`／`MELEE`／`UTILITY` 三個分類：`AnchorMacro`、`CrystalMacro`、`CrosshairDrift`、`WindPearl`、`RightClicker`、`LeftClicker`、`MaceSwap`、`SpearLunge`、`MaceDive`、`WindJump`
 - `SpearLunge` 是「按住才動作」：模組開著只是待命，用 `Input.isKeyPressed()` 看 `hold-key` 設定的按鍵（列舉，鍵碼取自 `InputConstants.KEY_*`，這樣 Meteor 版和注入版可以共用，不需要按鍵綁定設定）。一輪是：`keyJump.setDown(true)` → 選長矛欄位並 `KeyMapping.click(攻擊鍵)` → 下一個 tick 選回原欄位。新增模組時三處都要加：`CombatAddon`、`inject/src/aicoder/assist/Client.java`、`inject/tools/port_modules.py` 的 `FILES`
+- `WindJump`（第十個模組，在 UTILITY）：開啟一次跳一次，落地後自己關閉。視角轉到正下方、按跳、隔 `throw-delay` 個 tick 選風彈並按使用鍵、下一個 tick 切回並轉回視角。`auto-tune` 開著時每次換一個時機（0～7 tick）並量實際高度，八種都試過後把最好的寫進 `throw-delay`。實測（1.21.11 單人）：0 tick 8.4～11.3 格、1 tick 6.9 格、2 tick 以後 3～4 格，所以預設 0、`auto-tune` 預設關
 - `MaceDive`（鞘翅＋重錘循環）要點：
   - 鞘翅與胸甲的互換：備用的那件放快捷列。同一個 tick 內「選那一格 → `Clicks.useItem()`（直接呼叫，立刻生效）→ 選回武器」。伺服器每個 tick 只在最後比對一次主手物品，所以它看不到武器離手，劍的蓄力不會被重置。備用那件放副手也行（主手拿武器按右鍵，原版會改用副手的物品）。使用者回報過：沒有換上胸甲就完全沒有傷害，所以 Prepare 階段找不到胸甲會直接警告並關閉
   - 爬升預設垂直往上（`climb-steepness` 90），俯衝才對準目標，所以是斜著打下來，不會先飛到目標正上方

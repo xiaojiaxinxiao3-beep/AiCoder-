@@ -29,8 +29,9 @@
 | Wind Pearl | 你按右鍵丟珍珠後，隔一段時間切到風彈格丟出、再切回珍珠格 | `Delay` 與 `Aim Shift`（丟風彈前把滑鼠上下移幾個像素，丟完移回）要自己試出來 |
 | Elytra Launch | 按一下：跳 → 再跳（張開鞘翅）→ 切到煙火格使用 → 切回 | 已經穿著鞘翅 |
 | Dive Strike | 按一下：切到胸甲格按右鍵換上 → 切到重錘格攻擊 → 再切回那格（現在是鞘翅）按右鍵穿回 → 切回武器 | 自己飛、自己瞄準，到攻擊距離時按 |
+| Wind Jump | 按一下：切到風彈格 → 視角轉到正下方 → 跳的同時丟風彈 → 切回 | `Throw Delay` 是跳和丟之間的間隔（Java 版實測 0 最高）。它不知道你原本看哪裡，`Look Back` 填要把滑鼠往上移回多少像素，0 是不移回 |
 
-每個模組都能綁按鍵，模式可選 TOGGLE／HOLD（設定最下面的 BIND；Esc／Backspace／右鍵清除）。Elytra Launch 和 Dive Strike 是「按一下跑一次」，跑完自己關閉。兩種極光介面用右上角的 `WINDOW`／`COLUMNS` 切換。設定存在 `%APPDATA%\AiCoderAssist\bedrock.ini`。
+每個模組都能綁按鍵，模式可選 TOGGLE／HOLD（設定最下面的 BIND；Esc／Backspace／右鍵清除）。Elytra Launch、Dive Strike 和 Wind Jump 是「按一下跑一次」，跑完自己關閉。兩種極光介面用右上角的 `WINDOW`／`COLUMNS` 切換。設定存在 `%APPDATA%\AiCoderAssist\bedrock.ini`。
 
 ## 和 Java 版效果不同的地方
 - **Mace Swap**：Java 版是「一擊同時吃到兩把武器的效果」；這裡是單純「切重錘打一下再切回」，傷害就是重錘自己的

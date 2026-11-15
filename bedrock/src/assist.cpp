@@ -63,8 +63,11 @@ static std::vector<Module> g_modules = {
         {{L"Firework Slot", L"firework_slot", 5, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Open After", L"open_after", 250, 50, 1000, 10, L"ms"}, {L"Step Delay", L"step_delay", 60, 0, 300, 5, L"ms"}}, true},
     {L"Dive Strike", L"dive_strike", L"Movement", L"One press: chestplate on, mace hit, elytra back on.",
         {{L"Armor Slot", L"armor_slot", 6, 1, 9, 1, L""}, {L"Mace Slot", L"mace_slot", 2, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Step Delay", L"step_delay", 50, 0, 300, 5, L"ms"}}, true},
+    {L"Wind Jump", L"wind_jump", L"Movement", L"One press: look down, jump, wind charge at your feet.",
+        {{L"Wind Slot", L"wind_slot", 4, 1, 9, 1, L""}, {L"Return Slot", L"return_slot", 1, 1, 9, 1, L""}, {L"Throw Delay", L"throw_delay", 0, 0, 400, 5, L"ms"},
+         {L"Look Back", L"look_back", 0, 0, 3000, 20, L"px"}, {L"Step Delay", L"step_delay", 50, 0, 300, 5, L"ms"}}, true},
 };
-enum { LEFT, RIGHT, CRYSTAL, ANCHOR, MACE, SPEAR, WIND, LAUNCH, DIVE };
+enum { LEFT, RIGHT, CRYSTAL, ANCHOR, MACE, SPEAR, WIND, LAUNCH, DIVE, WJUMP };
 
 // ---------------------------------------------------------------- shared state
 
@@ -238,8 +241,8 @@ static DWORD WINAPI macroThread(LPVOID) {
             if (!down && m.keyWasDown && m.hold && !m.oneShot) m.on = false;
             m.keyWasDown = down;
         }
-        bool launch = g_modules[LAUNCH].on, dive = g_modules[DIVE].on;
-        if (active && sequence.empty()) { g_modules[LAUNCH].on = false; g_modules[DIVE].on = false; }
+        bool launch = g_modules[LAUNCH].on, dive = g_modules[DIVE].on, windJump = g_modules[WJUMP].on;
+        if (active && sequence.empty()) { g_modules[LAUNCH].on = false; g_modules[DIVE].on = false; g_modules[WJUMP].on = false; }
         std::vector<Module> m = g_modules;
         LeaveCriticalSection(&g_lock);
 
@@ -270,6 +273,13 @@ static DWORD WINAPI macroThread(LPVOID) {
             int d = (int) m[DIVE].get(3), armor = (int) m[DIVE].get(0);
             start({{Step::KEY, armor, d}, {Step::RCLICK, 0, d}, {Step::KEY, (int) m[DIVE].get(1), d}, {Step::LCLICK, 0, d},
                    {Step::KEY, armor, d}, {Step::RCLICK, 0, d}, {Step::KEY, (int) m[DIVE].get(2), d}}, 0);
+        } else if (windJump) {
+            // Moving the mouse far down stops at straight down whatever the sensitivity is.
+            int d = (int) m[WJUMP].get(4), back = (int) m[WJUMP].get(3);
+            std::vector<Step> steps = {{Step::KEY, (int) m[WJUMP].get(0), 0}, {Step::MOVE, 6000, d}, {Step::SPACE_DOWN, 0, (int) m[WJUMP].get(2)},
+                                       {Step::RCLICK, 0, 40}, {Step::SPACE_UP, 0, d}, {Step::KEY, (int) m[WJUMP].get(1), 0}};
+            if (back) steps.push_back({Step::MOVE, -back, 0});
+            start(steps, 0);
         } else if (launch) {
             int d = (int) m[LAUNCH].get(3);
             start({{Step::SPACE_DOWN, 0, 40}, {Step::SPACE_UP, 0, (int) m[LAUNCH].get(2)}, {Step::SPACE_DOWN, 0, 40}, {Step::SPACE_UP, 0, d},
