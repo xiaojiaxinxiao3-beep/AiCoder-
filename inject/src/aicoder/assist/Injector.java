@@ -28,6 +28,7 @@ public final class Injector {
             for (VirtualMachineDescriptor vm : VirtualMachine.list()) ids.add(vm.id());
         }
 
+        System.out.println("AiCoder Assist injector for Minecraft 1.21.11, running on Java " + System.getProperty("java.version"));
         String self = String.valueOf(ProcessHandle.current().pid());
         boolean sawGame = false;
 
@@ -37,8 +38,9 @@ public final class Injector {
             VirtualMachine machine;
             try {
                 machine = VirtualMachine.attach(id);
-            } catch (Exception e) {
-                System.out.println("Process " + id + ": could not attach (" + e.getMessage() + ")");
+            } catch (Throwable e) {
+                // Also reached when this Java cannot attach at all (a runtime without the attach module)
+                System.out.println("Process " + id + ": could not attach (" + e + ")");
                 continue;
             }
 
@@ -53,8 +55,24 @@ public final class Injector {
                 System.out.println("AiCoder Assist is in. Press Right Shift in the game to open the menu.");
                 System.exit(0);
             } catch (Exception e) {
-                System.out.println("Could not inject into process " + id + ": " + e.getMessage());
-                System.out.println("This build only works with Minecraft 1.21.11 started without mods. The game's own log says more.");
+                String reason = null;
+                try {
+                    reason = machine.getSystemProperties().getProperty(Agent.ERROR_PROPERTY);
+                } catch (Exception ignored) {
+                    // The plain message below is all there is
+                }
+                System.out.println("Could not inject into process " + id + ".");
+                System.out.println("Reason: " + (reason != null ? reason : e.getMessage()));
+                if (reason != null && reason.contains("this download is for Minecraft") && !reason.contains("for Minecraft 1.21.11,")) {
+                    // The game still holds the classes of the package tried before; nothing loaded now can replace them
+                    System.out.println();
+                    System.out.println("A package for ANOTHER game version was run on this game earlier.");
+                    System.out.println("Close Minecraft completely, start it again, and run only this one.");
+                } else {
+                    System.out.println("This build only works with Minecraft 1.21.11 started without mods.");
+                    System.out.println("If a package for another version was run on this game before, close Minecraft,");
+                    System.out.println("start it again and run only this one. Otherwise send this window as a screenshot.");
+                }
             } finally {
                 try {
                     machine.detach();
@@ -65,7 +83,7 @@ public final class Injector {
         }
 
         if (sawGame) System.exit(1);
-        System.out.println("Minecraft is not running. Start Minecraft 1.21.11 first, then run this again.");
+        System.out.println("No running Minecraft was found among " + ids.size() + " Java program(s). Start Minecraft 1.21.11 first, then run this again.");
         System.exit(2);
     }
 }

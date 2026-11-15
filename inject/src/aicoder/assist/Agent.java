@@ -30,11 +30,25 @@ public final class Agent {
     private static final String GAME_VERSION = "1.21.11";
     private static boolean loaded;
 
+    /** Where the reason for a failed injection is left, so the injector can print it instead of a bare "failed". */
+    static final String ERROR_PROPERTY = "aicoder.assist.error";
+
     public static void agentmain(String args, Instrumentation inst) throws Exception {
+        try {
+            System.clearProperty(ERROR_PROPERTY);
+            start(inst);
+        } catch (Throwable t) {
+            System.setProperty(ERROR_PROPERTY, String.valueOf(t.getMessage() != null ? t.getMessage() : t));
+            throw t;
+        }
+    }
+
+    private static void start(Instrumentation inst) throws Exception {
         // The names this build knows belong to one game version only; in any other they would point at the wrong things
         String version = gameVersion();
         if (!GAME_VERSION.equals(version)) {
-            throw new IllegalStateException(Client.NAME + " is built for Minecraft " + GAME_VERSION + ", this is " + version);
+            throw new IllegalStateException("this download is for Minecraft " + GAME_VERSION + ", but the running game says it is " + version
+                + (version.equals("unknown") ? " (its jar has no version.json: a modified or repacked game)" : ""));
         }
 
         if (loaded) {
