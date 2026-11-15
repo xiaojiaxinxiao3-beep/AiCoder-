@@ -487,6 +487,9 @@ static void hit(RectF r, std::function<void(int)> click, std::function<void(floa
     g_hits.push_back({r, std::move(click), std::move(drag)});
 }
 
+static bool g_games = false;
+#include "games.h"
+
 static std::wstring keyName(int vk) {
     if (!vk) return L"NONE";
     if ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')) return std::wstring(1, (wchar_t) vk);
@@ -587,11 +590,17 @@ static void render(Graphics& g, float w, float h) {
     text(g, L"ASSIST  /  BEDROCK", 34 + textWidth(g, L"AICODER", 22, true) + 14, 33, 12, withAlpha(GREEN, 230), true);
     float bx = w - 34;
     bx -= 92; pill(g, RectF(bx, 24, 92, 30), L"UNLOAD", false, [](int) { g_running = false; });
+    bx -= 102; pill(g, RectF(bx, 24, 92, 30), L"GAMES", g_games, [](int) { g_games = !g_games; g_popup = nullptr; if (!g_games) games::leave(); });
     bx -= 102; pill(g, RectF(bx, 24, 92, 30), L"MOTION", g_motion, [](int) { g_motion = !g_motion; saveUi(); });
-    bx -= 112; pill(g, RectF(bx, 24, 102, 30), L"COLUMNS", g_layout == 0, [](int) { g_layout = 0; g_popup = nullptr; saveUi(); });
-    bx -= 102; pill(g, RectF(bx, 24, 92, 30), L"WINDOW", g_layout == 1, [](int) { g_layout = 1; g_popup = nullptr; saveUi(); });
+    bx -= 112; pill(g, RectF(bx, 24, 102, 30), L"COLUMNS", g_layout == 0 && !g_games, [](int) { if (g_games) games::leave(); g_games = false; g_layout = 0; g_popup = nullptr; saveUi(); });
+    bx -= 102; pill(g, RectF(bx, 24, 92, 30), L"WINDOW", g_layout == 1 && !g_games, [](int) { if (g_games) games::leave(); g_games = false; g_layout = 1; g_popup = nullptr; saveUi(); });
 
     auto cats = categories();
+    if (g_games) {
+        games::render(g, w, h);
+        text(g, L"Right Shift: close    P pause    R restart", 34, h - 40, 13, DIM);
+        return;
+    }
     if (g_layout == 0) {
         float cw = 270, gap = 18, x = 34, y = 84;
         const wchar_t* hint = nullptr; RectF hintAt;
@@ -675,6 +684,7 @@ static float g_scale = 1;
 
 static void closeMenu() {
     g_menu = false; g_popup = nullptr; g_binding = nullptr; g_dragging = nullptr;
+    if (g_games) games::leave();
     saveConfig();
     ShowWindow(g_overlay, SW_HIDE);
     if (g_game) SetForegroundWindow(g_game);
@@ -689,6 +699,7 @@ static void pressAt(float x, float y, int button) {
         else if (h.click) { auto action = h.click; action(button); }
         return;
     }
+    if (g_games) games::mouse(button, true);
 }
 
 static LRESULT CALLBACK overlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -697,13 +708,16 @@ static LRESULT CALLBACK overlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_MOUSEMOVE: g_mouse = PointF(x, y); if (g_dragging && (wp & MK_LBUTTON)) g_dragging(x); return 0;
         case WM_LBUTTONDOWN: SetCapture(hwnd); g_mouse = PointF(x, y); pressAt(x, y, 0); return 0;
         case WM_RBUTTONDOWN: g_mouse = PointF(x, y); pressAt(x, y, 1); return 0;
-        case WM_LBUTTONUP: ReleaseCapture(); if (g_dragging) { g_dragging = nullptr; saveConfig(); } return 0;
+        case WM_LBUTTONUP: ReleaseCapture(); if (g_dragging) { g_dragging = nullptr; saveConfig(); } if (g_games) games::mouse(0, false); return 0;
+        case WM_MOUSEWHEEL: if (g_games) games::scroll(GET_WHEEL_DELTA_WPARAM(wp)); return 0;
+        case WM_KEYUP: if (g_games) games::key((int) wp, false); return 0;
         case WM_XBUTTONDOWN: case WM_MBUTTONDOWN: case WM_KEYDOWN: case WM_SYSKEYDOWN: {
             int vk = msg == WM_XBUTTONDOWN ? (HIWORD(wp) == XBUTTON1 ? VK_XBUTTON1 : VK_XBUTTON2) : msg == WM_MBUTTONDOWN ? VK_MBUTTON : (int) wp;
             if (vk == VK_SHIFT && (HIWORD(lp) & 0xFF) == 0x36) vk = VK_RSHIFT;
             if (vk == VK_SHIFT) vk = VK_LSHIFT;
             if (vk == VK_CONTROL) vk = (HIWORD(lp) & KF_EXTENDED) ? VK_RCONTROL : VK_LCONTROL;
             if (vk == VK_MENU) vk = (HIWORD(lp) & KF_EXTENDED) ? VK_RMENU : VK_LMENU;
+            if (g_games && !g_binding && !g_popup && (msg == WM_KEYDOWN) && vk != VK_ESCAPE && vk != VK_RSHIFT) { games::key((int) wp, true); return 0; }
             if (g_binding) {
                 if (vk != VK_RSHIFT) {
                     EnterCriticalSection(&g_lock);
@@ -718,7 +732,7 @@ static LRESULT CALLBACK overlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
         case WM_ACTIVATE:
             // Alt-tabbed away with the menu open: just put it away, do not pull focus back.
-            if (LOWORD(wp) == WA_INACTIVE && g_menu) { g_menu = false; g_popup = nullptr; g_binding = nullptr; saveConfig(); ShowWindow(hwnd, SW_HIDE); }
+            if (LOWORD(wp) == WA_INACTIVE && g_menu) { if (g_games) games::leave(); g_menu = false; g_popup = nullptr; g_binding = nullptr; saveConfig(); ShowWindow(hwnd, SW_HIDE); }
             return 0;
         case WM_MOUSEACTIVATE: return g_menu ? MA_ACTIVATE : MA_NOACTIVATE;
     }

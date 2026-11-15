@@ -252,5 +252,6 @@
 ## 基岩版注入客戶端（`bedrock/`）
 - C++（mingw 交叉編譯）：`src/assist.cpp` 是 DLL，`src/injector.c` 是用 `LoadLibraryW` 遠端執行緒載入它的 exe。說明、拿掉的功能與原因、沒驗證的假設在 `bedrock/README.md`
 - **刻意不碰遊戲內部**（沒有特徵碼、沒有掛鉤）：選單是自己的 layered window（GDI+ 畫、`UpdateLayeredWindow`），模組只用 `SendInput`。九個模組都是固定的按鍵序列（`Step` 陣列，由巨集執行緒逐步送出），物品在第幾格由使用者設定；需要讀記憶體的功能（例如準心飄移）不要加。Mace Swap 會在滑鼠掛鉤裡吃掉實體左鍵（`g_swallowLeft`），改由序列代按
+- 小遊戲在 `src/games.h`（由 `assist.cpp` 在繪圖輔助函式之後 include；`games::render/key/mouse/scroll/leave`），是 Java 注入版 `aurora/Game*.java` 的 C++ 移植，改其中一邊時另一邊要跟著改。鍵碼用 Windows 的 VK
 - 三個執行緒：UI（畫面與右 Shift）、巨集（1ms 迴圈）、滑鼠 LL 掛鉤（只記實體按鍵狀態，忽略 `LLMHF_INJECTED`；獨立執行緒才不會讓滑鼠卡）
 - 測試：這個環境裝得起 Wine（`apt-get install wine64 wine`）。`Xvfb :78` 下跑 `work/Minecraft.Windows.exe`（替身，`test/fakegame.c`，把收到的輸入寫到 `fakegame.log`；按 Z 歸零、按 C 切換游標），再跑注入器（stdin 接 `/dev/null`），用 xdotool 操作。`xdotool key Shift_R` 太短的敲擊靠 `GetAsyncKeyState` 的低位元補抓

@@ -40,8 +40,22 @@
 - **Dive Strike／Elytra Launch**：取代 Mace Dive，但不會自動找人、自動飛、自動瞄準
 - **Crosshair Drift（準心飄向玩家）沒有做**：它一定要知道別人的位置，只靠按鍵做不到
 
+## 小遊戲（GAMES）
+選單右上角的 `GAMES` 會把模組清單換成六個小遊戲，再按一次或按 `WINDOW`／`COLUMNS` 回到模組。和 Java 注入版是同一批遊戲。選單開著時基岩版本身是暫停的（失去焦點），所以是「暫停時玩」。
+
+| 遊戲 | 玩法 | 操作 |
+|---|---|---|
+| Drop | 落下的四格方塊，排滿一列就消除 | 方向鍵移動與旋轉、下鍵加速、空白鍵直落、C 暫存 |
+| Trail | 吃點變長，撞牆或撞到自己結束 | 方向鍵或 WASD |
+| Sweep | 打開所有安全的格子 | 左鍵打開、右鍵標記 |
+| Merge | 相同的數字合併成兩倍 | 方向鍵或 WASD |
+| Bounce | 用板子接球打磚塊 | 滑鼠或方向鍵、空白鍵或點擊發球 |
+| Dig | 2D 側視沙盒：地形、洞穴、礦石，可以挖和放 | A／D 走、W 或空白鍵跳、按住左鍵挖、右鍵放、1～9 或滾輪選格、連按兩次 N 換新世界 |
+
+`P` 暫停、`R` 重新開始。最高分存在 `bedrock.ini` 的 `[games]`，Dig 的世界存在同一個資料夾的 `dig.dat`。
+
 ## 測試範圍
-在 Linux 的 Wine 裡，用一個替身程式（`test/fakegame.c`：會隱藏游標並記錄收到的輸入，檔名取成 `Minecraft.Windows.exe`）測過：注入、提示、兩種版面、設定視窗、拖曳滑桿、綁定 G＋HOLD、Left Clicker（12 CPS 設定下 1 秒約 12 下）、Crystal、Anchor（收到 2、右鍵、1、右鍵）、Mace Swap（一下左鍵 → 2、左鍵、1）、Wind Pearl（右鍵 → 4、右鍵、3）、Spear Lunge（跳、3、左鍵、1 重複）、Elytra Launch（跳、跳、5、右鍵、1，只跑一次）、Dive Strike（6、右鍵、2、左鍵、6、右鍵、1，只跑一次）、游標顯示時不動作、UNLOAD 後再次注入。
+在 Linux 的 Wine 裡，用一個替身程式（`test/fakegame.c`：會隱藏游標並記錄收到的輸入，檔名取成 `Minecraft.Windows.exe`）測過：注入、提示、兩種版面、設定視窗、拖曳滑桿、綁定 G＋HOLD、Left Clicker（12 CPS 設定下 1 秒約 12 下）、Crystal、Anchor（收到 2、右鍵、1、右鍵）、Mace Swap（一下左鍵 → 2、左鍵、1）、Wind Pearl（右鍵 → 4、右鍵、3）、Spear Lunge（跳、3、左鍵、1 重複）、Elytra Launch（跳、跳、5、右鍵、1，只跑一次）、Dive Strike（6、右鍵、2、左鍵、6、右鍵、1，只跑一次）；六個小遊戲都開起來玩過幾步，Dig 挖了兩格、放回一格，關選單後 `dig.dat` 與最高分有寫出、游標顯示時不動作、UNLOAD 後再次注入。
 
 **沒有在真正的基岩版和真正的 Windows 上跑過。** 測的只是「按鍵有照順序送出」，遊戲裡的實際效果都沒驗證。不確定的地方：
 - 每一步之間的間隔（Step Delay）要多長遊戲才來得及反應；太短會漏步驟，請自己調大
