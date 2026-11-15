@@ -106,11 +106,7 @@ public class AuroraScreen extends Screen {
 
         R.begin(graphics, guiScale);
         Fx.nextFrame();
-        Aurora.frame(width, height, 0.88, true);
-
-        R.scissorStart(0, 0, width, height);
-        Aurora.render(R);
-        R.scissorEnd();
+        Ui.frame(R, S, width, height);
 
         R.scissorStart(0, 0, width, height);
         if (columns()) renderColumns();
@@ -170,7 +166,7 @@ public class AuroraScreen extends Screen {
     // Top bar: the two layouts, and the motion switch
 
     private void renderTopBar() {
-        String[] labels = {"WINDOW", "COLUMNS", Client.animations ? "MOTION ON" : "MOTION OFF"};
+        String[] labels = {"WINDOW", "COLUMNS", Client.animations ? "MOTION ON" : "MOTION OFF", "STYLE"};
         double font = 13.5, tracking = 2.6, pad = 20 * u, inset = 6 * u;
         double barH = 46 * u, top = 22 * u;
 
@@ -182,7 +178,7 @@ public class AuroraScreen extends Screen {
         }
 
         double x = columns() ? width - total - 34 * u : Math.round((width - total) / 2);
-        Chrome.panel(R, x, top, total, barH, u, barH / 2, false);
+        Ui.panel(R, x, top, total, barH, u, barH / 2, false);
 
         Fx.TextBatch text = Fx.text(R, u);
         double tx = x + inset;
@@ -194,10 +190,10 @@ public class AuroraScreen extends Screen {
 
             if (on) {
                 Fx.glowRect(R, cx + ch / 2, cy + ch / 2, cw - ch, 0, ch / 2 + 10 * u, Fx.a(S.green, 0.3));
-                Chrome.gradient(R, cx, cy, cw, ch, ch / 2, 1, 1, 1, 159, 208, 255);
+                Ui.gradient(R, cx, cy, cw, ch, ch / 2, 1, 1, 1, 159, 208, 255);
                 R.quad(cx + ch / 2, cy + Fx.hair(u), cw - ch, Fx.hair(u), Fx.rgba(255, 255, 255, 0.6));
             } else if (h > 0) {
-                Chrome.plate(R, cx, cy, cw, ch, u, ch / 2, h);
+                Ui.plate(R, cx, cy, cw, ch, u, ch / 2, h);
             }
 
             Color c = on ? S.dark : Fx.mix(S.dim, S.title, h);
@@ -205,10 +201,11 @@ public class AuroraScreen extends Screen {
 
             int index = i;
             hit(tx, top, widths[i], barH, () -> {
+                popup = null;
                 if (index == 0) Client.layout = "window";
                 else if (index == 1) Client.layout = "columns";
-                else Client.animations = !Client.animations;
-                popup = null;
+                else if (index == 2) Client.animations = !Client.animations;
+                else openPopup(Client.look);
             }, null);
             tx += widths[i];
         }
@@ -224,7 +221,7 @@ public class AuroraScreen extends Screen {
                 lx += Fx.textWidth(theme, ch, size, 6, u);
             }
             text.put(" Assist", lx, ty, size, S.title, 6, Fx.BOLD);
-            text.put("AURORA GLASS · COLUMNS", 34 * u, ty + Fx.lineHeight(theme, size, u) + 4 * u, 11, S.faint, 2.4, 0);
+            text.put(Ui.glass() ? "LIQUID GLASS · COLUMNS" : "AURORA GLASS · COLUMNS", 34 * u, ty + Fx.lineHeight(theme, size, u) + 4 * u, 11, S.faint, 2.4, 0);
         }
     }
 
@@ -244,7 +241,7 @@ public class AuroraScreen extends Screen {
             double scroll = Math.max(0, Math.min(scrollMax, columnScroll.getOrDefault(c, 0.0)));
             columnScroll.put(c, scroll);
 
-            Chrome.panel(R, x, top, columnW, h, u, S.columnCorner * u, false);
+            Ui.panel(R, x, top, columnW, h, u, S.columnCorner * u, false);
             hits.add(new Hit(x, top, columnW, h, null, null, null, 0, 0));
             R.quad(x + 2 * u, top + header - Fx.hair(u), columnW - 4 * u, Fx.hair(u), Fx.rgba(255, 255, 255, 0.14));
 
@@ -286,14 +283,14 @@ public class AuroraScreen extends Screen {
         double pulse = pulse(module);
 
         double px = x + 8 * u, pw = w - 16 * u, py = y + 1.5 * u, ph = h - 3 * u, corner = 11 * u;
-        Chrome.lit(R, px, py, pw, ph, u, corner, 0.30, 0.14, 0.20, Fx.a(S.mint, 0.42), 0.18, active * pulse);
+        Ui.lit(R, px, py, pw, ph, u, corner, 0.30, 0.14, 0.20, Fx.a(S.mint, 0.42), 0.18, active * pulse);
         if (hv > 0) {
             Fx.box(R, px, py, pw, ph, corner, Fx.rgba(255, 255, 255, 0.11 * hv));
             Fx.boxOutline(R, px, py, pw, ph, corner, Fx.hair(u), Fx.rgba(255, 255, 255, 0.4 * hv));
         }
 
         Fx.text(R, u).put(module.title, x + 21 * u, Fx.centerY(theme, y + h / 2, 14, u), 14, Fx.mix(S.dim, S.title, Math.max(active, hv)), 0, 0);
-        if (active > 0) Chrome.bead(R, S, x + w - 24.5 * u, y + h / 2, 3.5 * u * active, active, pulse);
+        if (active > 0) Ui.bead(R, S, x + w - 24.5 * u, y + h / 2, 3.5 * u * active, active, pulse);
 
         if (hover) {
             card = module;
@@ -315,7 +312,7 @@ public class AuroraScreen extends Screen {
         x = Math.round(Math.max(0, x));
         double y = Math.round(Math.max(0, Math.min(cardY, height - h)));
 
-        Chrome.panel(R, x, y, w, h, u, 18 * u, true);
+        Ui.panel(R, x, y, w, h, u, 18 * u, true);
         Fx.TextBatch text = Fx.text(R, u);
         double cy = y + padY;
         text.put(card.title.toUpperCase(Locale.ROOT), x + padX, cy, 15, S.title, 2.4, Fx.BOLD);
@@ -342,7 +339,7 @@ public class AuroraScreen extends Screen {
         double h = Math.min(height - 120 * u, content + 52 * u);
         double x = Math.round((width - w) / 2), y = Math.round(Math.max(90 * u, (height - h) / 2));
 
-        Chrome.panel(R, x, y, w, h, u, S.corner * u, false);
+        Ui.panel(R, x, y, w, h, u, S.corner * u, false);
         hits.add(new Hit(x, y, w, h, null, null, null, 0, 0));
 
         popupMax = Math.max(0, content + 52 * u - h);
@@ -366,7 +363,7 @@ public class AuroraScreen extends Screen {
         double catsW = Math.round(250 * u), modsW = Math.round(400 * u);
         double modsX = wx + catsW, setX = modsX + modsW, setW = ww - catsW - modsW;
 
-        Chrome.panel(R, wx, wy, ww, wh, u, S.corner * u, false);
+        Ui.panel(R, wx, wy, ww, wh, u, S.corner * u, false);
         hits.add(new Hit(wx, wy, ww, wh, null, null, null, 0, 0));
 
         // Header
@@ -384,7 +381,7 @@ public class AuroraScreen extends Screen {
         }
         double right = wx + ww - 34 * u;
         right = tag(text, right, hy, Client.modules.size() + " MODULES") - 10 * u;
-        tag(text, right, hy, "AURORA GLASS");
+        tag(text, right, hy, Ui.glass() ? "LIQUID GLASS" : "AURORA GLASS");
 
         // Dividers
         double t = Fx.hair(u);
@@ -402,10 +399,10 @@ public class AuroraScreen extends Screen {
             double lit = fade("cat:" + c.name(), on, 8.3), hv = fade("cathover:" + c.name(), hover, 8.3);
             double corner = S.plateCorner * u;
 
-            Chrome.plate(R, cx, cy, cw, ch, u, corner, on ? 0 : hv);
-            Chrome.lit(R, cx, cy, cw, ch, u, corner, 0.30, 0.20, 0.26, Fx.rgba(255, 255, 255, 0.42), 0.22, lit);
+            Ui.plate(R, cx, cy, cw, ch, u, corner, on ? 0 : hv);
+            Ui.lit(R, cx, cy, cw, ch, u, corner, 0.30, 0.20, 0.26, Fx.rgba(255, 255, 255, 0.42), 0.22, lit);
             if (lit > 0) R.quad(cx + corner, cy + t, cw - corner * 2, t, Fx.rgba(255, 255, 255, 0.4 * lit));
-            Chrome.bead(R, S, cx + 24 * u, cy + ch / 2, 4 * u, lit, 1);
+            Ui.bead(R, S, cx + 24 * u, cy + ch / 2, 4 * u, lit, 1);
 
             text.put(c.name().toUpperCase(Locale.ROOT), cx + 42 * u, Fx.centerY(theme, cy + ch / 2, 15, u), 15, Fx.mix(S.dim, S.title, Math.max(lit, hv * 0.7)), 2.6, 0);
             text.put(String.format("%02d", modulesOf(c).size()), cx + cw - 20 * u, Fx.centerY(theme, cy + ch / 2, 11.5, u), 11.5, S.faint, 0, Fx.RIGHT);
@@ -502,8 +499,8 @@ public class AuroraScreen extends Screen {
         double pulse = pulse(module), corner = S.plateCorner * u;
 
         if (isSelected) Fx.boxOutline(R, x - 5 * u, y - 5 * u, w + 10 * u, h + 10 * u, corner + 5 * u, 5 * u, Fx.a(S.green, 0.14));
-        Chrome.plate(R, x, y, w, h, u, corner, isSelected ? 0 : hv);
-        Chrome.lit(R, x, y, w, h, u, corner, 0.22, 0.10, 0.14, Fx.a(S.mint, 0.42), 0.16, active * pulse);
+        Ui.plate(R, x, y, w, h, u, corner, isSelected ? 0 : hv);
+        Ui.lit(R, x, y, w, h, u, corner, 0.22, 0.10, 0.14, Fx.a(S.mint, 0.42), 0.16, active * pulse);
         if (isSelected) Fx.boxOutline(R, x, y, w, h, corner, Math.max(1, Math.round(1.6 * u)), Fx.rgba(255, 255, 255, 0.75));
 
         Fx.TextBatch text = Fx.text(R, u);
@@ -513,7 +510,7 @@ public class AuroraScreen extends Screen {
         text.put(id(module), x + 20 * u, top + nameH + gap, 10.5, S.faint, 1.8, 0);
 
         double sw = 44 * u, sh = Math.round(24 * u);
-        Chrome.toggle(R, Math.round(x + w - 20 * u - sw), Math.round(y + (h - sh) / 2), sw, sh, u, active, hv, pulse);
+        Ui.toggle(R, Math.round(x + w - 20 * u - sw), Math.round(y + (h - sh) / 2), sw, sh, u, active, hv, pulse);
     }
 
     // Settings, shared by the window layout and the popup
@@ -530,8 +527,8 @@ public class AuroraScreen extends Screen {
             for (Setting<?> setting : group.settings) if (setting.isVisible()) visible++;
             if (visible > 0) h += GROUP * u + visible * ROW * u;
         }
-        // The bind group: key and mode
-        return h + GROUP * u + 2 * ROW * u;
+        // The bind group: key and mode. The style pane has one row instead: the background image
+        return h + (module == Client.look ? (Client.look.glass() ? GROUP * u + ROW * u : 0) : GROUP * u + 2 * ROW * u);
     }
 
     private void settings(Module module, double x, double y, double w, double clipTop, double clipBottom) {
@@ -570,6 +567,14 @@ public class AuroraScreen extends Screen {
                 if (visible) settingRow(text, module, setting, x, y, w, clipTop, clipBottom);
                 y += ROW * u;
             }
+        }
+
+        if (module == Client.look) {
+            // Not a module: no bind. With the glass skin, the row that picks the background image
+            if (Client.look.glass()) choiceRow(text, "Image", aicoder.assist.gfx.Wallpaper.label(),
+                "Click for the next image, right click for the previous one. Your own PNG or JPG files go in the folder " + aicoder.assist.gfx.Wallpaper.folder().getName() + " inside the game folder.",
+                x, y, w, clipTop, clipBottom, false, () -> aicoder.assist.gfx.Wallpaper.cycle(1), () -> aicoder.assist.gfx.Wallpaper.cycle(-1));
+            return;
         }
 
         // Bind: which key switches the module, and whether it is held or pressed once
@@ -613,7 +618,7 @@ public class AuroraScreen extends Screen {
 
         double wx = x + Math.min(190 * u, w * 0.38), fw = Math.min(190 * u, x + w - wx), fh = 30 * u, fy = cy - fh / 2;
         boolean hot = lit || (inClip && over(wx, fy, fw, fh));
-        Chrome.field(R, S, wx, fy, fw, fh, u, hot, lit);
+        Ui.field(R, S, wx, fy, fw, fh, u, hot, lit);
         text.put(value, wx + 11 * u, Fx.centerY(theme, cy, 13, u), 13, lit ? S.green : S.title, 1, 0);
 
         double top = Math.max(y, clipTop), bottom = Math.min(y + h, clipBottom);
@@ -657,7 +662,7 @@ public class AuroraScreen extends Screen {
         } else if (setting instanceof EnumSetting<?> choice) {
             double fw = Math.min(190 * u, resetX - resetR - 14 * u - wx), fh = 30 * u, fy = cy - fh / 2;
             boolean hot = over(wx, fy, fw, fh) && inClip;
-            Chrome.field(R, S, wx, fy, fw, fh, u, hot, false);
+            Ui.field(R, S, wx, fy, fw, fh, u, hot, false);
             text.put(choice.get().name(), wx + 11 * u, Fx.centerY(theme, cy, 13, u), 13, S.title, 1, 0);
             double cw = 9 * u, cx = wx + fw - 16 * u;
             Fx.tri(R, cx - cw / 2, cy - cw / 4, cx + cw / 2, cy - cw / 4, cx, cy + cw / 3, hot ? S.title : S.dim);
@@ -665,7 +670,7 @@ public class AuroraScreen extends Screen {
         } else {
             // Value box, then the slider
             double boxW = 96 * u, fh = 30 * u, fy = cy - fh / 2;
-            Chrome.field(R, S, wx, fy, boxW, fh, u, false, false);
+            Ui.field(R, S, wx, fy, boxW, fh, u, false, false);
             String value = setting instanceof DoubleSetting d ? String.format(Locale.ROOT, "%.2f", d.get()) : String.valueOf(setting.get());
             text.put(value, wx + 11 * u, Fx.centerY(theme, cy, 12.5, u), 12.5, S.title, 0.4, 0);
 
@@ -677,7 +682,7 @@ public class AuroraScreen extends Screen {
                 Fx.boxOutline(R, trackX - th / 2, tyy, trackW + th, th, th / 2, Fx.hair(u), Fx.rgba(255, 255, 255, 0.14));
                 if (filled > 0) {
                     Fx.glowRect(R, trackX, tyy + th / 2, filled, 0, th / 2 + 7 * u, Fx.a(S.green, 0.3));
-                    Chrome.gradient(R, trackX - th / 2, tyy, filled + th, th, th / 2, 1, 1, 1);
+                    Ui.gradient(R, trackX - th / 2, tyy, filled + th, th, th / 2, 1, 1, 1);
                 }
                 double kr = (hot ? 11 : 10) * u, kx = trackX + filled, ky = tyy + th / 2;
                 Fx.circle(R, kx, ky, kr + 4 * u, Fx.rgba(255, 255, 255, hot ? 0.2 : 0.12));
@@ -722,7 +727,7 @@ public class AuroraScreen extends Screen {
         double h = lines.size() * lineH + padY * 2;
         double x = Math.round(Math.max(0, Math.min(tipX, width - w))), y = Math.round(Math.max(0, Math.min(tipY, height - h)));
 
-        Chrome.panel(R, x, y, w, h, u, 12 * u, true);
+        Ui.panel(R, x, y, w, h, u, 12 * u, true);
         Fx.TextBatch text = Fx.text(R, u);
         double ty = y + padY;
         for (String line : lines) {

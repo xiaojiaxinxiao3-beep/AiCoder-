@@ -39,6 +39,8 @@ public final class Client {
     public static final String NAME = "AiCoder Assist";
     public static final Minecraft mc = Minecraft.getInstance();
     public static final List<Module> modules = new ArrayList<>();
+    /** The menu's look: aurora or liquid glass, glass colors. Saved like a module but not listed as one. */
+    public static final aicoder.assist.aurora.Look look = new aicoder.assist.aurora.Look();
 
     private record Handler(Module module, Method method, int priority) {
     }
@@ -161,6 +163,10 @@ public final class Client {
         Properties out = new Properties();
         out.setProperty("ui.layout", layout);
         out.setProperty("ui.animations", String.valueOf(animations));
+        out.setProperty("ui.image", aicoder.assist.gfx.Wallpaper.selected);
+        for (SettingGroup group : look.settings.groups) {
+            for (Setting<?> setting : group.settings) out.setProperty("style." + setting.name, setting.save());
+        }
         for (Module module : modules) {
             // A module that is only on because its key is held right now is saved as off
             out.setProperty(module.name + ".enabled", String.valueOf(module.isActive() && !(module.holdBind && module.bind >= 0)));
@@ -192,6 +198,18 @@ public final class Client {
 
         layout = "window".equals(in.getProperty("ui.layout")) ? "window" : "columns";
         animations = !"false".equals(in.getProperty("ui.animations"));
+        if (in.getProperty("ui.image") != null) aicoder.assist.gfx.Wallpaper.selected = in.getProperty("ui.image");
+        for (SettingGroup group : look.settings.groups) {
+            for (Setting<?> setting : group.settings) {
+                String text = in.getProperty("style." + setting.name);
+                if (text == null) continue;
+                try {
+                    setting.load(text);
+                } catch (RuntimeException ignored) {
+                    // A value that no longer parses keeps its default
+                }
+            }
+        }
 
         for (Module module : modules) {
             for (SettingGroup group : module.settings.groups) {
