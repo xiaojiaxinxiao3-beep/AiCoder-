@@ -11,7 +11,7 @@ import os, re
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(HERE, '..', 'combat-macros', 'src', 'main', 'java', 'aicoder', 'combat')
 DST = os.path.join(HERE, 'src', 'aicoder', 'assist', 'modules')
-FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'WindJump', 'TriggerBot', 'Clicks']
+FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'WindJump', 'TriggerBot', 'TellyBridge', 'Clicks']
 
 
 def port(text):

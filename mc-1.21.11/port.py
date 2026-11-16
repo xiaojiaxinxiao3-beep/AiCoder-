@@ -131,6 +131,12 @@ GAMEPLAY = [
     ('InputConstants.KEY_', 'GLFW.GLFW_KEY_'),
     ('.getFoodData().getFoodLevel()', '.getHungerManager().getFoodLevel()'),
     ('mc.options.keyAttack', 'mc.options.attackKey'),
+    ('mc.options.keyUp', 'mc.options.forwardKey'),
+    ('mc.options.keyDown', 'mc.options.backKey'),
+    ('mc.options.keySprint', 'mc.options.sprintKey'),
+    ('mc.options.keyShift', 'mc.options.sneakKey'),
+    ('net.minecraft.world.item.BlockItem', 'net.minecraft.item.BlockItem'),
+    ('.canBeReplaced()', '.isReplaceable()'),
     ('.setDown(', '.setPressed('),
     # Methods
     ('net.minecraft.core.registries.BuiltInRegistries', 'net.minecraft.registry.Registries'),

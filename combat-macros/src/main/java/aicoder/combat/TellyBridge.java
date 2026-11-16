@@ -1,0 +1,296 @@
+package aicoder.combat;
+
+import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.mixin.KeyMappingAccessor;
+import meteordevelopment.meteorclient.settings.BoolSetting;
+import meteordevelopment.meteorclient.settings.DoubleSetting;
+import meteordevelopment.meteorclient.settings.Setting;
+import meteordevelopment.meteorclient.settings.SettingGroup;
+import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.utils.misc.input.Input;
+import meteordevelopment.orbit.EventHandler;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.BlockItem;
+
+/**
+ * Telly bridging: sprint to the edge, jump, turn around in the air and place blocks on the side of the
+ * last one, turn forward again before landing, repeat.
+ *
+ * <p>The bridge goes straight along the compass direction you face when the module is switched on.
+ * Everything is a key press: the real camera turns, and forward, back, sprint, jump and use are pressed
+ * the way the keyboard and mouse would press them. The block is placed by the game's own right click,
+ * on whatever the crosshair is on. Where to look is worked out every tick from where you are, instead
+ * of using a fixed pitch.
+ *
+ * <p>Stops by itself when you run out of blocks, fall below the bridge, open a screen, or press the
+ * back or sneak key yourself.
+ */
+public class TellyBridge extends Module {
+    private final SettingGroup sgGeneral = settings.getDefaultGroup();
+
+    private final Setting<Double> turnSpeed = sgGeneral.add(new DoubleSetting.Builder()
+        .name("turn-speed")
+        .description("Most degrees the camera turns per tick. 180 turns around at once, lower is smoother but places fewer blocks.")
+        .defaultValue(180)
+        .range(30, 180)
+        .sliderRange(30, 180)
+        .build()
+    );
+
+    private final Setting<Double> edge = sgGeneral.add(new DoubleSetting.Builder()
+        .name("edge-distance")
+        .description("Jump when the floor ends this many blocks ahead of you.")
+        .defaultValue(0.35)
+        .range(0.05, 1)
+        .sliderRange(0.05, 1)
+        .build()
+    );
+
+    private final Setting<Double> turnBack = sgGeneral.add(new DoubleSetting.Builder()
+        .name("turn-back-height")
+        .description("Face forward again when you are falling and this close above the bridge.")
+        .defaultValue(0.6)
+        .range(0.1, 1.2)
+        .sliderRange(0.1, 1.2)
+        .build()
+    );
+
+    private final Setting<Boolean> holdBack = sgGeneral.add(new BoolSetting.Builder()
+        .name("hold-back")
+        .description("Hold the back key while turned around, which keeps you moving along the bridge.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> restoreSlot = sgGeneral.add(new BoolSetting.Builder()
+        .name("restore-slot")
+        .description("Select the item you were holding again when the module stops.")
+        .defaultValue(true)
+        .build()
+    );
+
+    /** Unit step of the bridge, one of the four compass directions. */
+    private int dx, dz;
+    private float forwardYaw;
+    /** Level of the bridge blocks, and the column the bridge runs along. */
+    private int floorY, lineX, lineZ;
+    private int restSlot = -1;
+    private boolean running, air, pressedJump, reversed;
+    private int airTicks;
+
+    public TellyBridge() {
+        super(AiCoderTab.UTILITY, "telly-bridge", "Bridges for you with sprint jumps: turns around in the air, places blocks behind, and turns forward again before landing.");
+    }
+
+    @Override
+    public void onActivate() {
+        running = false;
+        if (mc.player == null || mc.level == null) return;
+        if (!mc.player.onGround()) {
+            warning("Stand on the ground first.");
+            toggle();
+            return;
+        }
+        restSlot = mc.player.getInventory().getSelectedSlot();
+        if (!holdBlocks()) {
+            warning("No blocks in your hotbar.");
+            toggle();
+            return;
+        }
+
+        // Nearest compass direction. Yaw 0 looks along +z, 90 along -x.
+        int quarter = Math.floorMod(Math.round(mc.player.getYRot() / 90f), 4);
+        dx = quarter == 1 ? -1 : quarter == 3 ? 1 : 0;
+        dz = quarter == 0 ? 1 : quarter == 2 ? -1 : 0;
+        forwardYaw = quarter * 90f;
+
+        air = false;
+        reversed = false;
+        running = true;
+        noteFloor();
+    }
+
+    @Override
+    public void onDeactivate() {
+        if (!running) return;
+        running = false;
+        // Leave every key as the keyboard has it
+        mc.options.keyUp.setDown(Input.isPressed(mc.options.keyUp));
+        mc.options.keyDown.setDown(Input.isPressed(mc.options.keyDown));
+        mc.options.keySprint.setDown(Input.isPressed(mc.options.keySprint));
+        mc.options.keyJump.setDown(Input.isPressed(mc.options.keyJump));
+        pressedJump = false;
+        if (mc.player != null && restoreSlot.get() && restSlot >= 0) mc.player.getInventory().setSelectedSlot(restSlot);
+    }
+
+    @EventHandler
+    private void onTick(TickEvent.Pre event) {
+        if (!running) return;
+        if (mc.player == null || mc.level == null) {
+            toggle();
+            return;
+        }
+        if (pressedJump) {
+            pressedJump = false;
+            mc.options.keyJump.setDown(false);
+        }
+
+        if (mc.gui.screen() != null) { stop("Stopped: a screen was opened."); return; }
+        if (Input.isPressed(mc.options.keyDown) || Input.isPressed(mc.options.keyShift)) { stop("Stopped."); return; }
+        if (!holdBlocks()) { stop("Stopped: out of blocks."); return; }
+
+        double feet = mc.player.getY() - (floorY + 1);
+        if (feet < -0.75) { stop("Stopped: fell off the bridge."); return; }
+
+        if (mc.player.onGround()) {
+            air = false;
+            reversed = false;
+            turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
+            forward();
+
+            // The floor ends just ahead: jump. The game reads the key later in this tick.
+            double ax = mc.player.getX() + dx * edge.get(), az = mc.player.getZ() + dz * edge.get();
+            if (facing(forwardYaw) && !solid(floor(ax), floorY, floor(az))) {
+                mc.options.keyJump.setDown(true);
+                pressedJump = true;
+            }
+            return;
+        }
+
+        if (!air) {
+            air = true;
+            airTicks = 0;
+        }
+        airTicks++;
+
+        // Coming down onto the bridge: face forward so the sprint carries on from the landing
+        boolean falling = mc.player.getDeltaMovement().y < 0;
+        if (airTicks > 2 && falling && feet < turnBack.get() && solid(floor(mc.player.getX()), floorY, floor(mc.player.getZ()))) {
+            reversed = false;
+            turn(ahead(), 20);
+            forward();
+            return;
+        }
+
+        // Turned around: aim at the side of the last block of the bridge and right click
+        reversed = true;
+        mc.options.keyUp.setDown(false);
+        mc.options.keySprint.setDown(false);
+        mc.options.keyDown.setDown(holdBack.get());
+
+        int along = dx != 0 ? floor(mc.player.getX()) * dx : floor(mc.player.getZ()) * dz;
+        int bx = 0, bz = 0;
+        boolean found = false;
+        for (int i = 0; i < 7 && !found; i++) {
+            int a = along - i;
+            bx = dx != 0 ? a * dx : lineX;
+            bz = dz != 0 ? a * dz : lineZ;
+            found = solid(bx, floorY, bz);
+        }
+        if (!found) {
+            turn(forwardYaw + 180, 78);
+            return;
+        }
+
+        // The face that looks along the bridge. It can only be clicked from beyond its plane.
+        // Aim at the point of it straight behind you, so the camera stays square to the bridge and the
+        // back key does not push you sideways.
+        double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ();
+        double fx = dx != 0 ? bx + 0.5 + dx * 0.5 : clamp(ex, bx + 0.12, bx + 0.88);
+        double fz = dz != 0 ? bz + 0.5 + dz * 0.5 : clamp(ez, bz + 0.12, bz + 0.88);
+        double fy = floorY + 0.55;
+        double beyond = (ex - fx) * dx + (ez - fz) * dz;
+        double vx = fx - ex, vy = fy - ey, vz = fz - ez;
+        double flat = Math.sqrt(vx * vx + vz * vz);
+        float pitch = (float) -Math.toDegrees(Math.atan2(vy, flat));
+
+        if (beyond < 0.08 || !replaceable(bx + dx, floorY, bz + dz)) {
+            // Not past the face yet: wait with the camera ready
+            turn(forwardYaw + 180, Math.max(70, Math.min(86, pitch)));
+            return;
+        }
+
+        float yaw = (float) Math.toDegrees(Math.atan2(-vx, vz));
+        if (turn(yaw, pitch) && vx * vx + vy * vy + vz * vz < 4.4 * 4.4) {
+            KeyMapping.click(((KeyMappingAccessor) mc.options.keyUse).meteor$getKey());
+        }
+    }
+
+    private void forward() {
+        mc.options.keyDown.setDown(false);
+        mc.options.keyUp.setDown(true);
+        mc.options.keySprint.setDown(true);
+    }
+
+    /** Remembers the block the player stands on as the bridge. */
+    private void noteFloor() {
+        floorY = floor(mc.player.getY() - 0.2);
+        lineX = floor(mc.player.getX());
+        lineZ = floor(mc.player.getZ());
+    }
+
+    /** Turns the camera towards a direction, at most turn-speed degrees. True once it points there. */
+    private boolean turn(float yaw, float pitch) {
+        float speed = turnSpeed.get().floatValue();
+        float current = mc.player.getYRot();
+        float dy = wrap(yaw - current), dp = pitch - mc.player.getXRot();
+        float stepY = Math.max(-speed, Math.min(speed, dy)), stepP = Math.max(-speed, Math.min(speed, dp));
+        mc.player.setYRot(current + stepY);
+        mc.player.setXRot(mc.player.getXRot() + stepP);
+        return Math.abs(dy - stepY) < 0.5f && Math.abs(dp - stepP) < 0.5f;
+    }
+
+    /** The direction to run in: along the bridge, leaning back towards its middle when you have drifted. */
+    private float ahead() {
+        double off = dx != 0 ? mc.player.getZ() - (lineZ + 0.5) : mc.player.getX() - (lineX + 0.5);
+        // Aim at the middle of the bridge three blocks on
+        double tx = dx != 0 ? dx * 3 : -off, tz = dz != 0 ? dz * 3 : -off;
+        return (float) Math.toDegrees(Math.atan2(-tx, tz));
+    }
+
+    private static double clamp(double value, double low, double high) {
+        return Math.max(low, Math.min(high, value));
+    }
+
+    private boolean facing(float yaw) {
+        return Math.abs(wrap(yaw - mc.player.getYRot())) < 20;
+    }
+
+    private static float wrap(float degrees) {
+        degrees %= 360;
+        if (degrees >= 180) degrees -= 360;
+        if (degrees < -180) degrees += 360;
+        return degrees;
+    }
+
+    private static int floor(double value) {
+        return (int) Math.floor(value);
+    }
+
+    private boolean solid(int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        return !mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty();
+    }
+
+    private boolean replaceable(int x, int y, int z) {
+        return mc.level.getBlockState(new BlockPos(x, y, z)).canBeReplaced();
+    }
+
+    /** Keeps a stack of blocks selected, picking the next one in the hotbar when a stack runs out. */
+    private boolean holdBlocks() {
+        if (mc.player.getMainHandItem().getItem() instanceof BlockItem) return true;
+        for (int i = 0; i < 9; i++) {
+            if (mc.player.getInventory().getItem(i).getItem() instanceof BlockItem) {
+                mc.player.getInventory().setSelectedSlot(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void stop(String why) {
+        info(why);
+        toggle();
+    }
+}
