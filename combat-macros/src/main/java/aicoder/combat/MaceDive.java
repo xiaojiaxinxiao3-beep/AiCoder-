@@ -485,7 +485,7 @@ public class MaceDive extends Module {
 
     private LivingEntity findTarget() {
         // Once picked, a target is kept while it lives: climbing above it must not lose it, however high
-        if (locked != null && locked.isAlive() && !locked.isRemoved() && locked.level() == mc.level
+        if (locked != null && locked.isAlive() && !locked.isRemoved() && mc.level.getEntity(locked.getId()) == locked
             && locked.distanceTo(mc.player) <= range.get() + height.get() + 32) return locked;
         locked = null;
 

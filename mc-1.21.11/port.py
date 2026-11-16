@@ -133,7 +133,7 @@ GAMEPLAY = [
     ('screen.onClose()', 'screen.close()'),
     ('.getBbHeight()', '.getHeight()'),
     ('.isInWater()', '.isTouchingWater()'),
-    ('locked.level() == mc.level', 'locked.getEntityWorld() == mc.world'),
+    ('.getEntity(locked.getId())', '.getEntityById(locked.getId())'),
     ('.onClimbable()', '.isClimbing()'),
     ('mc.gameMode.isDestroying()', 'mc.interactionManager.isBreakingBlock()'),
     ('mc.gameMode.attack(', 'mc.interactionManager.attackEntity('),
