@@ -22,9 +22,25 @@ public final class Input {
         return GLFW.glfwGetMouseButton(Client.mc.getWindow().handle(), button) == GLFW.GLFW_PRESS;
     }
 
-    /** Puts the mouse cursor at a place in the game window, in window pixels. The game hears of it as a mouse move. */
+    private static java.lang.reflect.Method onMove;
+
+    /**
+     * Puts the mouse cursor at a place in the game window, in window pixels. The system cursor is moved,
+     * and the game's own mouse-move handler is called with the same place: whether the window library
+     * reports a move it made itself differs from system to system.
+     */
     public static void moveCursor(double x, double y) {
-        GLFW.glfwSetCursorPos(Client.mc.getWindow().handle(), x, y);
+        long window = Client.mc.getWindow().handle();
+        GLFW.glfwSetCursorPos(window, x, y);
+        try {
+            if (onMove == null) {
+                onMove = net.minecraft.client.MouseHandler.class.getDeclaredMethod(aicoder.assist.Names.shared().get("MouseHandler.onMove"), long.class, double.class, double.class);
+                onMove.setAccessible(true);
+            }
+            onMove.invoke(Client.mc.mouseHandler, window, x, y);
+        } catch (ReflectiveOperationException e) {
+            // The system cursor has still been moved
+        }
     }
 
     private static java.lang.reflect.Field hovered;

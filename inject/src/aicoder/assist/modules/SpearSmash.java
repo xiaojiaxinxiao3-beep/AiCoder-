@@ -48,9 +48,9 @@ public class SpearSmash extends Module {
     );
 
     private final Setting<Integer> window = sgGeneral.add(new IntSetting.Builder()
-        .name("window")
+        .name("follow-up-window")
         .description("Ticks to wait for the target to be under the crosshair and in reach of the mace before giving up.")
-        .defaultValue(8)
+        .defaultValue(20)
         .range(1, 40)
         .sliderRange(1, 20)
         .build()
@@ -81,9 +81,9 @@ public class SpearSmash extends Module {
     );
 
     private final Setting<Boolean> feedback = sgGeneral.add(new BoolSetting.Builder()
-        .name("feedback")
+        .name("messages")
         .description("Say in chat when the mace follow-up is made, or why it was not.")
-        .defaultValue(false)
+        .defaultValue(true)
         .build()
     );
 
@@ -175,7 +175,10 @@ public class SpearSmash extends Module {
 
     private void begin() {
         maceSlot = find(Items.MACE);
-        if (maceSlot < 0) return;
+        if (maceSlot < 0) {
+            if (feedback.get()) warning("No mace in your hotbar.");
+            return;
+        }
         spearSlot = mc.player.getInventory().getSelectedSlot();
         // The spear's own hit goes out in this tick; the follow-up starts on the next one
         stage = Stage.Equip;
@@ -187,7 +190,7 @@ public class SpearSmash extends Module {
             && target.getLocation().distanceTo(mc.player.getEyePosition()) <= mc.player.entityInteractionRange();
         if (!ready) {
             if (wait-- <= 0) {
-                if (feedback.get()) info("No follow-up: the target was not under the crosshair within reach.");
+                if (feedback.get()) info("No follow-up: the target was not under the crosshair within %.1f blocks in time.", mc.player.entityInteractionRange());
                 stage = Stage.Idle;
             }
             return;
@@ -200,7 +203,10 @@ public class SpearSmash extends Module {
     }
 
     private boolean falling() {
-        return !mc.player.onGround() && mc.player.fallDistance >= minFall.get();
+        if (mc.player.onGround()) return false;
+        // Gliding keeps the fall distance near zero unless the dive is steep, so coming down on an elytra counts by itself
+        if (mc.player.isFallFlying() && mc.player.getDeltaMovement().y < -0.05) return true;
+        return mc.player.fallDistance >= minFall.get();
     }
 
     private boolean wanted(Entity entity) {

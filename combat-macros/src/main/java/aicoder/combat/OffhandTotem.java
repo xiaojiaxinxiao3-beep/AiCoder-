@@ -34,7 +34,7 @@ public class OffhandTotem extends Module {
 
     private final Setting<Integer> delay = sgGeneral.add(new IntSetting.Builder()
         .name("delay")
-        .description("Ticks between the steps: open, move the mouse, swap, close. 0 is as fast as the game allows: the mouse still needs two ticks to be noticed.")
+        .description("Ticks between the steps: open, move the mouse, swap, close. 0 is as fast as the game allows.")
         .defaultValue(1)
         .range(0, 20)
         .sliderRange(0, 10)
@@ -96,8 +96,12 @@ public class OffhandTotem extends Module {
             }
             case Open -> {
                 if (!(mc.gui.screen() instanceof AbstractContainerScreen<?> screen) || screen.getMenu().slots.size() != 46) {
-                    // The inventory did not come up (another screen, or creative mode): leave it
-                    if (++tries > 5) { stage = Stage.Idle; rest = 20; }
+                    // The inventory did not come up, or it is the creative one, which is laid out differently
+                    if (++tries > 5) {
+                        if (mc.gui.screen() != null) warning("Only works with the survival inventory, not in creative mode.");
+                        finish();
+                        rest = 100;
+                    }
                     return;
                 }
                 wanted = null;
@@ -109,18 +113,18 @@ public class OffhandTotem extends Module {
                 tries = 0;
                 point(screen);
                 stage = Stage.Hover;
-                // The game hears of the move at the end of the frame and notices the slot when it draws the
-                // one after: two ticks cover that even when frames are slow
-                wait = Math.max(2, delay.get());
+                // The game notices the slot under the mouse when it draws the next frame
+                wait = Math.max(1, delay.get());
             }
             case Hover -> {
                 if (!(mc.gui.screen() instanceof AbstractContainerScreen<?> screen)) { stage = Stage.Idle; return; }
 
                 if (((AbstractContainerScreenAccessor) screen).meteor$getHoveredSlot() != wanted) {
-                    // Not on it: the window sits elsewhere when the recipe book is open. Try the other place.
-                    if (++tries > 3) { warning("Could not get the mouse onto the totem."); finish(); rest = 40; return; }
+                    // Not on it yet: a slow frame, or the window sits elsewhere because the recipe book is open.
+                    // Every second look tries the other place.
+                    if (++tries > 9) { warning("Could not get the mouse onto the totem."); finish(); rest = 40; return; }
                     point(screen);
-                    wait = 2;
+                    wait = 1;
                     return;
                 }
                 // The swap-with-off-hand key over the hovered slot
@@ -133,9 +137,9 @@ public class OffhandTotem extends Module {
         }
     }
 
-    /** Puts the cursor on the middle of the wanted slot. Odd tries assume the recipe book is open. */
+    /** Puts the cursor on the middle of the wanted slot. Tries 2-3, 6-7 assume the recipe book is open. */
     private void point(AbstractContainerScreen<?> screen) {
-        int left = tries % 2 == 0 ? (screen.width - WIDTH) / 2 : 177 + (screen.width - WIDTH - 200) / 2;
+        int left = tries / 2 % 2 == 0 ? (screen.width - WIDTH) / 2 : 177 + (screen.width - WIDTH - 200) / 2;
         int top = (screen.height - HEIGHT) / 2;
         double toWindow = mc.getWindow().getScreenWidth() / (double) screen.width;
         double mouseX = (left + wanted.x + 8) * toWindow, mouseY = (top + wanted.y + 8) * toWindow;

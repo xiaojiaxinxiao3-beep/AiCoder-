@@ -34,6 +34,10 @@ if version == '1.21.11':
 out['AbstractContainerScreen'] = m.cls(C + 'gui.screens.inventory.AbstractContainerScreen').replace('.', '/')
 out['AbstractContainerScreen.hoveredSlot'] = m.field(C + 'gui.screens.inventory.AbstractContainerScreen', 'hoveredSlot')[0]
 
+# The game's own handler for a mouse move, called directly so a cursor move is heard of on every system
+out['MouseHandler'] = m.cls(C + 'MouseHandler').replace('.', '/')
+out['MouseHandler.onMove'], out['MouseHandler.onMove.desc'] = m.method(C + 'MouseHandler', 'onMove', ['long', 'double', 'double'])
+
 os.makedirs(os.path.dirname(sys.argv[2]), exist_ok=True)
 with open(sys.argv[2], 'w') as f:
     f.write(''.join('%s=%s\n' % kv for kv in sorted(out.items())))
