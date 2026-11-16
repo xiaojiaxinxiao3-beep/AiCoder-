@@ -200,6 +200,7 @@
 - `SpearSmash`（MELEE，1.21.11 才有）：長矛命中後接重錘。戳刺由 `DoAttackEvent` 看（準心或長矛指向的生物，戳刺的距離比準心遠所以用 `nearestAhead()` 補），放平（按住使用鍵）由「前方生物的 `hurtTime` 變大」看：客戶端沒有別的方式知道放平的長矛打中了（`recentKineticEnemies` 只有伺服器有）。之後下一個 tick 選重錘＋`KeyMapping.click(攻擊鍵)`；穿鞘翅時先用和 `MaceDive` 一樣的同 tick 換胸甲
   - 使用者回報「重錘沒有觸發」後改的：`falling()` 在鞘翅滑翔且下降時直接算（滑翔中 `fallDistance` 會被壓在 1 以下）；等待重錘進入距離的時間（`follow-up-window`）從 8 改成 20 tick；沒有重錘、或時間內沒進到 3 格內，都會在聊天欄說（`messages` 預設開）。重錘那一下仍然要準心對著目標且在 3 格內，這是原版攻擊的條件，長矛戳得到的距離比這個遠
   - `OffhandTotem` 在注入版另外直接呼叫遊戲的 `MouseHandler.onMove`（反射，名稱在 `gen_names.py`），因為使用者回報 Windows 上滑鼠沒有動；創造模式的物品欄版面不同，只提示不動作
+- **長矛之後的重錘不用等進到 3 格**（使用者指出、已從原始碼與實測確認）：伺服器收攻擊封包時的距離檢查是 `isWithinRange(player, box, 3.0)`，也就是攻擊距離再加 3 格緩衝；只有客戶端的準心（`entityAttackRange()`，看手上的物品）卡在 3 格，而拿長矛時準心可以到 4.5 格。做法：拿著長矛按 `KeyMapping.click(攻擊鍵)`，在 `DoAttackEvent`（`startAttack()` 開頭）才選重錘，原版接著對準心選到的目標送攻擊。`SpearSmash.swapNow`、`MaceDive.maceOnAttack` 就是這個旗標；`MaceSwap` 原本「超過重錘距離就不換」的限制也拿掉了。實測：站在 3.7 格與 4.2 格外，扣耐久的是重錘。送出去的順序固定是長矛 → 胸甲 → 重錘（中間客戶端把長矛選回手上只是為了準心，不會送封包）
 - `MaceDive` 的 `spear-mode`（使用者要求：要放煙火，長矛 → 胸甲 → 重錘照順序幾乎同時切）：
   - 長矛只打得到 2～4.5 格（`AttackRange`），而且放平後要 `KineticWeapon.delayTicks`（鑽石 10、獄髓 8）才算傷害。煙火飛行的速度約 1.7 格／tick，所以從 20 格俯衝只有約 11 tick：俯衝開始的那個 tick 用 `fireworkNow()`（直接 `Clicks.useItem()`）放煙火，同一個 tick 選長矛並 `Clicks.useItem()` 放平、按住使用鍵。距離超過 `SPEAR_LEAD`（28）的俯衝則先照常放煙火，進到 28 格內再補一發（把速度拉回 1.7）後放平
   - 三步各佔一個 tick：長矛在距離內待滿一個 tick（`spearHad`，不等 `hurtTime`，它會晚一兩個 tick）→ 放開、換胸甲 → Strike 選重錘按攻擊。Strike 在長矛模式用 `max(attack-range, 3)`，因為沒有時間等使用者設的較短距離

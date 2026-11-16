@@ -54,7 +54,7 @@ public class SpearSmash extends Module {
 
     private final Setting<Integer> window = sgGeneral.add(new IntSetting.Builder()
         .name("follow-up-window")
-        .description("Ticks to wait for the target to be under the crosshair and in reach of the mace before giving up.")
+        .description("Ticks to wait for the target to be under the crosshair before giving up.")
         .defaultValue(20)
         .range(1, 40)
         .sliderRange(1, 20)
@@ -92,6 +92,7 @@ public class SpearSmash extends Module {
         .build()
     );
 
+    private boolean swapNow;
     private Stage stage = Stage.Idle;
     private int wait, spearSlot = -1, maceSlot = -1;
     private Entity watched;
@@ -110,6 +111,13 @@ public class SpearSmash extends Module {
     /** The jab: attack pressed with a spear in hand and someone under the crosshair. */
     @EventHandler(priority = EventPriority.LOWEST)
     private void onAttack(DoAttackEvent event) {
+        if (swapNow) {
+            // The follow-up click: the crosshair picked its target with the spear's reach, and the mace is
+            // put in hand only now, as the click goes through. The server allows a hit from that far.
+            swapNow = false;
+            if (mc.player != null) mc.player.getInventory().setSelectedSlot(maceSlot);
+            return;
+        }
         if (event.isCancelled() || mc.player == null || stage != Stage.Idle) return;
         if (!isSpear(mc.player.getMainHandStack()) || !falling()) return;
         // The jab reaches further than the crosshair does, so also count whoever the spear points at
@@ -152,6 +160,12 @@ public class SpearSmash extends Module {
             }
             case Hit -> hit();
             case Back -> {
+                if (swapNow) {
+                    // The click never reached the game (a screen opened, an item was in use)
+                    swapNow = false;
+                    stage = Stage.Idle;
+                    return;
+                }
                 if (wait-- > 0) return;
                 if (swapBack.get() && mc.player.getInventory().getSelectedSlot() == maceSlot) mc.player.getInventory().setSelectedSlot(spearSlot);
                 stage = Stage.Idle;
@@ -189,20 +203,24 @@ public class SpearSmash extends Module {
         stage = Stage.Equip;
     }
 
-    /** Selects the mace and presses attack once the crosshair is on someone in reach. */
+    /**
+     * Presses attack with the spear still in hand, so the crosshair reaches as far as the spear does; the
+     * mace is selected as that press goes through (see onAttack). The mace does not have to be in its own
+     * reach: the server accepts a hit from three blocks further than the usual three.
+     */
     private void hit() {
-        boolean ready = mc.crosshairTarget instanceof EntityHitResult target && wanted(target.getEntity())
-            && target.getPos().distanceTo(mc.player.getEyePos()) <= mc.player.getEntityInteractionRange();
+        boolean ready = mc.crosshairTarget instanceof EntityHitResult target && wanted(target.getEntity());
         if (!ready) {
             if (wait-- <= 0) {
-                if (feedback.get()) info("No follow-up: the target was not under the crosshair within %.1f blocks in time.", mc.player.getEntityInteractionRange());
+                if (feedback.get()) info("No follow-up: the target was not under the crosshair in time.");
                 stage = Stage.Idle;
             }
             return;
         }
-        mc.player.getInventory().setSelectedSlot(maceSlot);
+        double away = ((EntityHitResult) mc.crosshairTarget).getPos().distanceTo(mc.player.getEyePos());
+        swapNow = true;
         KeyBinding.onKeyPressed(((KeyBindingAccessor) mc.options.attackKey).meteor$getKey());
-        if (feedback.get()) info("Mace after the spear, fallen %.1f blocks.", mc.player.fallDistance);
+        if (feedback.get()) info("Mace after the spear from %.1f blocks away, fallen %.1f blocks.", away, mc.player.fallDistance);
         stage = Stage.Back;
         wait = backDelay.get();
     }

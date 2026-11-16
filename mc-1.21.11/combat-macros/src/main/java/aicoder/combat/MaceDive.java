@@ -1,5 +1,6 @@
 package aicoder.combat;
 
+import meteordevelopment.meteorclient.events.entity.player.DoAttackEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.mixin.KeyBindingAccessor;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -140,7 +141,7 @@ public class MaceDive extends Module {
     private static final double SPEAR_REACH = 4.5;
     /** How far out the spear is levelled: far enough to have been held half a second on arrival. */
     private static final double SPEAR_LEAD = 28;
-    private int spearPhase;
+    private int spearPhase, maceOnAttack = -1;
     private LivingEntity locked;
 
     private boolean jumpDown, boosted, useDown, spearHad, spearStrike;
@@ -172,9 +173,18 @@ public class MaceDive extends Module {
         stageTicks = 0;
     }
 
+    /** The mace goes into the hand as the attack press goes through, after the crosshair picked with the spear's reach. */
+    @EventHandler
+    private void onAttack(DoAttackEvent event) {
+        if (maceOnAttack < 0 || mc.player == null) return;
+        mc.player.getInventory().setSelectedSlot(maceOnAttack);
+        maceOnAttack = -1;
+    }
+
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         if (mc.player == null || mc.world == null) return;
+        maceOnAttack = -1;
         sinceFirework++;
         stageTicks++;
 
@@ -317,7 +327,11 @@ public class MaceDive extends Module {
                         if (feedback.get()) info("Spear %s at %.1f blocks, speed %.1f. Chestplate on, mace next.", struck ? "hit" : "in reach", distance, speed);
                         spearHad = false;
                         spearStrike = true;
-                        if (wear(false)) go(Stage.Strike);
+                        if (wear(false)) {
+                            // Spear back in hand: the crosshair then reaches as far as the spear for the mace click
+                            mc.player.getInventory().setSelectedSlot(spear);
+                            go(Stage.Strike);
+                        }
                     } else {
                         spearHad = inReach;
                     }
@@ -332,7 +346,24 @@ public class MaceDive extends Module {
             case Strike -> {
                 aim(target, eye, speed);
 
-                // After the spear there is no time to wait for the chosen attack range: hit as soon as the game allows
+                int held = spearStrike ? findSpear() : -1;
+                if (held >= 0 && distance > 2.5) {
+                    // Straight after the spear: attack is pressed with the spear in hand, so the crosshair
+                    // has the spear's reach, and the mace is selected as the press goes through. The server
+                    // allows a hit from that far, so there is no waiting to get within the mace's own reach.
+                    if (mc.player.getInventory().getSelectedSlot() != held) mc.player.getInventory().setSelectedSlot(held);
+                    if (mc.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult onTarget && onTarget.getEntity() == target || stageTicks >= 3) {
+                        maceOnAttack = find(Items.MACE);
+                        KeyBinding.onKeyPressed(((KeyBindingAccessor) mc.options.attackKey).meteor$getKey());
+                        if (feedback.get()) info("Mace hit from %.1f blocks, dived from %.0f above.", distance, diveFrom);
+                        go(Stage.Recover);
+                        wait = 1;
+                    } else if (mc.player.isOnGround()) {
+                        if (feedback.get()) info("No mace hit: landed first (target %.1f blocks away).", distance);
+                        go(Stage.Recover);
+                    }
+                    return;
+                }
                 if (distance <= (spearStrike ? Math.max(reach.get(), mc.player.getEntityInteractionRange()) : reach.get())) {
                     int mace = find(Items.MACE);
                     mc.player.getInventory().setSelectedSlot(mace);

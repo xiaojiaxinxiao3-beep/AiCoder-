@@ -110,9 +110,6 @@ public class MaceSwap extends Module {
         if (chargedOnly.get() && mc.player.getAttackStrengthScale(0.5f) < 0.9f) return;
         if (mc.player.fallDistance < minFall.get()) return;
 
-        // A spear reaches further than a mace: leave the hit alone if the mace could not reach
-        if (hit.getLocation().distanceTo(mc.player.getEyePosition()) > mc.player.entityInteractionRange()) return;
-
         returnSlot = mc.player.getInventory().getSelectedSlot();
         maceSlot = slot;
         wait = backDelay.get();
