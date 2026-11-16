@@ -469,7 +469,7 @@ public class AuroraScreen extends Screen {
         int active = 0;
         for (Module module : Client.modules) if (module.isActive()) active++;
         double fx = wx + 34 * u;
-        fx = readout(foot, fx, fty, "[RIGHT SHIFT]", true);
+        fx = readout(foot, fx, fty, "[" + keyName(Client.menuKey) + "]", true);
         fx = readout(foot, fx, fty, " GUI", false) + 26 * u;
         fx = readout(foot, fx, fty, minecraft.getFps() + " FPS", false) + 26 * u;
         fx = readout(foot, fx, fty, aicoder.assist.api.PlayerUtils.getPing() + " ms", false) + 26 * u;
@@ -537,7 +537,8 @@ public class AuroraScreen extends Screen {
             if (visible > 0) h += GROUP * u + visible * ROW * u;
         }
         // The bind group: key and mode. The style pane has one row instead: the background image
-        return h + (module == Client.look ? (Client.look.glass() ? GROUP * u + ROW * u : 0) : GROUP * u + 2 * ROW * u);
+        // and the key that opens the menu
+        return h + (module == Client.look ? (Client.look.glass() ? 2 : 1) * ROW * u + GROUP * u : GROUP * u + 2 * ROW * u);
     }
 
     private void settings(Module module, double x, double y, double w, double clipTop, double clipBottom) {
@@ -580,13 +581,30 @@ public class AuroraScreen extends Screen {
 
         if (module == Client.look) {
             // Not a module: no bind. With the glass skin, the row that picks the background image
-            if (Client.look.glass()) choiceRow(text, "Image", aicoder.assist.gfx.Wallpaper.label(),
-                "Click for the next image, right click for the previous one. Your own PNG or JPG files go in the folder " + aicoder.assist.gfx.Wallpaper.folder().getName() + " inside the game folder.",
-                x, y, w, clipTop, clipBottom, false, () -> aicoder.assist.gfx.Wallpaper.cycle(1), () -> aicoder.assist.gfx.Wallpaper.cycle(-1));
+            if (Client.look.glass()) {
+                imageRow(text, x, y, w, clipTop, clipBottom);
+                y += ROW * u;
+            }
+            y += GROUP * u - ROW * u * 0.4;
+            choiceRow(text, "Menu Key", listening == Client.look ? "PRESS A KEY" : keyName(Client.menuKey),
+                "The key that opens and closes this menu. Click, then press a key; Esc keeps the current one. Insert always opens it too.",
+                x, y, w, clipTop, clipBottom, listening == Client.look, () -> listening = listening == Client.look ? null : Client.look, () -> listening = null);
             return;
         }
 
         // Bind: which key switches the module, and whether it is held or pressed once
+        bindRows(text, module, x, y, w, clipTop, clipBottom);
+    }
+
+    private void imageRow(Fx.TextBatch text, double x, double y, double w, double clipTop, double clipBottom) {
+        {
+            choiceRow(text, "Image", aicoder.assist.gfx.Wallpaper.label(),
+                "Click for the next image, right click for the previous one. Your own PNG or JPG files go in the folder " + aicoder.assist.gfx.Wallpaper.folder().getName() + " inside the game folder.",
+                x, y, w, clipTop, clipBottom, false, () -> aicoder.assist.gfx.Wallpaper.cycle(1), () -> aicoder.assist.gfx.Wallpaper.cycle(-1));
+        }
+    }
+
+    private void bindRows(Fx.TextBatch text, Module module, double x, double y, double w, double clipTop, double clipBottom) {
         double gy = y + GROUP * u - 16 * u;
         text.put("BIND", x, Fx.centerY(theme, gy, 12, u), 12, S.green, 3.4, Fx.BOLD);
         double lx = x + Fx.textWidth(theme, "BIND", 12, 3.4, u) + 14 * u, half = (x + w - lx) / 2;
@@ -800,7 +818,13 @@ public class AuroraScreen extends Screen {
         if (listening != null) {
             int key = event.key();
             // Esc clears; the menu's own key cannot be taken
-            if (key == GLFW.GLFW_KEY_ESCAPE) listening.bind = -1;
+            if (listening == Client.look) {
+                // The menu's own key: any key but Esc, and not one a module already uses
+                if (key != GLFW.GLFW_KEY_ESCAPE) {
+                    for (Module module : Client.modules) if (module.bind == key) module.bind = -1;
+                    Client.menuKey = key;
+                }
+            } else if (key == GLFW.GLFW_KEY_ESCAPE) listening.bind = -1;
             else if (!Client.isMenuKey(key)) listening.bind = key;
             listening = null;
             return true;

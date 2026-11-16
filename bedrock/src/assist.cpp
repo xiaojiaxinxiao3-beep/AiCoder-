@@ -103,10 +103,14 @@ static void saveConfig() {
 
 static int g_layout = 0;      // 0 columns, 1 window
 static bool g_motion = true;
+static int g_menuKey = VK_RSHIFT;   // opens and closes the menu; set with the KEY button in the top bar
+static bool g_bindingMenu = false;
+static bool g_skipMenuKey = false;   // the press that chose the menu key must not also close the menu
 
 static void saveUi() {
     WritePrivateProfileStringW(L"ui", L"layout", g_layout ? L"window" : L"columns", g_configPath);
     WritePrivateProfileStringW(L"ui", L"motion", g_motion ? L"1" : L"0", g_configPath);
+    wchar_t key[16]; swprintf(key, 16, L"%d", g_menuKey); WritePrivateProfileStringW(L"ui", L"menu_key", key, g_configPath);
 }
 
 static void loadConfig() {
@@ -128,6 +132,8 @@ static void loadConfig() {
     GetPrivateProfileStringW(L"ui", L"layout", L"columns", buffer, 64, g_configPath);
     g_layout = !wcscmp(buffer, L"window");
     g_motion = GetPrivateProfileIntW(L"ui", L"motion", 1, g_configPath) != 0;
+    g_menuKey = GetPrivateProfileIntW(L"ui", L"menu_key", VK_RSHIFT, g_configPath);
+    if (g_menuKey <= VK_RBUTTON || g_menuKey > 255) g_menuKey = VK_RSHIFT;
 }
 
 // ---------------------------------------------------------------- input
@@ -496,6 +502,7 @@ static std::wstring keyName(int vk) {
     if (vk >= VK_F1 && vk <= VK_F24) return L"F" + std::to_wstring(vk - VK_F1 + 1);
     switch (vk) {
         case VK_XBUTTON1: return L"MOUSE 4"; case VK_XBUTTON2: return L"MOUSE 5"; case VK_MBUTTON: return L"MOUSE 3";
+        case VK_RSHIFT: return L"R SHIFT"; case VK_INSERT: return L"INSERT"; case VK_HOME: return L"HOME"; case VK_END: return L"END"; case VK_DELETE: return L"DELETE";
         case VK_LSHIFT: case VK_SHIFT: return L"SHIFT"; case VK_LCONTROL: case VK_CONTROL: return L"CTRL"; case VK_RCONTROL: return L"R CTRL";
         case VK_LMENU: case VK_MENU: return L"ALT"; case VK_RMENU: return L"R ALT"; case VK_SPACE: return L"SPACE"; case VK_TAB: return L"TAB"; case VK_CAPITAL: return L"CAPS";
     }
@@ -590,6 +597,8 @@ static void render(Graphics& g, float w, float h) {
     text(g, L"ASSIST  /  BEDROCK", 34 + textWidth(g, L"AICODER", 22, true) + 14, 33, 12, withAlpha(GREEN, 230), true);
     float bx = w - 34;
     bx -= 92; pill(g, RectF(bx, 24, 92, 30), L"UNLOAD", false, [](int) { g_running = false; });
+    { std::wstring label = g_bindingMenu ? L"PRESS A KEY" : L"KEY: " + keyName(g_menuKey); float kw = textWidth(g, label, 13, true) + 34;
+      bx -= kw + 10; pill(g, RectF(bx, 24, kw, 30), label, g_bindingMenu, [](int) { g_bindingMenu = !g_bindingMenu; g_binding = nullptr; }); }
     bx -= 102; pill(g, RectF(bx, 24, 92, 30), L"GAMES", g_games, [](int) { g_games = !g_games; g_popup = nullptr; if (!g_games) games::leave(); });
     bx -= 102; pill(g, RectF(bx, 24, 92, 30), L"MOTION", g_motion, [](int) { g_motion = !g_motion; saveUi(); });
     bx -= 112; pill(g, RectF(bx, 24, 102, 30), L"COLUMNS", g_layout == 0 && !g_games, [](int) { if (g_games) games::leave(); g_games = false; g_layout = 0; g_popup = nullptr; saveUi(); });
@@ -598,7 +607,7 @@ static void render(Graphics& g, float w, float h) {
     auto cats = categories();
     if (g_games) {
         games::render(g, w, h);
-        text(g, L"Right Shift: close    P pause    R restart", 34, h - 40, 13, DIM);
+        text(g, keyName(g_menuKey) + L": close    P pause    R restart", 34, h - 40, 13, DIM);
         return;
     }
     if (g_layout == 0) {
@@ -663,14 +672,14 @@ static void render(Graphics& g, float w, float h) {
         if (g_selected) settings(g, *g_selected, RectF(sx, y + 28, x + ww - 30 - sx, wh - 56));
         else { text(g, L"Select a module", sx, y + 30, 16, DIM); text(g, L"Click a row to select, click its switch or right click to toggle.", sx, y + 58, 13, FAINT); }
     }
-    const wchar_t* help = g_layout == 0 ? L"Left click: toggle    Right click: settings    Right Shift: close" : L"Click: select    Switch or right click: toggle    Right Shift: close";
+    std::wstring help = (g_layout == 0 ? L"Left click: toggle    Right click: settings    " : L"Click: select    Switch or right click: toggle    ") + keyName(g_menuKey) + L": close";
     text(g, help, 34, h - 40, 13, DIM);
     const wchar_t* note = L"Modules act only in the world (cursor hidden) with the game focused.";
     text(g, note, w - 34 - textWidth(g, note, 13), h - 40, 13, FAINT);
 }
 
 static void renderToast(Graphics& g, float w) {
-    const wchar_t* message = L"AiCoder Assist loaded  -  Right Shift opens the menu";
+    std::wstring message = L"AiCoder Assist loaded  -  " + keyName(g_menuKey) + L" opens the menu";
     float tw = textWidth(g, message, 15, true) + 48;
     RectF box((w - tw) / 2, 26, tw, 44);
     fillRound(g, box, 22, rgba(12, 28, 58, 236));
@@ -683,11 +692,12 @@ static void renderToast(Graphics& g, float w) {
 static float g_scale = 1;
 
 static void closeMenu() {
-    g_menu = false; g_popup = nullptr; g_binding = nullptr; g_dragging = nullptr;
+    g_menu = false; g_popup = nullptr; g_binding = nullptr; g_bindingMenu = false; g_dragging = nullptr;
     if (g_games) games::leave();
-    saveConfig();
+    // Put the menu away first: writing the settings can take a moment
     ShowWindow(g_overlay, SW_HIDE);
     if (g_game) SetForegroundWindow(g_game);
+    saveConfig();
 }
 
 static void pressAt(float x, float y, int button) {
@@ -717,9 +727,20 @@ static LRESULT CALLBACK overlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (vk == VK_SHIFT) vk = VK_LSHIFT;
             if (vk == VK_CONTROL) vk = (HIWORD(lp) & KF_EXTENDED) ? VK_RCONTROL : VK_LCONTROL;
             if (vk == VK_MENU) vk = (HIWORD(lp) & KF_EXTENDED) ? VK_RMENU : VK_LMENU;
-            if (g_games && !g_binding && !g_popup && (msg == WM_KEYDOWN) && vk != VK_ESCAPE && vk != VK_RSHIFT) { games::key((int) wp, true); return 0; }
-            if (g_binding) {
-                if (vk != VK_RSHIFT) {
+            if (g_games && !g_binding && !g_popup && (msg == WM_KEYDOWN) && vk != VK_ESCAPE && vk != g_menuKey && !g_bindingMenu) { games::key((int) wp, true); return 0; }
+            if (g_bindingMenu) {
+                // Esc keeps the current key. A key a module uses is taken away from that module.
+                if (vk != VK_ESCAPE) {
+                    EnterCriticalSection(&g_lock);
+                    for (auto& m : g_modules) if (m.bind == vk) m.bind = 0;
+                    g_menuKey = vk;
+                    LeaveCriticalSection(&g_lock);
+                    g_skipMenuKey = true;
+                    saveUi(); saveConfig();
+                }
+                g_bindingMenu = false;
+            } else if (g_binding) {
+                if (vk != g_menuKey) {
                     EnterCriticalSection(&g_lock);
                     g_binding->bind = vk == VK_ESCAPE || vk == VK_BACK || vk == VK_DELETE ? 0 : vk;
                     g_binding->keyWasDown = true;
@@ -826,7 +847,8 @@ static DWORD WINAPI uiThread(LPVOID) {
         RECT r;
         bool have = gameRect(r);
         HWND foreground = GetForegroundWindow();
-        SHORT state = GetAsyncKeyState(VK_RSHIFT);
+        SHORT state = GetAsyncKeyState(g_menuKey);
+        if (g_skipMenuKey) { if (state & 0x8000) state = (SHORT) 0x8000, shiftWasDown = true; else { g_skipMenuKey = false; state = 0; } }
         bool shift = (state & 0x8000) != 0, tapped = (state & 1) && !shift && !shiftWasDown;   // a tap shorter than one frame
         if (((shift && !shiftWasDown) || tapped) && have && (foreground == g_game || foreground == g_overlay)) {
             if (g_menu) closeMenu();

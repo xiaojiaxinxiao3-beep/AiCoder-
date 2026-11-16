@@ -1,7 +1,7 @@
 # AiCoder Assist：注入式客戶端（Minecraft 1.21.11）
 
 不需要 Fabric 也不需要 Meteor。先啟動**原版** Minecraft 1.21.11，再執行 `AiCoderAssist.exe`，
-七個模組和兩個極光玻璃介面就會進到正在執行的遊戲裡。在遊戲中按**右 Shift** 開啟選單。
+七個模組和兩個極光玻璃介面就會進到正在執行的遊戲裡。在遊戲中按**右 Shift** 開啟選單。選單鍵可以自己改：上方 STYLE → 最下面的 **Menu Key**，點一下再按想要的鍵（Esc 保留原本的）；Insert 永遠也能開，當作後路。存成 `ui.menu-key`（GLFW 鍵碼）。
 
 ## 內容
 - 九個模組，和 `combat-macros/` 是同一份原始碼：Anchor Macro、Crystal Macro、Crosshair Drift、Left Clicker、Mace Dive、Mace Swap、Right Clicker、Spear Lunge、Wind Pearl

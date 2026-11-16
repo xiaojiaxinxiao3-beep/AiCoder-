@@ -5,7 +5,7 @@
 ## 用法
 1. 兩個檔案放在同一個資料夾
 2. 開 Minecraft 基岩版，進入世界
-3. 執行 `AiCoderAssist-Bedrock.exe`，回到遊戲按**右 Shift** 開選單
+3. 執行 `AiCoderAssist-Bedrock.exe`，回到遊戲按**右 Shift** 開選單（選單鍵可以改：上方的 `KEY: …` 按鈕，點一下再按想要的鍵，Esc 取消；存成 `bedrock.ini` 的 `[ui] menu_key`）
 4. 選單右上角 `UNLOAD` 可以卸載
 
 ## 它怎麼運作（和 Java 版完全不同）

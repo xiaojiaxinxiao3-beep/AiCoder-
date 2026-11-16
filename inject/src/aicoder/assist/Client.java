@@ -54,8 +54,9 @@ public final class Client {
     /** Drifting aurora, breathing highlights and fades. */
     public static boolean animations = true;
 
-    private static final int MENU_KEY = GLFW.GLFW_KEY_RIGHT_SHIFT;
-    /** A second key for the menu, for keyboards without a right Shift or where it is taken by something else. */
+    /** The key that opens and closes the menu. Set in STYLE, saved as ui.menu-key. */
+    public static int menuKey = GLFW.GLFW_KEY_RIGHT_SHIFT;
+    /** Always opens the menu too, so a badly chosen menu key can be changed back. */
     private static final int MENU_KEY_2 = GLFW.GLFW_KEY_INSERT;
     private static boolean announced;
     private static boolean menuRequested;
@@ -134,8 +135,12 @@ public final class Client {
         }
     }
 
+    public static String menuKeyName() {
+        return com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM.getOrCreate(menuKey).getDisplayName().getString();
+    }
+
     public static boolean isMenuKey(int key) {
-        return key == MENU_KEY || key == MENU_KEY_2;
+        return key == menuKey || key == MENU_KEY_2;
     }
 
     static void tick() {
@@ -147,7 +152,7 @@ public final class Client {
         // Say so in the game itself, once, the first time there is a world to say it in
         if (!announced && mc.level != null && mc.gui != null) {
             announced = true;
-            chat(NAME, "loaded. Press Right Shift (or Insert) to open the menu.", 0xFF4DFFB8);
+            chat(NAME, "loaded. Press " + menuKeyName() + " (or Insert) to open the menu.", 0xFF4DFFB8);
         }
 
         if (menuRequested) {
@@ -177,6 +182,7 @@ public final class Client {
     public static void save() {
         Properties out = new Properties();
         out.setProperty("ui.layout", layout);
+        out.setProperty("ui.menu-key", String.valueOf(menuKey));
         out.setProperty("ui.animations", String.valueOf(animations));
         out.setProperty("ui.image", aicoder.assist.gfx.Wallpaper.selected);
         for (SettingGroup group : look.settings.groups) {
@@ -212,6 +218,11 @@ public final class Client {
         }
 
         layout = "window".equals(in.getProperty("ui.layout")) ? "window" : "columns";
+        try {
+            int saved = Integer.parseInt(in.getProperty("ui.menu-key", String.valueOf(menuKey)));
+            if (saved > 0) menuKey = saved;
+        } catch (NumberFormatException ignored) {
+        }
         animations = !"false".equals(in.getProperty("ui.animations"));
         if (in.getProperty("ui.image") != null) aicoder.assist.gfx.Wallpaper.selected = in.getProperty("ui.image");
         for (SettingGroup group : look.settings.groups) {

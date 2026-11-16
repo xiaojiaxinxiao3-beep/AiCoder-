@@ -48,7 +48,7 @@ int wmain(int argc, wchar_t** argv) {
 
     DWORD pid = findProcess(target);
     if (!pid) { wprintf(L"%ls is not running.\nStart Minecraft (Bedrock) first, enter a world, then run this again.\n", target); return finish(1); }
-    if (alreadyLoaded(pid, dllName)) { wprintf(L"Already loaded. Press Right Shift in the game.\n"); return finish(0); }
+    if (alreadyLoaded(pid, dllName)) { wprintf(L"Already loaded. Press Right Shift (or the menu key you chose) in the game.\n"); return finish(0); }
 
     // Store builds of the game run in an app container, which may only read files that grant
     // "ALL APPLICATION PACKAGES" access. Harmless on the newer desktop builds.
@@ -68,6 +68,6 @@ int wmain(int argc, wchar_t** argv) {
     VirtualFreeEx(process, remote, 0, MEM_RELEASE);
     CloseHandle(thread); CloseHandle(process);
     if (!result && !alreadyLoaded(pid, dllName)) { wprintf(L"The game refused to load the DLL.\n"); return finish(1); }
-    wprintf(L"Loaded into %ls (pid %lu).\nGo back to the game and press Right Shift.\n", target, pid);
+    wprintf(L"Loaded into %ls (pid %lu).\nGo back to the game and press Right Shift (or the menu key you chose).\n", target, pid);
     return finish(0);
 }
