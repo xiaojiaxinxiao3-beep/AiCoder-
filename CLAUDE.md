@@ -200,7 +200,11 @@
 - `SpearSmash`（MELEE，1.21.11 才有）：長矛命中後接重錘。戳刺由 `DoAttackEvent` 看（準心或長矛指向的生物，戳刺的距離比準心遠所以用 `nearestAhead()` 補），放平（按住使用鍵）由「前方生物的 `hurtTime` 變大」看：客戶端沒有別的方式知道放平的長矛打中了（`recentKineticEnemies` 只有伺服器有）。之後下一個 tick 選重錘＋`KeyMapping.click(攻擊鍵)`；穿鞘翅時先用和 `MaceDive` 一樣的同 tick 換胸甲
   - 使用者回報「重錘沒有觸發」後改的：`falling()` 在鞘翅滑翔且下降時直接算（滑翔中 `fallDistance` 會被壓在 1 以下）；等待重錘進入距離的時間（`follow-up-window`）從 8 改成 20 tick；沒有重錘、或時間內沒進到 3 格內，都會在聊天欄說（`messages` 預設開）。重錘那一下仍然要準心對著目標且在 3 格內，這是原版攻擊的條件，長矛戳得到的距離比這個遠
   - `OffhandTotem` 在注入版另外直接呼叫遊戲的 `MouseHandler.onMove`（反射，名稱在 `gen_names.py`），因為使用者回報 Windows 上滑鼠沒有動；創造模式的物品欄版面不同，只提示不動作
-- `MaceDive` 的 `spear-mode`：俯衝時選長矛並按住使用鍵，`hurtTime` 變大或距離 ≤ max(1.5, 速度) 就放開（`mc.gameMode.releaseUsingItem`）、換胸甲、進 Strike。鑽石長矛的 `KineticWeapon.delayTicks` 是 10（獄髓 8），放平未滿這個時間不算傷害，所以 40 格以下的俯衝不放煙火
+- `MaceDive` 的 `spear-mode`（使用者要求：要放煙火，長矛 → 胸甲 → 重錘照順序幾乎同時切）：
+  - 長矛只打得到 2～4.5 格（`AttackRange`），而且放平後要 `KineticWeapon.delayTicks`（鑽石 10、獄髓 8）才算傷害。煙火飛行的速度約 1.7 格／tick，所以從 20 格俯衝只有約 11 tick：俯衝開始的那個 tick 用 `fireworkNow()`（直接 `Clicks.useItem()`）放煙火，同一個 tick 選長矛並 `Clicks.useItem()` 放平、按住使用鍵。距離超過 `SPEAR_LEAD`（28）的俯衝則先照常放煙火，進到 28 格內再補一發（把速度拉回 1.7）後放平
+  - 三步各佔一個 tick：長矛在距離內待滿一個 tick（`spearHad`，不等 `hurtTime`，它會晚一兩個 tick）→ 放開、換胸甲 → Strike 選重錘按攻擊。Strike 在長矛模式用 `max(attack-range, 3)`，因為沒有時間等使用者設的較短距離
+  - 實測（1.21.11，高度 20、攻擊距離 1.99、鑽石長矛）：每輪都是長矛命中後重錘命中，兩輪打死鐵巨人
+  - 目標一旦選定就鎖住（`locked`），不會因為爬升超過 `range` 而丟失：以前高度設得比 `range`（預設 40）大時會永遠到不了俯衝
 - `OffhandTotem`（UTILITY）：副手沒有圖騰時 `KeyMapping.click(物品欄鍵)` → 把游標移到圖騰那格 → `screen.keyPressed(與副手交換鍵)` → `screen.onClose()`。格子位置用 `(width-176)/2` 算，對不上（配方書開著）就試另一個位置，用 `hoveredSlot` 驗證（Meteor 的 accessor；注入版用反射，名稱在 `gen_names.py`）。游標要連續移兩次、差 1 像素：X11 的 GLFW 會吞掉「自己移到的那個位置」的移動事件，遊戲收不到。26.3 是 SDL 的寫法（`SDL_WarpMouseInWindow`），沒有實測
 - `WindJump` 的時機設定改名為 `throw-timing`，可以是負數（先丟、之後才跳），預設 -1：實測平均 11 格，同 tick 是 8.7 格
 - **測試角色不能有緩降效果**：有的話伺服器的 `fallDistance` 一直是 0，重錘沒有落下加成，客戶端的 `fallDistance` 也跟著是接近 0 的怪數字

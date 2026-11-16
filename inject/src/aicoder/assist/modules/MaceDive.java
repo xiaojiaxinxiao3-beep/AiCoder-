@@ -76,7 +76,7 @@ public class MaceDive extends Module {
 
     private final Setting<Boolean> spearMode = sgGeneral.add(new BoolSetting.Builder()
         .name("spear-mode")
-        .description("Dive with a spear held level (use key held). When it hits, put the chestplate on and follow with the mace: two hits in a moment. Needs a spear in the hotbar. Dives from under 40 blocks skip the firework, so the spear has time to level.")
+        .description("Dive with a spear held level (use key held). When it hits, put the chestplate on and follow with the mace: two hits in a moment. Needs a spear in the hotbar. The spear is levelled for the last 28 blocks, after one more firework, so dive from at least that high.")
         .defaultValue(false)
         .build()
     );
@@ -108,7 +108,7 @@ public class MaceDive extends Module {
 
     private final Setting<Double> range = sgTargets.add(new DoubleSetting.Builder()
         .name("range")
-        .description("How far away a player can be and still be picked as the target.")
+        .description("How far away a player can be and still be picked as the target. Once picked, the target is kept while you climb above it.")
         .defaultValue(40)
         .range(5, 128)
         .sliderRange(5, 100)
@@ -124,7 +124,14 @@ public class MaceDive extends Module {
 
     private Stage stage = Stage.Prepare;
     private int wait, sinceFirework, stageTicks;
-    private boolean jumpDown, boosted, useDown;
+    /** Furthest a spear reaches. Nearer than 2 blocks it does not hit either. */
+    private static final double SPEAR_REACH = 4.5;
+    /** How far out the spear is levelled: far enough to have been held half a second on arrival. */
+    private static final double SPEAR_LEAD = 28;
+    private int spearPhase;
+    private LivingEntity locked;
+
+    private boolean jumpDown, boosted, useDown, spearHad, spearStrike;
     private int targetHurt;
     private double diveFrom;
 
@@ -134,6 +141,7 @@ public class MaceDive extends Module {
 
     @Override
     public void onActivate() {
+        locked = null;
         stage = Stage.Prepare;
         wait = 0;
         sinceFirework = 100;
@@ -231,6 +239,9 @@ public class MaceDive extends Module {
 
                 if (mc.player.getY() - target.getY() >= height.get()) {
                     boosted = false;
+                    spearHad = false;
+                    spearStrike = false;
+                    spearPhase = 0;
                     diveFrom = mc.player.getY() - target.getY();
                     go(Stage.Dive);
                     return;
@@ -246,27 +257,57 @@ public class MaceDive extends Module {
                 aim(target, eye, speed);
 
                 if (!boosted) {
+                    // One firework to come down fast
                     boosted = true;
-                    // A levelled spear only counts after being held out for about half a second. From low
-                    // down a firework would get there sooner than that, so those dives go without one.
-                    boolean coast = spearMode.get() && findSpear() >= 0 && diveFrom < 40;
-                    // Otherwise one firework to come down fast
-                    if ((coast || firework()) && feedback.get()) info("Diving from %.0f blocks above.", diveFrom);
-                    if (!coast) return;
+                    int early = spearMode.get() ? findSpear() : -1;
+                    if (early >= 0 && distance <= SPEAR_LEAD) {
+                        // A short dive: the firework and the spear in the same tick, because the spear only
+                        // counts after about half a second held out and there is barely that much time
+                        boolean lit = fireworkNow();
+                        mc.player.getInventory().setSelectedSlot(early);
+                        Clicks.useItem();
+                        setUse(true);
+                        spearPhase = 2;
+                        if (lit && feedback.get()) info("Diving from %.0f blocks above, spear out.", diveFrom);
+                        return;
+                    }
+                    if (firework() && feedback.get()) info("Diving from %.0f blocks above.", diveFrom);
+                    return;
                 }
 
                 int spear = spearMode.get() ? findSpear() : -1;
                 if (spear >= 0) {
-                    // Spear held level: the use key stays down and the game makes the hit on contact
+                    if (spearPhase == 0) {
+                        holdWeapon();
+                        if (distance > SPEAR_LEAD) return;
+                        // The last stretch: one more firework, which also holds the speed at what a firework
+                        // gives instead of what a long dive builds up, then the spear
+                        spearPhase = 1;
+                        if (sinceFirework >= 8 && firework()) return;
+                    }
+                    if (spearPhase == 1) {
+                        // Level the spear now. It only counts after about half a second held out.
+                        mc.player.getInventory().setSelectedSlot(spear);
+                        Clicks.useItem();
+                        setUse(true);
+                        spearPhase = 2;
+                        return;
+                    }
                     if (mc.player.getInventory().getSelectedSlot() != spear) mc.player.getInventory().setSelectedSlot(spear);
                     setUse(true);
 
-                    // It has landed, or we are about to fly past without it: chestplate now, mace next
-                    if (struck || distance <= Math.max(1.5, speed)) {
+                    // Spear, chestplate, mace on three ticks in a row. The hurt flash arrives a tick or two
+                    // late, so the spear's turn is simply one whole tick within its reach (2 to 4.5 blocks).
+                    boolean inReach = distance <= SPEAR_REACH;
+                    if (struck || spearHad || distance <= Math.max(2.0, speed)) {
                         setUse(false);
                         if (mc.player.isUsingItem()) mc.gameMode.releaseUsingItem(mc.player);
-                        if (feedback.get() && struck) info("Spear hit, switching to the mace.");
+                        if (feedback.get()) info("Spear %s at %.1f blocks, speed %.1f. Chestplate on, mace next.", struck ? "hit" : "in reach", distance, speed);
+                        spearHad = false;
+                        spearStrike = true;
                         if (wear(false)) go(Stage.Strike);
+                    } else {
+                        spearHad = inReach;
                     }
                     return;
                 }
@@ -279,14 +320,16 @@ public class MaceDive extends Module {
             case Strike -> {
                 aim(target, eye, speed);
 
-                if (distance <= reach.get()) {
+                // After the spear there is no time to wait for the chosen attack range: hit as soon as the game allows
+                if (distance <= (spearStrike ? Math.max(reach.get(), mc.player.entityInteractionRange()) : reach.get())) {
                     int mace = find(Items.MACE);
                     mc.player.getInventory().setSelectedSlot(mace);
                     KeyMapping.click(Input.keyOf(mc.options.keyAttack));
-                    if (feedback.get()) info("Hit from %.0f blocks above.", diveFrom);
+                    if (feedback.get()) info("Mace hit at %.1f blocks, dived from %.0f above.", distance, diveFrom);
                     go(Stage.Recover);
                     wait = 1;
                 } else if (stageTicks > 15 || mc.player.onGround()) {
+                    if (feedback.get()) info("No mace hit: %s (target %.1f blocks away).", mc.player.onGround() ? "landed first" : "out of reach", distance);
                     go(Stage.Recover);
                 }
             }
@@ -367,6 +410,17 @@ public class MaceDive extends Module {
         return true;
     }
 
+    /** A firework used at once, instead of through the use key later in the tick, so something else can follow in the same tick. */
+    private boolean fireworkNow() {
+        int slot = find(Items.FIREWORK_ROCKET);
+        if (slot < 0) return false;
+
+        mc.player.getInventory().setSelectedSlot(slot);
+        Clicks.useItem();
+        sinceFirework = 0;
+        return true;
+    }
+
     /** Selects the sword, or the mace when there is no sword or the swap is off. */
     private void holdWeapon() {
         int slot = useSword.get() ? findSword() : -1;
@@ -418,6 +472,11 @@ public class MaceDive extends Module {
     }
 
     private LivingEntity findTarget() {
+        // Once picked, a target is kept while it lives: climbing above it must not lose it, however high
+        if (locked != null && locked.isAlive() && !locked.isRemoved() && locked.level() == mc.level
+            && locked.distanceTo(mc.player) <= range.get() + height.get() + 32) return locked;
+        locked = null;
+
         LivingEntity best = null;
         double bestDistance = range.get();
 
@@ -436,6 +495,7 @@ public class MaceDive extends Module {
                 best = living;
             }
         }
+        locked = best;
         return best;
     }
 }
