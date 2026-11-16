@@ -74,7 +74,10 @@ if version == '1.21.4':
 
     # Spears came later than 1.21.4
     os.remove(os.path.join(out, A, 'modules', 'SpearLunge.java'))
-    edit(A + 'Client.java', [('import aicoder.assist.modules.SpearLunge;\n', ''), ('        add(new SpearLunge());\n', '')])
+    os.remove(os.path.join(out, A, 'modules', 'SpearSmash.java'))
+    edit(A + 'Client.java', [('import aicoder.assist.modules.SpearLunge;\n', ''), ('        add(new SpearLunge());\n', ''),
+                             ('import aicoder.assist.modules.SpearSmash;\n', ''), ('        add(new SpearSmash());\n', '')])
+    edit(A + 'modules/OffhandTotem.java', [('import net.minecraft.client.input.KeyEvent;\n', ''), ('screen.keyPressed(new KeyEvent(code, 0, 0))', 'screen.keyPressed(code, 0, 0)')])
 
     # Screens get raw numbers here, not event objects
     edit(A + 'aurora/AuroraScreen.java', [

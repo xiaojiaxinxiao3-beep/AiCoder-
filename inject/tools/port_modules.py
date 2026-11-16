@@ -11,7 +11,7 @@ import os, re
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(HERE, '..', 'combat-macros', 'src', 'main', 'java', 'aicoder', 'combat')
 DST = os.path.join(HERE, 'src', 'aicoder', 'assist', 'modules')
-FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'WindJump', 'TriggerBot', 'TellyBridge', 'Clicks']
+FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'WindJump', 'TriggerBot', 'TellyBridge', 'SpearSmash', 'OffhandTotem', 'Clicks']
 
 
 def port(text):
@@ -20,10 +20,18 @@ def port(text):
     # Meteor imports go; the stand-in API comes in their place
     text = re.sub(r'import (static )?meteordevelopment\.[^\n]*\n', '', text)
     text = text.replace('\nimport ', '\nimport aicoder.assist.api.*;\nimport aicoder.assist.api.Module;\nimport aicoder.assist.api.Events.*;\n\nimport static aicoder.assist.Client.mc;\n\nimport ', 1)
+    if 'import static aicoder.assist.Client.mc;' not in text:
+        # A file with no other imports
+        text = text.replace('package aicoder.assist.modules;\n', 'package aicoder.assist.modules;\n\nimport static aicoder.assist.Client.mc;\n', 1)
 
     text = text.replace('AiCoderTab.', 'Category.')
     text = text.replace('mc.gui.screen()', 'mc.screen')
     text = re.sub(r'\(\(KeyMappingAccessor\) (mc\.options\.\w+)\)\.meteor\$getKey\(\)', r'Input.keyOf(\1)', text)
+
+    # The cursor and the slot under it, through the stand-in API
+    text = text.replace('import org.lwjgl.sdl.SDLMouse;\n', '')
+    text = text.replace('SDLMouse.SDL_WarpMouseInWindow(mc.getWindow().handle(), (float) mouseX, (float) mouseY);', 'Input.moveCursor(mouseX, mouseY);')
+    text = text.replace('((AbstractContainerScreenAccessor) screen).meteor$getHoveredSlot()', 'Input.hoveredSlot(screen)')
 
     # There is no friends list here: drop the setting and the check
     text = re.sub(r'    private final Setting<Boolean> (friends|ignoreFriends) = .*?\n    \);\n\n', '', text, flags=re.S)

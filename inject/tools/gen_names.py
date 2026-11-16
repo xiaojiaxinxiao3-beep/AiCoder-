@@ -30,6 +30,10 @@ if version == '1.21.11':
     out['GuiGraphics'] = m.cls(C + 'gui.GuiGraphics').replace('.', '/')
     out['GuiGraphics.guiRenderState'] = m.field(C + 'gui.GuiGraphics', 'guiRenderState')[0]
 
+# The slot under the mouse in an inventory screen (protected)
+out['AbstractContainerScreen'] = m.cls(C + 'gui.screens.inventory.AbstractContainerScreen').replace('.', '/')
+out['AbstractContainerScreen.hoveredSlot'] = m.field(C + 'gui.screens.inventory.AbstractContainerScreen', 'hoveredSlot')[0]
+
 os.makedirs(os.path.dirname(sys.argv[2]), exist_ok=True)
 with open(sys.argv[2], 'w') as f:
     f.write(''.join('%s=%s\n' % kv for kv in sorted(out.items())))

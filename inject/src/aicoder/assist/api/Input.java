@@ -22,6 +22,26 @@ public final class Input {
         return GLFW.glfwGetMouseButton(Client.mc.getWindow().handle(), button) == GLFW.GLFW_PRESS;
     }
 
+    /** Puts the mouse cursor at a place in the game window, in window pixels. The game hears of it as a mouse move. */
+    public static void moveCursor(double x, double y) {
+        GLFW.glfwSetCursorPos(Client.mc.getWindow().handle(), x, y);
+    }
+
+    private static java.lang.reflect.Field hovered;
+
+    /** The slot the mouse is over in an inventory screen, or null. */
+    public static net.minecraft.world.inventory.Slot hoveredSlot(net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
+        try {
+            if (hovered == null) {
+                hovered = net.minecraft.client.gui.screens.inventory.AbstractContainerScreen.class.getDeclaredField(aicoder.assist.Names.shared().get("AbstractContainerScreen.hoveredSlot"));
+                hovered.setAccessible(true);
+            }
+            return (net.minecraft.world.inventory.Slot) hovered.get(screen);
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
+    }
+
     /** Whether the bound key or button is physically held, whatever the game currently thinks of it. */
     public static boolean isPressed(KeyMapping mapping) {
         InputConstants.Key key = keyOf(mapping);

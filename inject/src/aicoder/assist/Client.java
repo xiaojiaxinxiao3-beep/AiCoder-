@@ -14,6 +14,8 @@ import aicoder.assist.modules.MaceDive;
 import aicoder.assist.modules.MaceSwap;
 import aicoder.assist.modules.RightClicker;
 import aicoder.assist.modules.SpearLunge;
+import aicoder.assist.modules.OffhandTotem;
+import aicoder.assist.modules.SpearSmash;
 import aicoder.assist.modules.TellyBridge;
 import aicoder.assist.modules.TriggerBot;
 import aicoder.assist.modules.WindJump;
@@ -75,6 +77,8 @@ public final class Client {
         add(new MaceSwap());
         add(new RightClicker());
         add(new SpearLunge());
+        add(new OffhandTotem());
+        add(new SpearSmash());
         add(new TellyBridge());
         add(new TriggerBot());
         add(new WindJump());

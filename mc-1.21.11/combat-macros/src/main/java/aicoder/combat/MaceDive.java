@@ -79,6 +79,13 @@ public class MaceDive extends Module {
         .build()
     );
 
+    private final Setting<Boolean> spearMode = sgGeneral.add(new BoolSetting.Builder()
+        .name("spear-mode")
+        .description("Dive with a spear held level (use key held). When it hits, put the chestplate on and follow with the mace: two hits in a moment. Needs a spear in the hotbar. Dives from under 40 blocks skip the firework, so the spear has time to level.")
+        .defaultValue(false)
+        .build()
+    );
+
     private final Setting<Double> climbPitch = sgGeneral.add(new DoubleSetting.Builder()
         .name("climb-steepness")
         .description("How steeply to climb, in degrees above level. 90 is straight up, so the dive comes down at a slant.")
@@ -129,7 +136,8 @@ public class MaceDive extends Module {
 
     private Stage stage = Stage.Prepare;
     private int wait, sinceFirework, stageTicks;
-    private boolean jumpDown, boosted;
+    private boolean jumpDown, boosted, useDown;
+    private int targetHurt;
     private double diveFrom;
 
     public MaceDive() {
@@ -147,9 +155,11 @@ public class MaceDive extends Module {
     @Override
     public void onDeactivate() {
         setJump(false);
+        setUse(false);
     }
 
     private void go(Stage next) {
+        if (next != Stage.Dive) setUse(false);
         stage = next;
         stageTicks = 0;
     }
@@ -162,14 +172,19 @@ public class MaceDive extends Module {
 
         if (mc.currentScreen != null) {
             setJump(false);
+            setUse(false);
             return;
         }
 
         LivingEntity target = findTarget();
         if (target == null) {
             setJump(false);
+            setUse(false);
             return;
         }
+        // The hurt flash starting on the target is how a spear hit shows on this side
+        boolean struck = target.hurtTime > targetHurt;
+        targetHurt = target.hurtTime;
 
         if (find(Items.MACE) < 0) {
             warning("No mace in your hotbar.");
@@ -243,9 +258,28 @@ public class MaceDive extends Module {
                 aim(target, eye, speed);
 
                 if (!boosted) {
-                    // One firework to come down fast
                     boosted = true;
-                    if (firework() && feedback.get()) info("Diving from %.0f blocks above.", diveFrom);
+                    // A levelled spear only counts after being held out for about half a second. From low
+                    // down a firework would get there sooner than that, so those dives go without one.
+                    boolean coast = spearMode.get() && findSpear() >= 0 && diveFrom < 40;
+                    // Otherwise one firework to come down fast
+                    if ((coast || firework()) && feedback.get()) info("Diving from %.0f blocks above.", diveFrom);
+                    if (!coast) return;
+                }
+
+                int spear = spearMode.get() ? findSpear() : -1;
+                if (spear >= 0) {
+                    // Spear held level: the use key stays down and the game makes the hit on contact
+                    if (mc.player.getInventory().getSelectedSlot() != spear) mc.player.getInventory().setSelectedSlot(spear);
+                    setUse(true);
+
+                    // It has landed, or we are about to fly past without it: chestplate now, mace next
+                    if (struck || distance <= Math.max(1.5, speed)) {
+                        setUse(false);
+                        if (mc.player.isUsingItem()) mc.interactionManager.stopUsingItem(mc.player);
+                        if (feedback.get() && struck) info("Spear hit, switching to the mace.");
+                        if (wear(false)) go(Stage.Strike);
+                    }
                     return;
                 }
                 holdWeapon();
@@ -261,7 +295,7 @@ public class MaceDive extends Module {
                     int mace = find(Items.MACE);
                     mc.player.getInventory().setSelectedSlot(mace);
                     KeyBinding.onKeyPressed(((KeyBindingAccessor) mc.options.attackKey).meteor$getKey());
-                    if (feedback.get()) info("Hit after falling %.1f blocks.", mc.player.fallDistance);
+                    if (feedback.get()) info("Hit from %.0f blocks above.", diveFrom);
                     go(Stage.Recover);
                     wait = 1;
                 } else if (stageTicks > 15 || mc.player.isOnGround()) {
@@ -278,6 +312,21 @@ public class MaceDive extends Module {
         jumpDown = down;
         // When letting go, leave the key as the keyboard has it
         mc.options.jumpKey.setPressed(down || Input.isPressed(mc.options.jumpKey));
+    }
+
+    /** Holds the use key, or lets it go again. */
+    private void setUse(boolean down) {
+        if (useDown == down) return;
+        useDown = down;
+        mc.options.useKey.setPressed(down || Input.isPressed(mc.options.useKey));
+    }
+
+    private int findSpear() {
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = mc.player.getInventory().getStack(i);
+            if (!stack.isEmpty() && Registries.ITEM.getId(stack.getItem()).getPath().endsWith("_spear")) return i;
+        }
+        return -1;
     }
 
     /** One press of the use key; the game handles it later in this same tick. */

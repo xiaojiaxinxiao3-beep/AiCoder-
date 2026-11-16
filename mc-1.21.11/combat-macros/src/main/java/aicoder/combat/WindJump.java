@@ -13,29 +13,30 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.item.Items;
 
 /**
- * One wind charge jump per activation: look straight down, jump, throw a wind charge at your feet,
+ * One wind charge jump per activation: look straight down, throw a wind charge at your feet and jump,
  * look back where you were. The module switches itself off when you land.
  *
- * <p>How high the burst sends you depends on how many ticks after the jump the charge is thrown.
+ * <p>How high the burst sends you depends on when the charge is thrown relative to the jump. Throwing one tick before the jump
+ * key measured highest: the burst then reaches you just as the jump takes off.
  * With auto-tune on, each jump tries the next timing, measures how high you actually got, and once
- * every timing has been tried it keeps the best one in throw-delay and turns auto-tune off.
+ * every timing has been tried it keeps the best one in throw-timing and turns auto-tune off.
  *
  * <p>Everything is a key press: the real camera turns, the jump key and the use key are pressed.
  */
 public class WindJump extends Module {
-    private enum Stage { Jump, Throw, Restore, Flight }
+    private enum Stage { Jump, Throw, LateJump, Restore, Flight }
 
-    /** Timings auto-tune tries, in ticks after the jump key. */
-    private static final int TIMINGS = 8;
+    /** Timings auto-tune tries: FIRST, FIRST + 1, ... ticks after the jump key. */
+    private static final int TIMINGS = 8, FIRST = -3;
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Integer> throwDelay = sgGeneral.add(new IntSetting.Builder()
-        .name("throw-delay")
-        .description("Ticks between pressing jump and throwing the wind charge. Auto-tune fills this in.")
-        .defaultValue(0)
-        .range(0, 10)
-        .sliderRange(0, 10)
+        .name("throw-timing")
+        .description("Ticks between pressing jump and throwing the wind charge. 0 does both in the same tick; below 0 throws first and jumps that many ticks later. Auto-tune fills this in.")
+        .defaultValue(-1)
+        .range(-3, 10)
+        .sliderRange(-3, 10)
         .build()
     );
 
@@ -87,7 +88,7 @@ public class WindJump extends Module {
             toggle();
             return;
         }
-        delay = autoTune.get() ? tried % TIMINGS : throwDelay.get();
+        delay = autoTune.get() ? FIRST + tried % TIMINGS : throwDelay.get();
         restSlot = mc.player.getInventory().getSelectedSlot();
         pitch = mc.player.getPitch();
         startY = peakY = mc.player.getY();
@@ -111,11 +112,27 @@ public class WindJump extends Module {
         switch (stage) {
             case Jump -> {
                 mc.player.setPitch(90);
+                if (delay < 0) {
+                    // Throw first, jump a little later
+                    throwCharge();
+                    wait = -delay;
+                    stage = Stage.LateJump;
+                    return;
+                }
                 mc.options.jumpKey.setPressed(true);
                 pressedJump = true;
                 wait = delay;
                 stage = Stage.Throw;
                 if (wait == 0) throwCharge();
+            }
+            case LateJump -> {
+                if (mc.player.getInventory().getSelectedSlot() == chargeSlot) mc.player.getInventory().setSelectedSlot(restSlot);
+                if (--wait <= 0) {
+                    mc.options.jumpKey.setPressed(true);
+                    pressedJump = true;
+                    if (lookBack.get()) mc.player.setPitch(pitch);
+                    stage = Stage.Flight;
+                } else mc.player.setPitch(90);
             }
             case Throw -> {
                 mc.player.setPitch(90);
@@ -127,7 +144,7 @@ public class WindJump extends Module {
                 stage = Stage.Flight;
             }
             case Flight -> {
-                boolean landed = mc.player.isOnGround() && ticks > delay + 6;
+                boolean landed = mc.player.isOnGround() && ticks > Math.abs(delay) + 6;
                 if (landed || ticks > 200) finish();
             }
         }
@@ -142,17 +159,17 @@ public class WindJump extends Module {
 
     private void finish() {
         double height = peakY - startY;
-        if (report.get()) info("Throw %d ticks after the jump: %.1f blocks.", delay, height);
+        if (report.get()) info("Timing %d: %.1f blocks.", delay, height);
         if (autoTune.get()) {
-            measured[delay] = height;
+            measured[delay - FIRST] = height;
             tried++;
             if (tried >= TIMINGS) {
                 int best = 0;
                 for (int i = 1; i < TIMINGS; i++) if (measured[i] > measured[best]) best = i;
-                throwDelay.set(best);
+                throwDelay.set(best + FIRST);
                 autoTune.set(false);
                 tried = 0;
-                info("Best timing: %d ticks (%.1f blocks). Saved, auto-tune is off now.", best, measured[best]);
+                info("Best timing: %d ticks (%.1f blocks). Saved, auto-tune is off now.", best + FIRST, measured[best]);
             }
         }
         toggle();
