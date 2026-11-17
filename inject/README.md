@@ -105,6 +105,7 @@ LICENSE_URL=https://你的伺服器/verify LICENSE_PUBKEY=<公鑰> ./build.sh
 - **協定**（`license/License.java` 開頭有完整說明）：POST 表單 `key`、`hwid`、`product`；回應是文字，`status=` 加上 `token=內容.簽章`。狀態：`BOUND`（首次綁定）、`OK`、`HWID_MISMATCH`（已綁別台）、`INVALID`、`EXPIRED`
 - **憑證**：內容是 `v1|序號|指紋|到期時間`，伺服器用 Ed25519 私鑰簽，客戶端用建置時放進去的公鑰驗。存在遊戲資料夾的 `aicoder-assist-license.properties`；伺服器連不上時，憑證還沒到期就照用
 - **測試用伺服器**：`java tools/LicenseServer.java <資料夾> [埠]`，序號列在該資料夾的 `licenses.txt`（一行一個，可加 `,到期秒數`），啟動時會印出 `LICENSE_PUBKEY`。它只聽 127.0.0.1，是用來測試和說明伺服器該做什麼的；正式上線還需要 HTTPS、請求次數限制、妥善保管私鑰
+- **給使用者的臨時測試包**：`LicenseServer.java` 編成 `LicenseServer.jar`（`Main-Class: LicenseServer`），配上 `launcher/start-license-server.bat`（找 PATH 上的 Java、執行中的遊戲用的 Java、或官方啟動器的 runtime）、一個放了序號的 `data/licenses.txt`，以及用 `LICENSE_URL=http://127.0.0.1:8765/verify` 建出來的兩個版本的客戶端和 `AiCoderAssist-license.txt`。官方啟動器的 Java 21 runtime 含 `jdk.httpserver` 與 `jdk.crypto.ec`（查過 `release` 檔），所以伺服器可以直接用遊戲的 Java 跑。這一包在 Linux 上整包跑通過；bat 沒在 Windows 上測過
 - **沒有混淆**。這擋的是「一個序號多人共用」，擋不了有心修改程式的人：任何完全在使用者電腦上執行的檢查都能被改掉
 - **要告訴買家**：程式會把一個由硬體識別碼算出的雜湊值送到你的伺服器
 
