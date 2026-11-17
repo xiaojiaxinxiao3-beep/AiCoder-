@@ -29,9 +29,9 @@ public class CartBomb extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Integer> draw = sgGeneral.add(new IntSetting.Builder()
-        .name("draw-ticks")
+        .name("draw")
         .description("How long the bow is drawn, in ticks. 3 is the least that shoots at all; less draw is a slower arrow. 20 is a full draw.")
-        .defaultValue(6)
+        .defaultValue(4)
         .range(3, 20)
         .sliderRange(3, 20)
         .build()
@@ -55,7 +55,7 @@ public class CartBomb extends Module {
     private BlockPos ground;
     private int bow, rail, cart, restSlot, ticks;
     private float restYaw, restPitch;
-    private boolean useDown;
+    private boolean useDown, railDown;
 
     public CartBomb() {
         super(Category.EXPLOSIVES, "cart-bomb", "Look at the ground a few blocks ahead: shoots a half-drawn Flame bow at that spot and puts a rail and a TNT minecart there before the arrow lands, so the arrow sets the cart off.");
@@ -69,8 +69,8 @@ public class CartBomb extends Module {
         bow = find("bow");
         rail = find("rail");
         cart = find("tnt_minecart");
-        if (bow < 0 || rail < 0 || cart < 0) {
-            quit("Needs a bow, a rail and a TNT minecart in your hotbar.");
+        if (bow < 0 || cart < 0) {
+            quit("Needs a bow and a TNT minecart in your hotbar.");
             return;
         }
         if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK || hit.getDirection() != Direction.UP) {
@@ -78,8 +78,15 @@ public class CartBomb extends Module {
             return;
         }
         ground = hit.getBlockPos();
-        if (!mc.level.getBlockState(ground.above()).isAir()) {
+        // A rail that is already there, from a round before: the cart goes straight onto it
+        railDown = isRail(ground);
+        if (railDown) ground = ground.below();
+        if (!railDown && !mc.level.getBlockState(ground.above()).isAir()) {
             quit("There is no room for a rail on that block.");
+            return;
+        }
+        if (!railDown && rail < 0) {
+            quit("Needs a rail in your hotbar.");
             return;
         }
         if (Double.isNaN(aimPitch())) {
@@ -136,14 +143,16 @@ public class CartBomb extends Module {
 
         lookAt(ground.getX() + 0.5, ground.getY() + 1.0, ground.getZ() + 0.5);
         Clicks.repick();
-        if (!(mc.hitResult instanceof BlockHitResult top) || top.getType() != HitResult.Type.BLOCK || !top.getBlockPos().equals(ground)) {
-            finish("The spot is not under the crosshair any more: no rail placed.");
-            return;
+        if (!railDown) {
+            if (!(mc.hitResult instanceof BlockHitResult top) || top.getType() != HitResult.Type.BLOCK || !top.getBlockPos().equals(ground)) {
+                finish("The spot is not under the crosshair any more: no rail placed.");
+                return;
+            }
+            mc.player.getInventory().setSelectedSlot(rail);
+            Clicks.useOnBlock(top);
+            Clicks.repick();
         }
-        mc.player.getInventory().setSelectedSlot(rail);
-        Clicks.useOnBlock(top);
 
-        Clicks.repick();
         if (!(mc.hitResult instanceof BlockHitResult onRail) || onRail.getType() != HitResult.Type.BLOCK || !onRail.getBlockPos().equals(ground.above())) {
             finish("The rail did not go down: no cart placed.");
             return;
@@ -221,6 +230,11 @@ public class CartBomb extends Module {
             vy = vy * 0.99 - 0.05;
         }
         return Double.NaN;
+    }
+
+    private boolean isRail(BlockPos pos) {
+        String id = BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).getPath();
+        return id.equals("rail") || id.endsWith("_rail");
     }
 
     /** The first hotbar slot whose item is named like this: "rail" also takes powered and detector rails. */

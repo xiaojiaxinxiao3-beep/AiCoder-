@@ -44,14 +44,14 @@ public class TellyBridge extends Module {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes; it sprints forward and turns around in the air. Diagonal: look back at 45 degrees yourself first; it does not turn you round, it holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes; it sprints forward and turns around in the air. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
 
     private final Setting<Side> side = sgGeneral.add(new EnumSetting.Builder<Side>()
         .name("side")
-        .description("Diagonal mode: which strafe key is held with back. Left: look back and 45 degrees to your left before switching on. Right: to your right.")
+        .description("Diagonal mode: which way the camera turns its 45 degrees, and which strafe key is held with back.")
         .defaultValue(Side.Left)
         .visible(() -> mode.get() == Mode.Diagonal)
         .build()
@@ -136,10 +136,12 @@ public class TellyBridge extends Module {
         }
 
         // Nearest compass direction. Yaw 0 looks along +z, 90 along -x.
-        // Telly: the way you face. Diagonal: you already look back and 45 degrees aside, so the bridge
-        // goes the way that view belongs to and the camera is not swung round.
+        // Telly: the way you face. Diagonal: you stand with your back to where the bridge goes, so it
+        // goes the opposite way from your view and the camera only has the 45 degrees to turn, never
+        // the half turn. Leaning the reading half way towards the chosen side takes a view that is
+        // already 45 degrees aside as well.
         float heading = mc.player.getYRot();
-        if (mode.get() == Mode.Diagonal) heading -= 180 + (side.get() == Side.Left ? -45 : 45);
+        if (mode.get() == Mode.Diagonal) heading -= 180 + (side.get() == Side.Left ? -22.5f : 22.5f);
         int quarter = Math.floorMod(Math.round(heading / 90f), 4);
         dx = quarter == 1 ? -1 : quarter == 3 ? 1 : 0;
         dz = quarter == 0 ? 1 : quarter == 2 ? -1 : 0;

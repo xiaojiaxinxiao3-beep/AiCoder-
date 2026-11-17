@@ -166,6 +166,8 @@ GAMEPLAY = [
     # Methods
     ('net.minecraft.core.registries.BuiltInRegistries', 'net.minecraft.registry.Registries'),
     ('BuiltInRegistries.ITEM.getKey(', 'Registries.ITEM.getId('),
+    ('BuiltInRegistries.BLOCK.getKey(', 'Registries.BLOCK.getId('),
+    ('.below()', '.down()'),
     ('.getMainHandItem()', '.getMainHandStack()'),
     ('net.minecraft.world.entity.EquipmentSlot', 'net.minecraft.entity.EquipmentSlot'),
     ('net.minecraft.world.item.Item ', 'net.minecraft.item.Item '),
