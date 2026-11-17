@@ -7,6 +7,7 @@ import aicoder.assist.api.Setting;
 import aicoder.assist.api.SettingGroup;
 import aicoder.assist.aurora.AuroraScreen;
 import aicoder.assist.modules.AnchorMacro;
+import aicoder.assist.modules.CartBomb;
 import aicoder.assist.modules.CrosshairDrift;
 import aicoder.assist.modules.CrystalMacro;
 import aicoder.assist.modules.LeftClicker;
@@ -70,6 +71,7 @@ public final class Client {
     /** Called once, from the first tick after injection, on the game's own thread. */
     private static void start() {
         add(new AnchorMacro());
+        add(new CartBomb());
         add(new CrystalMacro());
         add(new CrosshairDrift());
         add(new LeftClicker());

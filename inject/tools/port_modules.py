@@ -11,7 +11,7 @@ import os, re
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(HERE, '..', 'combat-macros', 'src', 'main', 'java', 'aicoder', 'combat')
 DST = os.path.join(HERE, 'src', 'aicoder', 'assist', 'modules')
-FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'WindJump', 'TriggerBot', 'TellyBridge', 'SpearSmash', 'OffhandTotem', 'Clicks']
+FILES = ['MaceDive', 'AnchorMacro', 'CrystalMacro', 'CrosshairDrift', 'LeftClicker', 'MaceSwap', 'RightClicker', 'SpearLunge', 'WindPearl', 'WindJump', 'TriggerBot', 'TellyBridge', 'SpearSmash', 'OffhandTotem', 'CartBomb', 'Clicks']
 
 
 def port(text):
@@ -32,6 +32,9 @@ def port(text):
     text = text.replace('import org.lwjgl.sdl.SDLMouse;\n', '')
     text = text.replace('SDLMouse.SDL_WarpMouseInWindow(mc.getWindow().handle(), (float) mouseX, (float) mouseY);', 'Input.moveCursor(mouseX, mouseY);')
     text = text.replace('((AbstractContainerScreenAccessor) screen).meteor$getHoveredSlot()', 'Input.hoveredSlot(screen)')
+
+    # 1.21.x works the crosshair target out in the game renderer
+    text = text.replace('mc.hitResult = mc.player.raycastHitResult(1.0f, mc.player);', 'mc.gameRenderer.pick(1.0f);')
 
     # There is no friends list here: drop the setting and the check
     text = re.sub(r'    private final Setting<Boolean> (friends|ignoreFriends) = .*?\n    \);\n\n', '', text, flags=re.S)

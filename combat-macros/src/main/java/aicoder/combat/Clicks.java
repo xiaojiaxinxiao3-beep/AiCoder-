@@ -38,6 +38,11 @@ final class Clicks {
         mc.player.swing(InteractionHand.MAIN_HAND, swing, false);
     }
 
+    /** Works out again what the crosshair is on, as the game does once every tick: after the camera turned or a block went down. */
+    static void repick() {
+        mc.hitResult = mc.player.raycastHitResult(1.0f, mc.player);
+    }
+
     private static void swingIfPredicted(InteractionResult result, SwingAnimation swing) {
         if (result instanceof InteractionResult.Success success && success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
             mc.player.swing(InteractionHand.MAIN_HAND, swing, false);
