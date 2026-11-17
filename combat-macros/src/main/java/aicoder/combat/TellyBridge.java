@@ -43,15 +43,15 @@ public class TellyBridge extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
-        .name("mode")
-        .description("Telly: sprint forward and turn around in the air. Diagonal: walk backwards with the camera 45 degrees to one side, holding back and a strafe key, placing as you go without sneaking.")
+        .name("bridge-mode")
+        .description("Telly: face where the bridge goes; it sprints forward and turns around in the air. Diagonal: look back at 45 degrees yourself first; it does not turn you round, it holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
 
     private final Setting<Side> side = sgGeneral.add(new EnumSetting.Builder<Side>()
         .name("side")
-        .description("Diagonal mode: which strafe key is held with back. The camera turns 45 degrees to match, so you still move straight along the bridge.")
+        .description("Diagonal mode: which strafe key is held with back. Left: look back and 45 degrees to your left before switching on. Right: to your right.")
         .defaultValue(Side.Left)
         .visible(() -> mode.get() == Mode.Diagonal)
         .build()
@@ -136,7 +136,11 @@ public class TellyBridge extends Module {
         }
 
         // Nearest compass direction. Yaw 0 looks along +z, 90 along -x.
-        int quarter = Math.floorMod(Math.round(mc.player.getYRot() / 90f), 4);
+        // Telly: the way you face. Diagonal: you already look back and 45 degrees aside, so the bridge
+        // goes the way that view belongs to and the camera is not swung round.
+        float heading = mc.player.getYRot();
+        if (mode.get() == Mode.Diagonal) heading -= 180 + (side.get() == Side.Left ? -45 : 45);
+        int quarter = Math.floorMod(Math.round(heading / 90f), 4);
         dx = quarter == 1 ? -1 : quarter == 3 ? 1 : 0;
         dz = quarter == 0 ? 1 : quarter == 2 ? -1 : 0;
         forwardYaw = quarter * 90f;
@@ -265,7 +269,8 @@ public class TellyBridge extends Module {
      */
     private void diagonal() {
         int sign = side.get() == Side.Left ? -1 : 1;
-        float base = ahead() + 180 + sign * 45;
+        // Left and right the camera stays exactly here; only up and down it follows the block being placed
+        float base = forwardYaw + 180 + sign * 45;
 
         mc.options.keyUp.setDown(false);
         mc.options.keySprint.setDown(false);
@@ -293,20 +298,23 @@ public class TellyBridge extends Module {
         double planeX = bx + 0.5 + dx * 0.5, planeZ = bz + 0.5 + dz * 0.5;
         double beyond = (ex - planeX) * dx + (ez - planeZ) * dz;
         if (!found || beyond < 0.06 || !replaceable(bx + dx, floorY, bz + dz)) {
-            // Not past its face yet: camera ready, 45 degrees off
-            turn(base, 79);
+            // Not past its face yet: hold still
+            turn(base, mc.player.getXRot());
             return;
         }
 
         // Where the 45 degree line of sight meets that face, kept inside the face
         double yaw = Math.toRadians(base), lx = -Math.sin(yaw), lz = Math.cos(yaw);
         double k = beyond / Math.max(0.2, -(lx * dx + lz * dz));
-        double fx = dx != 0 ? planeX : clamp(ex + lx * k, bx + 0.12, bx + 0.88);
-        double fz = dz != 0 ? planeZ : clamp(ez + lz * k, bz + 0.12, bz + 0.88);
+        double sx = ex + lx * k, sz = ez + lz * k;
+        double fx = dx != 0 ? planeX : clamp(sx, bx + 0.12, bx + 0.88);
+        double fz = dz != 0 ? planeZ : clamp(sz, bz + 0.12, bz + 0.88);
+        // On the face already: no sideways turn at all
+        boolean straight = fx == (dx != 0 ? planeX : sx) && fz == (dz != 0 ? planeZ : sz);
         double vx = fx - ex, vy = floorY + 0.55 - ey, vz = fz - ez;
         float pitch = (float) -Math.toDegrees(Math.atan2(vy, Math.sqrt(vx * vx + vz * vz)));
 
-        if (turn((float) Math.toDegrees(Math.atan2(-vx, vz)), pitch) && vx * vx + vy * vy + vz * vz < 4.4 * 4.4) {
+        if (turn(straight ? base : (float) Math.toDegrees(Math.atan2(-vx, vz)), pitch) && vx * vx + vy * vy + vz * vz < 4.4 * 4.4) {
             KeyMapping.click(((KeyMappingAccessor) mc.options.keyUse).meteor$getKey());
         }
     }
