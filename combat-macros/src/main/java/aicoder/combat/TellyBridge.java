@@ -4,6 +4,7 @@ import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.mixin.KeyMappingAccessor;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
+import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
@@ -23,11 +24,46 @@ import net.minecraft.world.item.BlockItem;
  * on whatever the crosshair is on. Where to look is worked out every tick from where you are, instead
  * of using a fixed pitch.
  *
- * <p>Stops by itself when you run out of blocks, fall below the bridge, open a screen, or press the
- * back or sneak key yourself.
+ * <p>Diagonal mode is the other way of doing it: backwards all the way, camera 45 degrees to one side,
+ * back and one strafe key held, hopping, never sneaking.
+ *
+ * <p>Stops by itself when you run out of blocks, fall below the bridge, open a screen, or press sneak or
+ * the opposite movement key yourself (back in telly mode, forward in diagonal mode).
  */
 public class TellyBridge extends Module {
+    public enum Mode {
+        /** Sprint forward, turn around in the air to place. */
+        Telly,
+        /** Walk backwards the whole way, camera 45 degrees off, hopping. */
+        Diagonal
+    }
+
+    public enum Side { Left, Right }
+
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
+
+    private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
+        .name("mode")
+        .description("Telly: sprint forward and turn around in the air. Diagonal: walk backwards with the camera 45 degrees to one side, holding back and a strafe key, placing as you go without sneaking.")
+        .defaultValue(Mode.Telly)
+        .build()
+    );
+
+    private final Setting<Side> side = sgGeneral.add(new EnumSetting.Builder<Side>()
+        .name("side")
+        .description("Diagonal mode: which strafe key is held with back. The camera turns 45 degrees to match, so you still move straight along the bridge.")
+        .defaultValue(Side.Left)
+        .visible(() -> mode.get() == Mode.Diagonal)
+        .build()
+    );
+
+    private final Setting<Boolean> hop = sgGeneral.add(new BoolSetting.Builder()
+        .name("jump")
+        .description("Diagonal mode: keep jumping while bridging. Off walks.")
+        .defaultValue(true)
+        .visible(() -> mode.get() == Mode.Diagonal)
+        .build()
+    );
 
     private final Setting<Double> turnSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("turn-speed")
@@ -120,6 +156,8 @@ public class TellyBridge extends Module {
         mc.options.keyDown.setDown(Input.isPressed(mc.options.keyDown));
         mc.options.keySprint.setDown(Input.isPressed(mc.options.keySprint));
         mc.options.keyJump.setDown(Input.isPressed(mc.options.keyJump));
+        mc.options.keyLeft.setDown(Input.isPressed(mc.options.keyLeft));
+        mc.options.keyRight.setDown(Input.isPressed(mc.options.keyRight));
         pressedJump = false;
         if (mc.player != null && restoreSlot.get() && restSlot >= 0) mc.player.getInventory().setSelectedSlot(restSlot);
     }
@@ -137,11 +175,14 @@ public class TellyBridge extends Module {
         }
 
         if (mc.gui.screen() != null) { stop("Stopped: a screen was opened."); return; }
-        if (Input.isPressed(mc.options.keyDown) || Input.isPressed(mc.options.keyShift)) { stop("Stopped."); return; }
+        // The key that would undo what the module holds: back when it runs forward, forward when it walks backwards
+        boolean diagonal = mode.get() == Mode.Diagonal;
+        if (Input.isPressed(diagonal ? mc.options.keyUp : mc.options.keyDown) || Input.isPressed(mc.options.keyShift)) { stop("Stopped."); return; }
         if (!holdBlocks()) { stop("Stopped: out of blocks."); return; }
 
         double feet = mc.player.getY() - (floorY + 1);
         if (feet < -0.75) { stop("Stopped: fell off the bridge."); return; }
+        if (diagonal) { diagonal(); return; }
 
         if (mc.player.onGround()) {
             air = false;
@@ -213,6 +254,59 @@ public class TellyBridge extends Module {
 
         float yaw = (float) Math.toDegrees(Math.atan2(-vx, vz));
         if (turn(yaw, pitch) && vx * vx + vy * vy + vz * vz < 4.4 * 4.4) {
+            KeyMapping.click(((KeyMappingAccessor) mc.options.keyUse).meteor$getKey());
+        }
+    }
+
+    /**
+     * Backwards the whole way. The camera looks back and 45 degrees to one side; back and the strafe key
+     * of that side together move straight along the bridge. Each tick the side of the last block is
+     * clicked as soon as the eyes are past it, on the ground at the edge or in the air during a hop.
+     */
+    private void diagonal() {
+        int sign = side.get() == Side.Left ? -1 : 1;
+        float base = ahead() + 180 + sign * 45;
+
+        mc.options.keyUp.setDown(false);
+        mc.options.keySprint.setDown(false);
+        mc.options.keyDown.setDown(true);
+        mc.options.keyLeft.setDown(sign < 0);
+        mc.options.keyRight.setDown(sign > 0);
+        if (hop.get()) {
+            // Held: the game jumps again the moment you land
+            mc.options.keyJump.setDown(true);
+            pressedJump = true;
+        }
+
+        // The last block of the bridge, looking back from where you are
+        int along = dx != 0 ? floor(mc.player.getX()) * dx : floor(mc.player.getZ()) * dz;
+        int bx = 0, bz = 0;
+        boolean found = false;
+        for (int i = 0; i < 7 && !found; i++) {
+            int a = along - i;
+            bx = dx != 0 ? a * dx : lineX;
+            bz = dz != 0 ? a * dz : lineZ;
+            found = solid(bx, floorY, bz);
+        }
+
+        double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ();
+        double planeX = bx + 0.5 + dx * 0.5, planeZ = bz + 0.5 + dz * 0.5;
+        double beyond = (ex - planeX) * dx + (ez - planeZ) * dz;
+        if (!found || beyond < 0.06 || !replaceable(bx + dx, floorY, bz + dz)) {
+            // Not past its face yet: camera ready, 45 degrees off
+            turn(base, 79);
+            return;
+        }
+
+        // Where the 45 degree line of sight meets that face, kept inside the face
+        double yaw = Math.toRadians(base), lx = -Math.sin(yaw), lz = Math.cos(yaw);
+        double k = beyond / Math.max(0.2, -(lx * dx + lz * dz));
+        double fx = dx != 0 ? planeX : clamp(ex + lx * k, bx + 0.12, bx + 0.88);
+        double fz = dz != 0 ? planeZ : clamp(ez + lz * k, bz + 0.12, bz + 0.88);
+        double vx = fx - ex, vy = floorY + 0.55 - ey, vz = fz - ez;
+        float pitch = (float) -Math.toDegrees(Math.atan2(vy, Math.sqrt(vx * vx + vz * vz)));
+
+        if (turn((float) Math.toDegrees(Math.atan2(-vx, vz)), pitch) && vx * vx + vy * vy + vz * vz < 4.4 * 4.4) {
             KeyMapping.click(((KeyMappingAccessor) mc.options.keyUse).meteor$getKey());
         }
     }

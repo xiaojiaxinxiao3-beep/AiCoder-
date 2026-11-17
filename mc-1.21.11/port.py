@@ -154,6 +154,8 @@ GAMEPLAY = [
     ('mc.options.keyUp', 'mc.options.forwardKey'),
     ('mc.options.keyDown', 'mc.options.backKey'),
     ('mc.options.keySprint', 'mc.options.sprintKey'),
+    ('mc.options.keyLeft', 'mc.options.leftKey'),
+    ('mc.options.keyRight', 'mc.options.rightKey'),
     ('mc.options.keyShift', 'mc.options.sneakKey'),
     ('net.minecraft.world.item.BlockItem', 'net.minecraft.item.BlockItem'),
     ('.canBeReplaced()', '.isReplaceable()'),
