@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "aicoder-first-columns",
+  "version": "${version}",
+  "name": "AiCoder client (columns)",
+  "description": "AiCoder client, a Meteor Client addon. The first AiCoder glass theme, with one column per category.",
+  "authors": [
+    "AiCoder"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "aicoder.firstcolumns.AiCoderAddon"
+    ]
+  },
+  "mixins": [
+    "aicoder-first-columns.mixins.json"
+  ],
+  "custom": {
+    "meteor-client:color": "47,224,143",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "meteor-client": "*"
+  }
+}

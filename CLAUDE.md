@@ -189,6 +189,10 @@
 - 分頁列在單視窗版置中、在直立式版靠右（`AuroraGuiTheme.topBarRight()`，由 `WAuroraTopBar.calculateWidgetPositions()` 改 x）
 - 沒做到的：開啟 GUI 時「96% → 100% 放大」的動畫（只有 Meteor 本身的淡入）；等寬字（Meteor 的字型沒有等寬字，編號與數值用同一種字）；沒有用 Shoreline 實測過
 
+## 初版 UI 的直立式版本（`first-columns/`）
+- 使用者最早那版 UI（青綠毛玻璃，形狀全用著色器 `Sdf` 畫，原始碼是使用者另外給的 zip，不在這個 repo 裡）改成每個分類一欄的版本。套件 `aicoder.firstcolumns`，mod id `aicoder-first-columns`，產出 `AiCoder初版直立式.jar`，只有 26.3
+- 細節在 `first-columns/CLAUDE.md` 開頭：`ColumnsScreen`（分排排版）、模組列沒有圓形開關（開啟時整列亮起）
+
 ## 模組 addon：戰鬥巨集（`combat-macros/`）
 - 套件 `aicoder.combat`，mod id `aicoder-combat`，產出 `AiCoder戰鬥巨集.jar`。1.21.11 版一樣由 `port.py` 產生：玩家／物品／實體的命名對照在 `GAMEPLAY`、`GAMEPLAY_WORDS`，只套用在 `GAMEPLAY_PROJECTS` 列出的專案（有些規則很短，例如 `.is(` → `.isOf(`，套到 GUI 專案會誤傷）；1.21.11 的 `swingHand()` 不帶動畫參數，由 `port_gameplay()` 改寫
 - **自己的分頁**（`AiCoderTab`，做法和 Shoreline 一樣）：`Tabs.add()` 加一個分頁，`createScreen()` 直接回傳 `theme.modulesScreen()`，所以任何主題都能用。兩個 mixin（都是 `remap = false`，目標是 Meteor 的類別）：`ModulesMixin` 攔 `Modules.loopCategories()`，目前畫面是 AiCoder 分頁時只回傳自己的三個分類、是 Modules 分頁時回傳其他分類、其餘情況回傳全部；`TabScreenAccessor` 把畫面的 `tab` 欄位（final）改成自己的分頁，分頁列才會標對。判斷「目前是哪個分頁」用 `mc.gui.screen()` 的 `tab`，建構期間另外用 `creating` 旗標

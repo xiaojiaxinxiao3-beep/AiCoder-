@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI','DejaVu Sans',Arial,sans-serif}
+:root{--rot:0deg;--pulse:0.5;--scan:0px;--hue:0deg;--a1:#2fe08f;--a2:#2f8cff;--a3:#22d3ee}
+html,body{width:960px;height:600px;overflow:hidden;background:#04040a}
+#stage{position:relative;width:960px;height:600px;
+  background:
+   linear-gradient(rgba(4,6,14,.10),rgba(4,6,14,.20)),
+   url("bg.jpg") center/cover no-repeat,
+   #020309;}
+/* soft, desaturated drifting aurora — atmosphere, not plastic sheen */
+/* tall aurora curtains, heavy blur, undulating */
+.aura{position:absolute;top:-160px;width:340px;height:900px;filter:blur(72px);
+   mix-blend-mode:screen;will-change:transform,opacity;transform-origin:50% 30%}
+.a1{background:linear-gradient(176deg,rgba(40,220,190,0),rgba(40,214,185,.5) 42%,rgba(60,200,150,0) 86%)}
+.a2{background:linear-gradient(184deg,rgba(90,230,120,0),rgba(70,216,110,.52) 46%,rgba(50,190,150,0) 88%)}
+.a3{background:linear-gradient(180deg,rgba(70,140,255,0),rgba(56,120,250,.52) 44%,rgba(90,90,225,0) 85%)}
+#grain{position:absolute;inset:0;pointer-events:none;opacity:.11;mix-blend-mode:soft-light;
+   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+   background-size:260px 260px}
+#grain2{position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+   background-size:140px 140px}
+.grid{position:absolute;inset:0;background-image:
+   linear-gradient(rgba(70,120,190,.06) 1px,transparent 1px),
+   linear-gradient(90deg,rgba(70,120,190,.06) 1px,transparent 1px);
+   background-size:34px 34px;mask:radial-gradient(circle at 50% 45%,#000 35%,transparent 82%)}
+#particles{position:absolute;inset:0;pointer-events:none}
+.pt{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--a1);
+   box-shadow:0 0 8px 2px var(--a1),0 0 16px 4px var(--a1);opacity:.6}
+
+/* window */
+.win{position:absolute;left:70px;top:70px;width:820px;height:440px;border-radius:18px;
+  background:linear-gradient(150deg,rgba(34,150,148,.09),rgba(28,98,166,.12) 58%,rgba(42,172,132,.09));
+  box-shadow:0 0 55px rgba(25,227,255,.20),0 0 110px rgba(47,140,255,.14),
+             inset 0 1px 0 rgba(255,255,255,.20),inset 0 0 70px rgba(16,42,72,.16);
+  -webkit-backdrop-filter:blur(16px) saturate(1.75);backdrop-filter:blur(16px) saturate(1.75)}
+.win::before{content:"";position:absolute;inset:-2px;border-radius:20px;z-index:-1;
+  background:linear-gradient(120deg,var(--a1),var(--a3),var(--a2),var(--a1),var(--a3));
+  background-size:300% 300%;background-position:var(--fx,50%) var(--fy,50%);
+  filter:blur(7px) saturate(1.25);opacity:.9}
+.win::after{content:"";position:absolute;inset:0;border-radius:18px;pointer-events:none;
+  border:1px solid rgba(180,230,255,.25)}
+
+.bar{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;padding:0 22px;gap:14px;
+  border-bottom:1px solid rgba(120,180,255,.14)}
+.logo{font-weight:800;font-size:22px;letter-spacing:6px;
+  background:linear-gradient(90deg,var(--a1),#fff,var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 10px rgba(25,227,255,.8)) drop-shadow(0 0 18px rgba(47,140,255,.5))}
+.ver{font:600 11px/1 'DejaVu Sans Mono',monospace;letter-spacing:2px;color:#7ff3ff;
+  padding:4px 8px;border:1px solid rgba(25,227,255,.4);border-radius:6px;box-shadow:0 0 12px rgba(25,227,255,.35) inset}
+.dots{margin-left:auto;display:flex;gap:8px}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#ff3b6b;box-shadow:0 0 10px #ff3b6b}.dot.y{background:#ffd23b;box-shadow:0 0 10px #ffd23b}.dot.g{background:#3bff9a;box-shadow:0 0 10px #3bff9a}
+
+.body{position:absolute;top:52px;left:0;right:0;bottom:40px;display:flex}
+.col{height:100%;overflow:hidden}
+.cats{width:168px;padding:14px 12px;display:flex;flex-direction:column;gap:9px;border-right:1px solid rgba(120,180,255,.12)}
+.cat{position:relative;padding:11px 14px;border-radius:11px;font-weight:700;font-size:13px;letter-spacing:1.5px;color:#9fb6e6;
+  background:rgba(120,160,255,.05);border:1px solid rgba(120,160,255,.10)}
+.cat .ic{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:9px;background:#5b6b9a;vertical-align:middle}
+.cat.on{color:#eafcff;background:linear-gradient(90deg,rgba(25,227,255,.18),rgba(139,92,255,.10));
+  border:1px solid rgba(25,227,255,.5);box-shadow:0 0 18px rgba(25,227,255,.35),0 0 30px rgba(139,92,255,.2)}
+.cat.on .ic{background:var(--a1);box-shadow:0 0 10px var(--a1)}
+
+.mods{width:272px;padding:14px 12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid rgba(120,180,255,.12)}
+.mod{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:11px;
+  font-weight:600;font-size:13px;letter-spacing:.5px;color:#c7d6f5;
+  background:rgba(130,160,230,.05);border:1px solid rgba(130,160,255,.10)}
+.mod.sel{background:linear-gradient(90deg,rgba(47,140,255,.14),rgba(25,227,255,.10));color:#fff;position:relative}
+.mod.sel::before{content:"";position:absolute;inset:-1.5px;border-radius:12px;z-index:-1;
+  background:linear-gradient(120deg,var(--a2),var(--a1),var(--a3),var(--a2),var(--a1));
+  background-size:300% 300%;background-position:var(--fx2,50%) var(--fy2,50%);filter:blur(5px);opacity:.88}
+/* circular toggle: hollow ring when off, glowing filled dot when on */
+.tog{width:24px;height:24px;border-radius:50%;position:relative;flex:0 0 auto;
+  background:rgba(16,24,44,.5);border:2px solid rgba(160,190,255,.32)}
+.tog i{position:absolute;inset:0;margin:auto;width:0;height:0;border-radius:50%;background:transparent}
+.mod.act .tog{border-color:transparent;background:radial-gradient(circle at 50% 40%,var(--a1),var(--a3));
+  box-shadow:0 0 calc(7px + var(--pulse)*13px) rgba(47,224,143,calc(.5 + var(--pulse)*.4)),0 0 22px rgba(47,140,255,.45)}
+.mod.act .tog i{width:8px;height:8px;background:#eafff6;box-shadow:0 0 8px #fff}
+
+.set{flex:1;padding:16px 16px;display:flex;flex-direction:column;gap:13px}
+.sh{font:800 12px/1 'DejaVu Sans Mono',monospace;letter-spacing:3px;color:#8ef0ff;text-transform:uppercase;
+  filter:drop-shadow(0 0 8px rgba(25,227,255,.6))}
+.row{display:flex;flex-direction:column;gap:7px}
+.lab{display:flex;justify-content:space-between;font-size:12px;color:#aebbe0;letter-spacing:.5px}
+.val{font-family:'DejaVu Sans Mono',monospace;color:#fff;text-shadow:0 0 8px rgba(25,227,255,.7)}
+.slider{height:7px;border-radius:5px;background:#141a30;position:relative;overflow:hidden;border:1px solid rgba(130,160,255,.15)}
+.fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,var(--a1),var(--a2));
+  box-shadow:0 0 14px rgba(47,140,255,.6)}
+.knob{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);
+  box-shadow:0 0 12px rgba(25,227,255,.9),0 0 22px rgba(47,140,255,.7)}
+.chk{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:9px;
+  background:rgba(130,160,230,.05);border:1px solid rgba(130,160,255,.12);font-size:12px;color:#c7d6f5}
+.box{width:18px;height:18px;border-radius:5px;border:1px solid rgba(130,160,255,.4);position:relative}
+.chk.on .box{background:linear-gradient(135deg,var(--a1),var(--a3));border-color:transparent;
+  box-shadow:0 0 calc(8px + var(--pulse)*12px) rgba(25,227,255,.8)}
+.chk.on .box::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;border:solid #04040a;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.chk.hl{border-color:rgba(47,140,255,.5);box-shadow:0 0 18px rgba(47,140,255,.3)}
+
+.foot{position:absolute;left:0;right:0;bottom:0;height:40px;display:flex;align-items:center;padding:0 20px;gap:18px;
+  border-top:1px solid rgba(120,180,255,.14);font:600 11px/1 'DejaVu Sans Mono',monospace;letter-spacing:1px;color:#8aa0cf}
+.foot .k{color:#7ff3ff;text-shadow:0 0 8px rgba(25,227,255,.6)}
+.eq{margin-left:auto;display:flex;align-items:flex-end;gap:3px;height:20px}
+.eq b{width:4px;background:linear-gradient(180deg,var(--a2),var(--a1));border-radius:2px;box-shadow:0 0 8px rgba(25,227,255,.7)}
+
+#scan{position:absolute;left:70px;top:70px;width:820px;height:3px;border-radius:3px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(170,240,255,.9),transparent);
+  box-shadow:0 0 20px 6px rgba(25,227,255,.6);mix-blend-mode:screen;opacity:.8}
+#vig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 180px rgba(0,0,0,.8)}
+</style></head>
+<body><div id="stage">
+  <div class="aura a1" id="au1"></div>
+  <div class="aura a2" id="au2"></div>
+  <div class="aura a3" id="au3"></div>
+  <div class="grid"></div>
+  <div id="particles"></div>
+
+  <div class="win">
+    <div class="bar">
+      <div class="logo">N O V A</div>
+      <div class="ver">v2.0 · 1.21.1</div>
+    </div>
+    <div class="body">
+      <div class="col cats">
+        <div class="cat on"><span class="ic"></span>COMBAT</div>
+        <div class="cat"><span class="ic"></span>MOVEMENT</div>
+        <div class="cat"><span class="ic"></span>RENDER</div>
+        <div class="cat"><span class="ic"></span>PLAYER</div>
+        <div class="cat"><span class="ic"></span>WORLD</div>
+        <div class="cat"><span class="ic"></span>MISC</div>
+      </div>
+      <div class="col mods">
+        <div class="mod act"><span>KillAura</span><div class="tog"><i></i></div></div>
+        <div class="mod act"><span>Crystal Aura</span><div class="tog"><i></i></div></div>
+        <div class="mod act sel"><span>AutoMine</span><div class="tog"><i></i></div></div>
+        <div class="mod"><span>Surround</span><div class="tog"><i></i></div></div>
+        <div class="mod act"><span>AutoAnchor</span><div class="tog"><i></i></div></div>
+        <div class="mod"><span>Hitboxes</span><div class="tog"><i></i></div></div>
+        <div class="mod"><span>AutoTotem</span><div class="tog"><i></i></div></div>
+      </div>
+      <div class="col set">
+        <div class="sh">AutoMine · Settings</div>
+        <div class="row"><div class="lab"><span>Target Range</span><span class="val">4.5</span></div>
+          <div class="slider"><div class="fill" style="width:62%"></div><div class="knob" style="left:62%"></div></div></div>
+        <div class="row"><div class="lab"><span>Break Delay</span><span class="val">80 ms</span></div>
+          <div class="slider"><div class="fill" style="width:34%"></div><div class="knob" style="left:34%"></div></div></div>
+        <div class="chk on"><span>AntiSuicide</span><div class="box"></div></div>
+        <div class="chk on hl"><span>Surround-Aware&nbsp; ◇ new</span><div class="box"></div></div>
+        <div class="chk"><span>Rotate Silently</span><div class="box"></div></div>
+      </div>
+    </div>
+    <div class="foot">
+      <span><span class="k">[RSHIFT]</span> GUI</span>
+      <span><span class="k">240</span> FPS</span>
+      <span><span class="k">12</span> ms</span>
+      <div class="eq"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div>
+    </div>
+  </div>
+
+  <div id="grain"></div>
+  <div id="grain2"></div>
+  <div id="vig"></div>
+</div>
+<script>
+const TAU=Math.PI*2, root=document.documentElement.style;
+// particles
+const pc=document.getElementById('particles'), P=[];
+const cols=['#2fe08f','#2f8cff','#22d3ee','#7ff3ff'];
+for(let i=0;i<34;i++){const d=document.createElement('div');d.className='pt';
+  const c=cols[i%cols.length];d.style.background=c;d.style.boxShadow=`0 0 8px 2px ${c},0 0 16px 4px ${c}`;
+  pc.appendChild(d);P.push({el:d,x:Math.random(),sp:.4+Math.random()*.9,ph:Math.random(),sz:2+Math.random()*4,sw:20+Math.random()*60});}
+const eq=[...document.querySelectorAll('.eq b')];
+const AU=[{el:document.getElementById('au1'),x:70, seed:0.13},
+          {el:document.getElementById('au2'),x:420,seed:0.57},
+          {el:document.getElementById('au3'),x:690,seed:0.81}];
+const g1=document.getElementById('grain'),g2=document.getElementById('grain2');
+// sum of harmonics: loops at p=1 but reads as irregular, organic motion
+function flow(p,s){return 0.54*Math.sin(TAU*(p+s))+0.30*Math.sin(TAU*(2*p+s*1.7)+1.1)+0.16*Math.sin(TAU*(3*p-s*0.6)+2.3);}
+function setPhase(p){
+  // aurora curtains: irregular sway + undulation, no circular spin
+  AU.forEach((a)=>{const sx=flow(p,a.seed), sy=flow(p,a.seed+0.5);
+    a.el.style.transform=`translateX(${(a.x+sx*120)|0}px) skewX(${(sx*13).toFixed(2)}deg) scaleY(${(1+0.11*sy).toFixed(3)})`;
+    a.el.style.opacity=Math.max(0.04,0.22+0.15*flow(p,a.seed+0.3)).toFixed(3);});
+  // filmic grain crawl
+  g1.style.backgroundPosition=`${(flow(p,0.1)*60)|0}px ${(flow(p,0.6)*60)|0}px`;
+  g2.style.backgroundPosition=`${(flow(p,0.8)*48)|0}px ${(flow(p,0.35)*48)|0}px`;
+  // neon edge: colours flow irregularly along the border (not a spinning ring)
+  root.setProperty('--fx',(50+flow(p,0.2)*55)+'%'); root.setProperty('--fy',(50+flow(p,0.7)*55)+'%');
+  root.setProperty('--fx2',(50+flow(p,0.95)*55)+'%'); root.setProperty('--fy2',(50+flow(p,0.45)*55)+'%');
+  const pulse=0.5+0.5*Math.sin(p*TAU);
+  root.setProperty('--pulse',pulse.toFixed(3));
+  // particles rise + sway
+  P.forEach((o,i)=>{const yy=1-((o.ph + p*o.sp)%1); const x=o.x*960 + Math.sin((p*TAU)+o.ph*TAU)*o.sw;
+    o.el.style.left=x+'px'; o.el.style.top=(yy*600)+'px';
+    o.el.style.transform=`scale(${o.sz/3})`;
+    o.el.style.opacity=(0.25+0.55*Math.sin((p*TAU*1.0)+i)).toFixed(3);});
+  // equalizer
+  eq.forEach((b,i)=>{const h=6+14*Math.abs(Math.sin(p*TAU*1.0 + i*0.7)); b.style.height=h+'px';});
+}
+window.setPhase=setPhase;
+let t=0; function loop(){t=(t+0.006)%1; setPhase(t); requestAnimationFrame(loop);}
+setPhase(0); if(!window.__capture) loop();
+</script>
+</body></html>
