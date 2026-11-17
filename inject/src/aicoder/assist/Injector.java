@@ -17,6 +17,36 @@ import java.util.Properties;
  * with performance data switched off, which several third-party launchers do, so ids are the reliable way.
  */
 public final class Injector {
+    /**
+     * The licence key for a build that needs one: from AiCoderAssist-license.txt beside this file, or asked
+     * for here and saved there. Null when this build has no licence server set, or no key was given.
+     */
+    private static String licenceKey(File folder) {
+        if (Injector.class.getResource("/aicoder/assist/license.properties") == null) return null;
+
+        File file = new File(folder, "AiCoderAssist-license.txt");
+        try {
+            for (String line : java.nio.file.Files.readAllLines(file.toPath(), java.nio.charset.StandardCharsets.UTF_8)) {
+                String key = line.replace("\uFEFF", "").strip();
+                if (key.matches("[A-Za-z0-9_-]{1,128}")) return key;
+            }
+        } catch (Exception ignored) {
+            // No file yet
+        }
+
+        try {
+            if (System.console() == null) return null;
+            System.out.print("Licence key: ");
+            String key = System.console().readLine();
+            if (key == null || !(key = key.strip()).matches("[A-Za-z0-9_-]{1,128}")) return null;
+            java.nio.file.Files.writeString(file.toPath(), key + System.lineSeparator(), java.nio.charset.StandardCharsets.UTF_8);
+            System.out.println("Saved to " + file.getName() + ".");
+            return key;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         String payload = new File(Injector.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
 
@@ -51,6 +81,8 @@ public final class Injector {
             }
         }
 
+        String licenceKey = licenceKey(new File(Injector.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParentFile());
+
         List<String> ids = new ArrayList<>();
         for (String arg : args) {
             if (arg.matches("\\d+")) ids.add(arg);
@@ -82,7 +114,7 @@ public final class Injector {
 
                 sawGame = true;
                 System.out.println("Minecraft found (process " + id + "): " + properties.getProperty("sun.java.command", "").split(" ")[0] + ", Java " + properties.getProperty("java.version", "?"));
-                machine.loadAgent(payload);
+                machine.loadAgent(payload, licenceKey);
                 System.out.println("AiCoder Assist is in. Press Right Shift in the game to open the menu.");
                 System.exit(0);
             } catch (Exception e) {

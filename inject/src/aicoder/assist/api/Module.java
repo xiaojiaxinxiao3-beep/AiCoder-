@@ -48,6 +48,10 @@ public abstract class Module {
 
     public void setActive(boolean value) {
         if (active == value) return;
+        if (value && aicoder.assist.license.License.locked()) {
+            Client.chat(title, "Locked: " + (aicoder.assist.license.License.state().equals("checking") ? "the licence is still being checked." : "no valid licence."), 0xFFFFC857);
+            return;
+        }
         active = value;
         try {
             if (value) onActivate();

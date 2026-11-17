@@ -86,6 +86,7 @@ public final class Client {
         add(new WindJump());
         add(new WindPearl());
         load();
+        aicoder.assist.license.License.begin();
         System.out.println("[" + NAME + "] ready, " + modules.size() + " modules. Right Shift opens the menu.");
     }
 
@@ -153,6 +154,12 @@ public final class Client {
         if (!started) {
             started = true;
             start();
+        }
+
+        // Without a licence nothing runs: whatever was left switched on goes off
+        aicoder.assist.license.License.tick();
+        if (aicoder.assist.license.License.locked()) {
+            for (Module module : modules) if (module.isActive()) module.setActive(false);
         }
 
         // Say so in the game itself, once, the first time there is a world to say it in

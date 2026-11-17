@@ -40,6 +40,13 @@ $REMAP $W/named.jar $W/official.jar $W/mojang.tiny named official $W/minecraft-n
 rm -rf $W/pack && mkdir -p $W/pack && (cd $W/pack && unzip -qo ../official.jar && unzip -qo ../asm-moved.jar -x 'META-INF/*')
 python3 tools/gen_names.py $W/client.txt $W/pack/aicoder/assist/names.properties $V
 cp -r res/. $W/pack/
+# A licensed build: LICENSE_URL and LICENSE_PUBKEY (the server's Ed25519 public key, base64 of the X.509
+# form; tools/LicenseServer.java prints it) turn the licence check on. Without them there is none.
+rm -f $W/pack/aicoder/assist/license.properties
+if [ -n "$LICENSE_URL" ] && [ -n "$LICENSE_PUBKEY" ]; then
+  printf 'url=%s\npublic-key=%s\n' "$LICENSE_URL" "$LICENSE_PUBKEY" > $W/pack/aicoder/assist/license.properties
+  echo "licensed build: $LICENSE_URL"
+fi
 
 # 5b. Under Fabric Loader the game's classes carry intermediary names and live in Fabric's own class loader.
 #     When the intermediary mappings are there (tools/fetch_fabric.py), a second copy of the client converted

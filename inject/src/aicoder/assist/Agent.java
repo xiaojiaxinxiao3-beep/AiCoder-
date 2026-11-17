@@ -36,6 +36,9 @@ public final class Agent {
     public static void agentmain(String args, Instrumentation inst) throws Exception {
         try {
             System.clearProperty(ERROR_PROPERTY);
+            // A licence key from the injector. A plain system property, because under Fabric the client's
+            // classes live in another class loader and this is the one place both can read.
+            if (args != null && !args.isBlank()) System.setProperty("aicoder.assist.license.key", args.strip());
             start(inst);
         } catch (Throwable t) {
             System.setProperty(ERROR_PROPERTY, String.valueOf(t.getMessage() != null ? t.getMessage() : t));
