@@ -104,22 +104,12 @@ public class TellyBridge extends Module {
         .build()
     );
 
-    private final Setting<Double> mouseSpeed = sgGeneral.add(new DoubleSetting.Builder()
-        .name("mouse-speed")
-        .description("Telly and Telly Up modes: degrees a tick the camera comes down after turning round, while the crosshair is still on nothing. From the tick it comes onto the bridge it slows right down and speeds up again along Pull Curve, back to this speed after six ticks, so some clicks land on top of the blocks.")
-        .defaultValue(45)
-        .range(2, 90)
-        .sliderRange(2, 90)
-        .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
-        .build()
-    );
-
-    private final Setting<Double> pullCurve = sgGeneral.add(new DoubleSetting.Builder()
-        .name("pull-curve")
-        .description("Telly and Telly Up modes: how the pull down speeds up again after the crosshair has come onto the bridge. 1 is evenly; higher stays slow on the bridge for longer and is faster at the end.")
+    private final Setting<Integer> topBlocks = sgGeneral.add(new IntSetting.Builder()
+        .name("top-blocks")
+        .description("Telly and Telly Up modes: how many blocks a jump puts on top of the bridge while it fills in. For each of them the crosshair comes down onto the top of the last block first, a few degrees above its edge, and then over the edge onto its side. It turns round that many ticks earlier to have the time.")
         .defaultValue(2)
-        .range(1, 8)
-        .sliderRange(1, 8)
+        .range(0, 4)
+        .sliderRange(0, 4)
         .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
         .build()
     );
@@ -179,9 +169,8 @@ public class TellyBridge extends Module {
     private boolean upJump;
     /** Ticks in the air this jump, and where the run of this jump starts (its step), if it is in. */
     private int airT, runStart = Integer.MAX_VALUE;
-    /** Ticks since the crosshair first came onto the bridge in this turn round; the pull down speeds up with it. */
-    private int downT;
-    private boolean touched;
+    /** Blocks this jump has put on top of the bridge. */
+    private int tops;
     private boolean bumped;
     private double clicks;
 
@@ -465,8 +454,7 @@ public class TellyBridge extends Module {
         boolean spotAhead = false;
         int stepIndex = Integer.MIN_VALUE;
         boolean bumpSpot = false;
-        // Blocks you are already past that are not there yet
-        boolean late = end == null;
+        boolean topSpot = false;
         // Blocks between the end of the bridge and where you come down
         int need = 1;
         if (end != null) {
@@ -478,8 +466,19 @@ public class TellyBridge extends Module {
             fy = level + 0.95;
             spot = true;
             onSpot = beyond >= 0.08 && replaceable(end[0] + dx, level, end[1] + dz);
-            late = beyond >= 1;
             need = Math.max(1, (int) Math.ceil(beyond + advance - 0.15));
+            // A block on top first. Seen from behind and above, the top of the last block is only four
+            // to nine degrees above its side, so the camera hardly moves between the two: it is your
+            // flying on that carries the crosshair over the edge. The top can be clicked once you are
+            // clear of the block, and not when the landing has to be saved.
+            if (!up && !speedy() && tops < topBlocks.get() && beyond > 0.4 && replaceable(end[0], level + 1, end[1])
+                && !(landIn > 0 && landIn <= need + 1 && !landing)) {
+                fx = dx != 0 ? plane - dx * 0.35 : fx;
+                fz = dz != 0 ? plane - dz * 0.35 : fz;
+                fy = level + 1 - 0.02;
+                onSpot = true;
+                topSpot = true;
+            }
         } else if (below != null) {
             // The step: the top of a block of the level below, far enough behind you for the camera
             // not to have to look further down than max-pitch
@@ -551,13 +550,11 @@ public class TellyBridge extends Module {
         // The ordinary telly going up flies on for two ticks and turns round on the third: the step then
         // goes on a block further back, and the new level lies over the last blocks of the old one.
         int n = speedy() ? 2 : turnTicks.get();
-        boolean turnNow = speedy() || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + n + 2);
+        boolean turnNow = speedy() || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + topBlocks.get() + n + 2);
         if (phase == 0 && !landing && turnNow) {
             phase = 1;
             phaseTick = 0;
             clicks = 0;
-            downT = 0;
-            touched = false;
         } else if (phase == 2 && landing && landIn <= n) {
             phase = 3;
             phaseTick = 0;
@@ -572,27 +569,15 @@ public class TellyBridge extends Module {
         }
 
         reversed = true;
-        // On the flat bridge the mouse comes down at mouse-speed while the clicks go on, so the first
-        // clicks of a jump land on top of blocks further back instead of on the side of the last one.
-        // Not when the bridge is a block behind you, or the landing has to be saved.
-        boolean drift = !up && !speedy() && !(landIn > 0 && landIn <= need + 1 && !landing);
         float pitchNow = mc.player.getXRot();
-        // The pull down: at mouse-speed while the crosshair is still on nothing, then, from the tick
-        // it first comes onto the bridge, slowly, so that it stays on the tops of the blocks for a
-        // while, and faster and faster again down to your feet. From that tick the speed grows with
-        // time raised to pull-curve, back up to mouse-speed after six ticks.
-        if (!touched && seesBlock()) touched = true;
-        if (touched) downT++;
-        float most = !touched ? mouseSpeed.get().floatValue()
-            : Math.max(1.5f, mouseSpeed.get().floatValue() * (float) Math.pow(Math.min(1.0, downT / 6.0), pullCurve.get()));
-        float downTo = drift ? pitchNow + Math.max(-most, Math.min(most, aimPitch - pitchNow)) : aimPitch;
+        float downTo = aimPitch;
         if (phase == 1) {
             // Half a turn to the right in n ticks. Back is pressed as soon as forward is let go of.
             phaseTick++;
             if (phaseTick < n) {
                 turnKeys(180f * phaseTick / n);
                 mc.player.setYRot(forwardYaw + 180f * phaseTick / n);
-                mc.player.setXRot(drift ? downTo : pitchNow + (aimPitch - pitchNow) / (n - phaseTick + 1));
+                mc.player.setXRot(pitchNow + (aimPitch - pitchNow) / (n - phaseTick + 1));
             } else {
                 mc.options.keyUp.setDown(false);
                 mc.options.keySprint.setDown(false);
@@ -618,6 +603,7 @@ public class TellyBridge extends Module {
         // Drag click at cps, while the crosshair is on the spot
         if (phase == 2 && !spotAhead && onSpot && stepIndex != Integer.MIN_VALUE && !bumpSpot) runStart = stepIndex;
         if (phase == 2 && !spotAhead && (up ? onSpot : flatClick(level))) {
+            if (topSpot) tops++;
             clicks += cps.get() / 20.0;
             while (clicks >= 1) {
                 clicks -= 1;
@@ -683,6 +669,7 @@ public class TellyBridge extends Module {
         mc.options.keyJump.setDown(true);
         pressedJump = true;
         jumps++;
+        tops = 0;
         airT = 0;
         runStart = Integer.MAX_VALUE;
         bumped = false;
@@ -702,17 +689,6 @@ public class TellyBridge extends Module {
     }
 
     /** The last solid block of the bridge at this level, from where you are back: {x, z}, or null within seven. */
-    /** Whether the camera points at a block within reach now. */
-    private boolean seesBlock() {
-        double yaw = Math.toRadians(mc.player.getYRot()), pitch = Math.toRadians(mc.player.getXRot());
-        double vx = -Math.sin(yaw) * Math.cos(pitch), vy = -Math.sin(pitch), vz = Math.cos(yaw) * Math.cos(pitch);
-        double ox = mc.player.getX(), oy = mc.player.getEyeY(), oz = mc.player.getZ();
-        for (double t = 0.05; t < 4.4; t += 0.05) {
-            if (solid(floor(ox + vx * t), floor(oy + vy * t), floor(oz + vz * t))) return true;
-        }
-        return false;
-    }
-
     /**
      * The flat bridge: whether a click where the camera points now does one of the two things wanted,
      * a block on top of a block of the bridge (nothing on top of that) or a block on the end of the bridge.

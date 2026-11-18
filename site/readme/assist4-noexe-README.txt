@@ -32,14 +32,14 @@ In the game
   It stops when you press back or sneak, open a screen, run out of blocks or fall.
   "Bridge Mode" Telly is the ordinary telly: it sprints to the very edge, jumps, flies on facing
   forward, then turns round and fills in the blocks behind with a drag click ("Cps"), and turns
-  forward again. The bridge is flat, with a block on top here and there.
+  forward again. The bridge is flat, with a second layer on top in places ("Top Blocks").
   "Bridge Mode" Telly Up is the same going up: every second jump turns round early, while you
   are still high, so the blocks go in one level up and you land on them. This needs "Turn Ticks"
   at 2; with slower turns it stays flat.
   "Bridge Mode" Speed is speed telly: it turns round the moment it is off the ground and every
   jump goes up a level. "Bumps" adds one block on top of the second block of every jump.
-  "Turn Ticks" is how long half a turn takes (Speed always takes 2). "Mouse Speed" is how fast
-  the camera comes down after turning round: slower puts more blocks on top of the bridge.
+  "Turn Ticks" is how long half a turn takes (Speed always takes 2). "Top Blocks" is how many
+  blocks a jump puts on top of the bridge while it fills in (Telly and Telly Up).
   "Max Pitch" is how far down the camera looks while turned round.
   It always turns right to look back and left to face forward again, and it presses the left
   and right keys by itself to stay on the middle of the bridge.
