@@ -346,16 +346,25 @@ public class TellyBridge extends Module {
      */
     private void telly() {
         if (mc.player.onGround()) {
-            // Landed still turned round: forward the way it always goes (to the left), not whichever
-            // way is shorter, which at half a turn could be either
+            // The flat bridge stays on the level it started on, also when you land on a block that
+            // went on top of it
+            if (rising() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
+            // Landed still turned round: it turns forward the way it always does (to the left), not
+            // whichever way is shorter, and jumps at once while it does. You land on the very end of
+            // the bridge, so a tick spent turning on the ground walks you off it. Facing the right of
+            // the bridge for this tick, it is the left key that pushes you on; forward comes back
+            // next tick, in the air.
             if (phase == 1 || phase == 2) {
                 phase = 3;
                 phaseTick = 1;
                 mc.player.setYRot(forwardYaw + 90);
                 mc.player.setXRot((mc.player.getXRot() + 20) / 2);
-                mc.options.keyLeft.setDown(false);
+                mc.options.keyUp.setDown(false);
+                mc.options.keySprint.setDown(false);
+                mc.options.keyDown.setDown(false);
                 mc.options.keyRight.setDown(false);
-                forward();
+                mc.options.keyLeft.setDown(true);
+                takeOff();
                 return;
             }
             if (phase == 3) {
@@ -364,9 +373,6 @@ public class TellyBridge extends Module {
             }
             phase = 0;
             reversed = false;
-            // The flat bridge stays on the level it started on, also when you land on a block that
-            // went on top of it
-            if (rising() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
             mc.options.keyLeft.setDown(false);
             mc.options.keyRight.setDown(false);
             turn(forwardYaw, mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
@@ -377,12 +383,7 @@ public class TellyBridge extends Module {
             double lip = 0.1;
             boolean edge = !solid(floor(mc.player.getX() + dx * lip), floorY, floor(mc.player.getZ() + dz * lip));
             if (facing(forwardYaw) && (jumps > 0 || edge)) {
-                mc.options.keyJump.setDown(true);
-                pressedJump = true;
-                jumps++;
-                bumped = false;
-                int[] here = last(floorY);
-                takeoffEnd = here == null ? 0 : index(here);
+                takeOff();
             }
             return;
         }
@@ -423,6 +424,7 @@ public class TellyBridge extends Module {
         double along = dx != 0 ? ex * dx : ez * dz;
         double fx = 0, fy = 0, fz = 0;
         boolean spot = false;
+        boolean spotAhead = false;
         // Blocks you are already past that are not there yet
         boolean late = end == null;
         // Blocks between the end of the bridge and where you come down
@@ -492,7 +494,17 @@ public class TellyBridge extends Module {
             double ax = fx - ex, ay = fy - ey, az = fz - ez;
             double flat = Math.sqrt(ax * ax + az * az);
             float pitch = (float) -Math.toDegrees(Math.atan2(ay, flat));
-            if (flat >= 0.15) aimYaw = (float) Math.toDegrees(Math.atan2(-ax, az));
+            // Turned round, the camera stays behind you. A spot that is still ahead of you (you have
+            // not flown past it yet) is not looked at: that would swing the camera forward and back
+            // again, a whole turn. It waits facing straight back and does not click.
+            boolean behind = ax * dx + az * dz < -0.05;
+            if (!behind) {
+                onSpot = false;
+                spotAhead = true;
+                pitch = cap;
+            } else if (flat >= 0.15) {
+                aimYaw = forwardYaw + 180 + Math.max(-30, Math.min(30, wrap((float) Math.toDegrees(Math.atan2(-ax, az)) - forwardYaw - 180)));
+            }
             if (pitch > cap + 0.5f) onSpot = false;
             aimPitch = Math.min(pitch, cap);
         }
@@ -567,7 +579,7 @@ public class TellyBridge extends Module {
         }
 
         // Drag click at cps, while the crosshair is on the spot
-        if (phase == 2 && (up ? onSpot : flatClick(level))) {
+        if (phase == 2 && !spotAhead && (up ? onSpot : flatClick(level))) {
             clicks += cps.get() / 20.0;
             while (clicks >= 1) {
                 clicks -= 1;
@@ -591,6 +603,16 @@ public class TellyBridge extends Module {
         boolean goLeft = soon > 0.1, goRight = soon < -0.1;
         mc.options.keyLeft.setDown(facingForward ? goLeft : goRight);
         mc.options.keyRight.setDown(facingForward ? goRight : goLeft);
+    }
+
+    /** Presses jump and notes where this jump began. */
+    private void takeOff() {
+        mc.options.keyJump.setDown(true);
+        pressedJump = true;
+        jumps++;
+        bumped = false;
+        int[] here = last(floorY);
+        takeoffEnd = here == null ? 0 : index(here);
     }
 
     /** Whether there is a bridge block of this level under your feet, this far on along the bridge. */
