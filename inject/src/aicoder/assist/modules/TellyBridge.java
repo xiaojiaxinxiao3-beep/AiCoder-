@@ -47,7 +47,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes; it sprints forward and turns around in the air. Speed: the same direction, speed telly. It jumps the moment it lands, turns round as soon as it is off the ground and drag clicks, and builds one block higher on every jump. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, turns round in the air, drag clicks and turns forward again; the bridge is flat, and because the camera comes down slowly while it clicks, some blocks land on top of it. Speed: speed telly, the same keys, but every jump builds one block higher so it lands sooner. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
@@ -70,47 +70,39 @@ public class TellyBridge extends Module {
 
     private final Setting<Integer> cps = sgGeneral.add(new IntSetting.Builder()
         .name("cps")
-        .description("Speed mode: clicks per second of the drag click, which goes on from the start of the turn round to the end of the turn forward.")
+        .description("Telly and Speed modes: clicks per second of the drag click, which goes on from the start of the turn round to the end of the turn forward.")
         .defaultValue(25)
         .range(5, 40)
         .sliderRange(5, 40)
-        .visible(() -> mode.get() == Mode.Speed)
-        .build()
-    );
-
-    private final Setting<Boolean> rise = sgGeneral.add(new BoolSetting.Builder()
-        .name("rise")
-        .description("Speed mode: on builds one block higher on every jump, a staircase going up. Off keeps the bridge flat, one straight line.")
-        .defaultValue(true)
-        .visible(() -> mode.get() == Mode.Speed)
+        .visible(() -> mode.get() != Mode.Diagonal)
         .build()
     );
 
     private final Setting<Boolean> bumps = sgGeneral.add(new BoolSetting.Builder()
         .name("bumps")
-        .description("Speed mode with Rise on: one more block on top of the second block of every jump, the way a speed telly bridge looks.")
+        .description("Speed mode: one more block on top of the second block of every jump, the way a speed telly bridge looks.")
         .defaultValue(true)
-        .visible(() -> mode.get() == Mode.Speed && rise.get())
+        .visible(() -> mode.get() == Mode.Speed)
         .build()
     );
 
     private final Setting<Double> mouseSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("mouse-speed")
-        .description("Speed mode with Rise off: degrees a tick the camera comes down after turning round, while right click is drag clicked. Slower puts more blocks on top of the bridge instead of on its end.")
-        .defaultValue(25)
-        .range(8, 90)
-        .sliderRange(8, 90)
-        .visible(() -> mode.get() == Mode.Speed && !rise.get())
+        .description("Telly mode: degrees a tick the camera comes down after turning round, while right click is drag clicked. Slower puts more blocks on top of the bridge instead of on its end.")
+        .defaultValue(8)
+        .range(2, 90)
+        .sliderRange(2, 90)
+        .visible(() -> mode.get() == Mode.Telly)
         .build()
     );
 
     private final Setting<Double> maxPitch = sgGeneral.add(new DoubleSetting.Builder()
         .name("max-pitch")
-        .description("Speed mode: the furthest down the camera looks while turned round, in degrees. 90 is straight down. Only when you are two ticks from landing with no block there yet does it look further down.")
+        .description("Telly and Speed modes: the furthest down the camera looks while turned round, in degrees. 90 is straight down. Only when you are two ticks from landing with no block there yet does it look further down.")
         .defaultValue(80)
         .range(60, 89)
         .sliderRange(60, 89)
-        .visible(() -> mode.get() == Mode.Speed)
+        .visible(() -> mode.get() != Mode.Diagonal)
         .build()
     );
 
@@ -120,34 +112,6 @@ public class TellyBridge extends Module {
         .defaultValue(180)
         .range(30, 180)
         .sliderRange(30, 180)
-        .build()
-    );
-
-    private final Setting<Double> edge = sgGeneral.add(new DoubleSetting.Builder()
-        .name("edge-distance")
-        .description("Telly mode: jump when the floor ends this many blocks ahead of you.")
-        .defaultValue(0.35)
-        .range(0.05, 1)
-        .sliderRange(0.05, 1)
-        .visible(() -> mode.get() == Mode.Telly)
-        .build()
-    );
-
-    private final Setting<Double> turnBack = sgGeneral.add(new DoubleSetting.Builder()
-        .name("turn-back-height")
-        .description("Telly mode: face forward again when you are falling and this close above the bridge.")
-        .defaultValue(0.6)
-        .range(0.1, 1.2)
-        .sliderRange(0.1, 1.2)
-        .visible(() -> mode.get() == Mode.Telly)
-        .build()
-    );
-
-    private final Setting<Boolean> holdBack = sgGeneral.add(new BoolSetting.Builder()
-        .name("hold-back")
-        .description("Hold the back key while turned around, which keeps you moving along the bridge.")
-        .defaultValue(true)
-        .visible(() -> mode.get() != Mode.Diagonal)
         .build()
     );
 
@@ -165,8 +129,11 @@ public class TellyBridge extends Module {
     private int floorY, lineX, lineZ;
     private int restSlot = -1;
     private boolean running, air, pressedJump, reversed;
-    private int airTicks;
-    /** Speed mode: 0 facing forward, 1 turning round, 2 round, 3 turning forward. */
+    private boolean rising() {
+        return mode.get() == Mode.Speed;
+    }
+
+    /** 0 facing forward, 1 turning round, 2 round, 3 turning forward. */
     private int phase, phaseTick;
     /** Speed mode: jumps made since it was switched on. */
     private int jumps;
@@ -251,80 +218,7 @@ public class TellyBridge extends Module {
         double feet = mc.player.getY() - (floorY + 1);
         if (feet < -0.75) { stop("Stopped: fell off the bridge."); return; }
         if (diagonal) { diagonal(); return; }
-        if (mode.get() == Mode.Speed) { speed(); return; }
-
-        if (mc.player.onGround()) {
-            air = false;
-            reversed = false;
-            turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
-            forward();
-
-            // The floor ends just ahead: jump. The game reads the key later in this tick.
-            double ax = mc.player.getX() + dx * edge.get(), az = mc.player.getZ() + dz * edge.get();
-            if (facing(forwardYaw) && !solid(floor(ax), floorY, floor(az))) {
-                mc.options.keyJump.setDown(true);
-                pressedJump = true;
-            }
-            return;
-        }
-
-        if (!air) {
-            air = true;
-            airTicks = 0;
-        }
-        airTicks++;
-
-        // Coming down onto the bridge: face forward so the sprint carries on from the landing
-        boolean falling = mc.player.getDeltaMovement().y < 0;
-        if (airTicks > 2 && falling && feet < turnBack.get() && solid(floor(mc.player.getX()), floorY, floor(mc.player.getZ()))) {
-            reversed = false;
-            turn(ahead(), 20);
-            forward();
-            return;
-        }
-
-        // Turned around: aim at the side of the last block of the bridge and right click
-        reversed = true;
-        mc.options.keyUp.setDown(false);
-        mc.options.keySprint.setDown(false);
-        mc.options.keyDown.setDown(holdBack.get());
-
-        int along = dx != 0 ? floor(mc.player.getX()) * dx : floor(mc.player.getZ()) * dz;
-        int bx = 0, bz = 0;
-        boolean found = false;
-        for (int i = 0; i < 7 && !found; i++) {
-            int a = along - i;
-            bx = dx != 0 ? a * dx : lineX;
-            bz = dz != 0 ? a * dz : lineZ;
-            found = solid(bx, floorY, bz);
-        }
-        if (!found) {
-            turn(forwardYaw + 180, 78);
-            return;
-        }
-
-        // The face that looks along the bridge. It can only be clicked from beyond its plane.
-        // Aim at the point of it straight behind you, so the camera stays square to the bridge and the
-        // back key does not push you sideways.
-        double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ();
-        double fx = dx != 0 ? bx + 0.5 + dx * 0.5 : clamp(ex, bx + 0.12, bx + 0.88);
-        double fz = dz != 0 ? bz + 0.5 + dz * 0.5 : clamp(ez, bz + 0.12, bz + 0.88);
-        double fy = floorY + 0.55;
-        double beyond = (ex - fx) * dx + (ez - fz) * dz;
-        double vx = fx - ex, vy = fy - ey, vz = fz - ez;
-        double flat = Math.sqrt(vx * vx + vz * vz);
-        float pitch = (float) -Math.toDegrees(Math.atan2(vy, flat));
-
-        if (beyond < 0.08 || !replaceable(bx + dx, floorY, bz + dz)) {
-            // Not past the face yet: wait with the camera ready
-            turn(forwardYaw + 180, Math.max(70, Math.min(86, pitch)));
-            return;
-        }
-
-        float yaw = (float) Math.toDegrees(Math.atan2(-vx, vz));
-        if (turn(yaw, pitch) && vx * vx + vy * vy + vz * vz < 4.4 * 4.4) {
-            KeyMapping.click(Input.keyOf(mc.options.keyUse));
-        }
+        telly();
     }
 
     /**
@@ -403,13 +297,13 @@ public class TellyBridge extends Module {
      * You come down on it in the ninth tick of the jump, near the top, instead of the twelfth back at the
      * level you left, which is the time speed telly saves. It comes to about four blocks a jump.
      */
-    private void speed() {
+    private void telly() {
         if (mc.player.onGround()) {
             phase = 0;
             reversed = false;
             // The flat bridge stays on the level it started on, also when you land on a block that
             // went on top of it
-            if (rise.get() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
+            if (rising() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
             mc.options.keyLeft.setDown(false);
             mc.options.keyRight.setDown(false);
             turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
@@ -434,7 +328,7 @@ public class TellyBridge extends Module {
         double vh = mc.player.getDeltaMovement().x * dx + mc.player.getDeltaMovement().z * dz;
         // This jump builds one block up. Already falling below that with no step in: the level you left.
         // The first jump stays on the level you left
-        int level = rise.get() && jumps > 1 ? floorY + 1 : floorY;
+        int level = rising() && jumps > 1 ? floorY + 1 : floorY;
         if (level > floorY && vy < 0 && feetY < level + 1 - 0.01 && run(level) == null) level = floorY;
         boolean up = level > floorY;
         int[] end = up ? run(level) : last(level);
@@ -467,6 +361,8 @@ public class TellyBridge extends Module {
         boolean spot = false;
         // Blocks you are already past that are not there yet
         boolean late = end == null;
+        // Blocks between the end of the bridge and where you come down
+        int need = 1;
         if (end != null) {
             // The side of the last block, near its top
             double plane = dx != 0 ? end[0] + 0.5 + dx * 0.5 : end[1] + 0.5 + dz * 0.5;
@@ -477,6 +373,7 @@ public class TellyBridge extends Module {
             spot = true;
             onSpot = beyond >= 0.08 && replaceable(end[0] + dx, level, end[1] + dz);
             late = beyond >= 1;
+            need = Math.max(1, (int) Math.ceil(beyond + advance - 0.15));
         } else if (below != null) {
             // The step: the top of a block of the level below, far enough behind you for the camera
             // not to have to look further down than max-pitch
@@ -536,7 +433,10 @@ public class TellyBridge extends Module {
             aimPitch = Math.min(pitch, cap);
         }
 
-        if (phase == 0 && !landing) {
+        // Speed telly turns round as soon as it is off the ground. The ordinary telly flies on facing
+        // forward first, and turns round when there is just time left to fill in the blocks behind:
+        // one a tick, two ticks for the turn, two to spare.
+        if (phase == 0 && !landing && (up || rising() || landIn > 0 && landIn <= need + 4)) {
             phase = 1;
             phaseTick = 0;
             clicks = 0;
@@ -556,7 +456,7 @@ public class TellyBridge extends Module {
         // On the flat bridge the mouse comes down at mouse-speed while the clicks go on, so the first
         // clicks of a jump land on top of blocks further back instead of on the side of the last one.
         // Not when the bridge is a block behind you, or the landing has to be saved.
-        boolean drift = !up && !late && !(landIn > 0 && landIn <= 3 && !landing);
+        boolean drift = !up && !rising() && !(landIn > 0 && landIn <= need + 1 && !landing);
         float pitchNow = mc.player.getXRot();
         float downTo = drift ? pitchNow + Math.max(-mouseSpeed.get().floatValue(), Math.min(mouseSpeed.get().floatValue(), aimPitch - pitchNow)) : aimPitch;
         // + is to the right of the way you go. Turned round, left moves you that way and right the other.
@@ -675,13 +575,6 @@ public class TellyBridge extends Module {
             if (solid(bx, level, bz)) return new int[] { bx, bz };
         }
         return null;
-    }
-
-    /** Turned round: let go of forward and sprint, and hold back if asked, which still moves you along the bridge. */
-    private void back() {
-        mc.options.keyUp.setDown(false);
-        mc.options.keySprint.setDown(false);
-        mc.options.keyDown.setDown(holdBack.get());
     }
 
     private void forward() {
