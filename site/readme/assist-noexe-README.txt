@@ -35,6 +35,10 @@ In the game
   held ("Side" picks left or right), hopping, never sneaking. For this mode stand with your back
   to where the bridge should go: it turns the camera 45 degrees to the chosen side and keeps it
   there. There is no half turn. Press forward or sneak to stop.
+  "Bridge Mode" Speed is speed telly: it jumps the moment it lands, turns round as soon as it is off
+  the ground (back, then back and left held), drag clicks right click at "Cps" all the way, and turns
+  forward just before landing (right half way, then forward). Every jump builds one block higher, so
+  the bridge is a staircase going up, three or four blocks a step. Press back or sneak to stop.
 - Mace Dive has a "Spear Mode": it dives on a firework with a spear held level, and on three ticks
   in a row the spear hits, the chestplate goes on and the mace hits. Needs a spear in the hotbar.
   Tested with Height 20 and Attack Range 1.99. Mace Dive also no longer loses its target when

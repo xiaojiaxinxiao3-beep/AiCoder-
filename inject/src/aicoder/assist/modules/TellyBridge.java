@@ -20,6 +20,11 @@ import net.minecraft.world.item.BlockItem;
  * on whatever the crosshair is on. Where to look is worked out every tick from where you are, instead
  * of using a fixed pitch.
  *
+ * <p>Speed mode is speed telly, done with the keys a player uses for it: forward and sprint on the ground
+ * with jump held; round as soon as you are off the ground, back and left held, right click drag clicked
+ * all the way; forward again just before landing, with right half way through the turn. Each jump goes
+ * one block up, so you land near the top of the jump and lose no time falling back down.
+ *
  * <p>Diagonal mode is the other way of doing it: backwards all the way, camera 45 degrees to one side,
  * back and one strafe key held, hopping, never sneaking.
  *
@@ -30,6 +35,8 @@ public class TellyBridge extends Module {
     public enum Mode {
         /** Sprint forward, turn around in the air to place. */
         Telly,
+        /** Speed telly: sprint-jump without a break, flick round only to place a couple of blocks. */
+        Speed,
         /** Walk backwards the whole way, camera 45 degrees off, hopping. */
         Diagonal
     }
@@ -40,7 +47,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes; it sprints forward and turns around in the air. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes; it sprints forward and turns around in the air. Speed: the same direction, speed telly. It jumps the moment it lands, turns round as soon as it is off the ground and drag clicks, and builds one block higher on every jump. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
@@ -61,9 +68,19 @@ public class TellyBridge extends Module {
         .build()
     );
 
+    private final Setting<Integer> cps = sgGeneral.add(new IntSetting.Builder()
+        .name("cps")
+        .description("Speed mode: clicks per second of the drag click, which goes on from the start of the turn round to the end of the turn forward.")
+        .defaultValue(25)
+        .range(5, 40)
+        .sliderRange(5, 40)
+        .visible(() -> mode.get() == Mode.Speed)
+        .build()
+    );
+
     private final Setting<Double> turnSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("turn-speed")
-        .description("Most degrees the camera turns per tick. 180 turns around at once, lower is smoother but places fewer blocks.")
+        .description("Telly and Diagonal modes: most degrees the camera turns per tick. 180 turns around at once, lower is smoother but places fewer blocks. Speed mode always takes two ticks for each half turn.")
         .defaultValue(180)
         .range(30, 180)
         .sliderRange(30, 180)
@@ -72,19 +89,21 @@ public class TellyBridge extends Module {
 
     private final Setting<Double> edge = sgGeneral.add(new DoubleSetting.Builder()
         .name("edge-distance")
-        .description("Jump when the floor ends this many blocks ahead of you.")
+        .description("Telly mode: jump when the floor ends this many blocks ahead of you.")
         .defaultValue(0.35)
         .range(0.05, 1)
         .sliderRange(0.05, 1)
+        .visible(() -> mode.get() == Mode.Telly)
         .build()
     );
 
     private final Setting<Double> turnBack = sgGeneral.add(new DoubleSetting.Builder()
         .name("turn-back-height")
-        .description("Face forward again when you are falling and this close above the bridge.")
+        .description("Telly mode: face forward again when you are falling and this close above the bridge.")
         .defaultValue(0.6)
         .range(0.1, 1.2)
         .sliderRange(0.1, 1.2)
+        .visible(() -> mode.get() == Mode.Telly)
         .build()
     );
 
@@ -92,6 +111,7 @@ public class TellyBridge extends Module {
         .name("hold-back")
         .description("Hold the back key while turned around, which keeps you moving along the bridge.")
         .defaultValue(true)
+        .visible(() -> mode.get() != Mode.Diagonal)
         .build()
     );
 
@@ -110,6 +130,11 @@ public class TellyBridge extends Module {
     private int restSlot = -1;
     private boolean running, air, pressedJump, reversed;
     private int airTicks;
+    /** Speed mode: 0 facing forward, 1 turning round, 2 round, 3 turning forward. */
+    private int phase, phaseTick;
+    /** Speed mode: ticks the camera still stays where it was last pointed; clicks still to make. */
+    private int hold;
+    private double clicks;
 
     public TellyBridge() {
         super(Category.UTILITY, "telly-bridge", "Bridges for you with sprint jumps: turns around in the air, places blocks behind, and turns forward again before landing.");
@@ -145,6 +170,7 @@ public class TellyBridge extends Module {
 
         air = false;
         reversed = false;
+        phase = 0;
         running = true;
         noteFloor();
     }
@@ -185,6 +211,7 @@ public class TellyBridge extends Module {
         double feet = mc.player.getY() - (floorY + 1);
         if (feet < -0.75) { stop("Stopped: fell off the bridge."); return; }
         if (diagonal) { diagonal(); return; }
+        if (mode.get() == Mode.Speed) { speed(); return; }
 
         if (mc.player.onGround()) {
             air = false;
@@ -317,6 +344,195 @@ public class TellyBridge extends Module {
         }
     }
 
+    /**
+     * Speed telly, with the keys and in the order a player does it:
+     * <ol>
+     *   <li>On the ground: facing forward, forward and sprint held, jump held (it jumps the moment it lands).</li>
+     *   <li>Off the ground: half a turn in two ticks. Forward is let go of and back pressed at once, then
+     *   back and left are held. Right click is drag clicked at cps from here to the end of the turn
+     *   forward, whatever the crosshair is on.</li>
+     *   <li>Round: the camera is pointed at the block to click, a little above the middle of its side, then
+     *   left alone for a tick while the clicks go on, then pointed again. It is not put on every block
+     *   anew, so the clicks land where the crosshair has got to by then.</li>
+     *   <li>Two ticks before landing, once there is a block where you come down: half a turn forward in two
+     *   ticks, right pressed half way (the camera faces left then, so it pushes you on along the bridge),
+     *   forward and sprint again at the end.</li>
+     * </ol>
+     * Every jump goes one block up: the first click goes on top of the last block (the step, which fits
+     * once your feet are above it or past it), the next ones on along that level from the step's side.
+     * You come down on it in the ninth tick of the jump, near the top, instead of the twelfth back at the
+     * level you left, which is the time speed telly saves. It comes to about four blocks a jump.
+     */
+    private void speed() {
+        if (mc.player.onGround()) {
+            phase = 0;
+            reversed = false;
+            floorY = floor(mc.player.getY() - 0.2);
+            mc.options.keyLeft.setDown(false);
+            mc.options.keyRight.setDown(false);
+            turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
+            forward();
+            if (facing(forwardYaw)) {
+                mc.options.keyJump.setDown(true);
+                pressedJump = true;
+            }
+            return;
+        }
+
+        double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ(), feetY = mc.player.getY();
+        double vy = mc.player.getDeltaMovement().y;
+        double vh = mc.player.getDeltaMovement().x * dx + mc.player.getDeltaMovement().z * dz;
+        // This jump builds one block up. Already falling below that with no step in: the level you left.
+        int level = floorY + 1;
+        if (vy < 0 && feetY < level + 1 - 0.01 && last(level) == null) level = floorY;
+        int[] end = last(level);
+        int[] below = end == null ? last(level - 1) : null;
+
+        // When and where you come down on this level: the game adds the push of the keys, moves, then
+        // takes off gravity and drag
+        double y = feetY, v = vy, h = vh, advance = 0;
+        int landIn = 0;
+        for (int k = 1; k <= 14 && landIn == 0; k++) {
+            boolean down = v < 0;
+            h += 0.0196;
+            y += v;
+            advance += h;
+            v = (v - 0.08) * 0.98;
+            h *= 0.91;
+            if (down && y <= level + 1) landIn = k;
+        }
+        boolean landing = landIn > 0 && under(advance, level);
+
+        // Where to look while round
+        float aimYaw = forwardYaw + 180, aimPitch = 78;
+        if (end != null || below != null) {
+            int[] from = end != null ? end : below;
+            double plane = dx != 0 ? from[0] + 0.5 + dx * 0.5 : from[1] + 0.5 + dz * 0.5;
+            double fx, fy, fz;
+            if (end != null) {
+                // The side of the last block, a little above its middle
+                fx = dx != 0 ? plane : clamp(ex, end[0] + 0.12, end[0] + 0.88);
+                fz = dz != 0 ? plane : clamp(ez, end[1] + 0.12, end[1] + 0.88);
+                fy = level + 0.7;
+            } else {
+                // The step: the top of the last block of the level below, at its edge nearest to you
+                // (or right under you)
+                int sign = dx != 0 ? dx : dz;
+                double at = Math.min(dx != 0 ? ex * dx : ez * dz, plane * sign - 0.3) * sign;
+                fx = dx != 0 ? at : clamp(ex, below[0] + 0.12, below[0] + 0.88);
+                fz = dz != 0 ? at : clamp(ez, below[1] + 0.12, below[1] + 0.88);
+                // Just under the top, so the line of sight comes in through the top and not the side
+                fy = level - 0.02;
+            }
+            double ax = fx - ex, ay = fy - ey, az = fz - ez;
+            double flat = Math.sqrt(ax * ax + az * az);
+            aimPitch = (float) -Math.toDegrees(Math.atan2(ay, flat));
+            if (flat >= 0.15) aimYaw = (float) Math.toDegrees(Math.atan2(-ax, az));
+        }
+
+        if (phase == 0 && !landing) {
+            phase = 1;
+            phaseTick = 0;
+            clicks = 0;
+        } else if (phase == 2 && landing && landIn <= 2) {
+            phase = 3;
+            phaseTick = 0;
+        }
+
+        if (phase == 0) {
+            reversed = false;
+            turn(ahead(), 20);
+            forward();
+            return;
+        }
+
+        reversed = true;
+        // + is to the right of the way you go. Turned round, left moves you that way and right the other.
+        double aside = (ex - (lineX + 0.5)) * -dz + (ez - (lineZ + 0.5)) * dx;
+        mc.options.keyUp.setDown(false);
+        mc.options.keySprint.setDown(false);
+        if (phase == 1) {
+            // Half a turn in two ticks. Back is pressed as soon as forward is let go of, left on the second.
+            phaseTick++;
+            mc.options.keyDown.setDown(true);
+            if (phaseTick == 1) {
+                mc.player.setYRot(forwardYaw + 90);
+                mc.player.setXRot((mc.player.getXRot() + aimPitch) / 2);
+            } else {
+                mc.player.setYRot(aimYaw);
+                mc.player.setXRot(aimPitch);
+                mc.options.keyLeft.setDown(aside < 0.08);
+                hold = 1;
+                phase = 2;
+            }
+        } else if (phase == 2) {
+            // Round: back and left held; right instead of left once you are off to that side
+            mc.options.keyDown.setDown(true);
+            mc.options.keyLeft.setDown(aside < 0.08);
+            mc.options.keyRight.setDown(aside > 0.16);
+            // About to come down with nothing there yet: no waiting
+            if (hold <= 0 || landIn > 0 && landIn <= 3 && !landing) {
+                mc.player.setYRot(aimYaw);
+                mc.player.setXRot(aimPitch);
+                hold = 1;
+            } else {
+                hold--;
+            }
+        } else {
+            // Half a turn forward in two ticks, through your left: right half way, forward again at the end
+            phaseTick++;
+            mc.options.keyDown.setDown(false);
+            mc.options.keyLeft.setDown(false);
+            if (phaseTick == 1) {
+                mc.player.setYRot(forwardYaw + 270);
+                mc.player.setXRot((mc.player.getXRot() + 20) / 2);
+                mc.options.keyRight.setDown(true);
+            } else {
+                mc.player.setYRot(forwardYaw + 360);
+                mc.player.setXRot(20);
+                mc.options.keyRight.setDown(false);
+                forward();
+                phase = 0;
+            }
+        }
+
+        // Drag click: right click at cps, all the way through
+        clicks += cps.get() / 20.0;
+        while (clicks >= 1) {
+            clicks -= 1;
+            KeyMapping.click(Input.keyOf(mc.options.keyUse));
+        }
+    }
+
+    /** Whether there is a bridge block of this level under your feet, this far on along the bridge. */
+    private boolean under(double advance, int level) {
+        for (int i = -1; i <= 1; i += 2) {
+            double a = advance + i * 0.15;
+            int bx = dx != 0 ? floor(mc.player.getX() + dx * a) : lineX;
+            int bz = dz != 0 ? floor(mc.player.getZ() + dz * a) : lineZ;
+            if (solid(bx, level, bz)) return true;
+        }
+        return false;
+    }
+
+    /** The last solid block of the bridge at this level, from where you are back: {x, z}, or null within seven. */
+    private int[] last(int level) {
+        int along = dx != 0 ? floor(mc.player.getX()) * dx : floor(mc.player.getZ()) * dz;
+        for (int i = 0; i < 7; i++) {
+            int a = along - i;
+            int bx = dx != 0 ? a * dx : lineX, bz = dz != 0 ? a * dz : lineZ;
+            if (solid(bx, level, bz)) return new int[] { bx, bz };
+        }
+        return null;
+    }
+
+    /** Turned round: let go of forward and sprint, and hold back if asked, which still moves you along the bridge. */
+    private void back() {
+        mc.options.keyUp.setDown(false);
+        mc.options.keySprint.setDown(false);
+        mc.options.keyDown.setDown(holdBack.get());
+    }
+
     private void forward() {
         mc.options.keyDown.setDown(false);
         mc.options.keyUp.setDown(true);
@@ -332,7 +548,10 @@ public class TellyBridge extends Module {
 
     /** Turns the camera towards a direction, at most turn-speed degrees. True once it points there. */
     private boolean turn(float yaw, float pitch) {
-        float speed = turnSpeed.get().floatValue();
+        return turn(yaw, pitch, turnSpeed.get().floatValue());
+    }
+
+    private boolean turn(float yaw, float pitch, float speed) {
         float current = mc.player.getYRot();
         float dy = wrap(yaw - current), dp = pitch - mc.player.getXRot();
         float stepY = Math.max(-speed, Math.min(speed, dy)), stepP = Math.max(-speed, Math.min(speed, dp));

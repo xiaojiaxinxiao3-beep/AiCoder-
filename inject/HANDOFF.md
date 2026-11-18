@@ -68,13 +68,13 @@ FABRIC=1 ./test.sh --quickPlaySingleplayer "New World"           # Fabric
 | Mace Dive（含 `spear-mode`） | 1.21.11 實測（高度 20、攻擊距離 1.99、鑽石長矛對鐵巨人） |
 | Spear Smash | 1.21.11 實測；穿鞘翅那條路徑只確認編譯 |
 | Offhand Totem | 1.21.11、1.21.4、Fabric 1.21.11 實測。使用者回報過 Windows 上「滑鼠不會動」，之後加了直接呼叫 `MouseHandler.onMove`，**使用者還沒回報修好了沒** |
-| Telly Bridge（Telly 與 Diagonal 兩種模式） | 1.21.11 實測；Diagonal 在 1.21.4 只確認編譯 |
+| Telly Bridge（Telly、Speed、Diagonal 三種模式） | 1.21.11 實測；Diagonal 與 Speed 在 1.21.4 只確認編譯 |
 | Cart Bomb（`draw` 預設 4） | 1.21.11 實測 8/8，1.21.4 測過兩輪 |
 | 自訂選單鍵 | 1.21.11 實測 |
 | 授權（HWID 綁定） | 用本機測試伺服器，1.21.11／1.21.4／Fabric 都實測；Windows 的硬體指紋與 `start-license-server.bat` 沒有實機驗證 |
 
 ## 5. 進行中與還沒做的事
-- **使用者說過會傳影片**，要把 Telly 搭橋改得像真人那樣「半空中放一坨方塊」（他嫌現在太平整）。影片還沒來。做的時候是照影片改成固定的搭法；如果目的是加隨機抖動讓反作弊認不出來，那個不做
+- **Telly 的影片來了，已經做成 `bridge-mode = Speed`**（Speed Telly，每跳往上一格，按鍵順序照影片）。使用者要的是「回頭時不要每一格都精準瞄準、右鍵一路連點」，現在是固定的做法（瞄一次停一 tick、drag click 不停），沒有加隨機。使用者還沒回報在 Windows 上的結果。如果之後要求加隨機抖動或假失誤讓反作弊認不出來，那個不做
 - **授權**：預設關閉（建置時沒給 `LICENSE_URL`／`LICENSE_PUBKEY` 就沒有授權檢查，下載頁上的是沒有的）。已經給過使用者一包本機測試用的東西（伺服器 jar、啟動腳本、5 組序號、連 127.0.0.1 的授權版客戶端）。使用者還沒有正式的授權伺服器
 - **下載頁沒有更新到最後幾次改動以外的東西**：見第 7 節
 
