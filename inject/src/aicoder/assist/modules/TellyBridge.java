@@ -346,12 +346,12 @@ public class TellyBridge extends Module {
      */
     private void telly() {
         if (mc.player.onGround()) {
-            // Landed still turned round: forward the same way round as always (through your left),
-            // not whichever way is shorter, which at half a turn could be either
+            // Landed still turned round: forward the way it always goes (to the left), not whichever
+            // way is shorter, which at half a turn could be either
             if (phase == 1 || phase == 2) {
                 phase = 3;
                 phaseTick = 1;
-                mc.player.setYRot(forwardYaw + 270);
+                mc.player.setYRot(forwardYaw + 90);
                 mc.player.setXRot((mc.player.getXRot() + 20) / 2);
                 mc.options.keyLeft.setDown(false);
                 mc.options.keyRight.setDown(false);
@@ -359,7 +359,7 @@ public class TellyBridge extends Module {
                 return;
             }
             if (phase == 3) {
-                mc.player.setYRot(forwardYaw + 360);
+                mc.player.setYRot(forwardYaw);
                 mc.player.setXRot(20);
             }
             phase = 0;
@@ -369,8 +369,9 @@ public class TellyBridge extends Module {
             if (rising() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
             mc.options.keyLeft.setDown(false);
             mc.options.keyRight.setDown(false);
-            turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
+            turn(forwardYaw, mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
             forward();
+            steer(true);
             // The first jump is an ordinary telly: run to the very edge of the block, then jump.
             // After it, jump the moment you land.
             double lip = 0.1;
@@ -510,8 +511,9 @@ public class TellyBridge extends Module {
 
         if (phase == 0) {
             reversed = false;
-            turn(ahead(), 20);
+            turn(forwardYaw, 20);
             forward();
+            steer(true);
             return;
         }
 
@@ -522,8 +524,6 @@ public class TellyBridge extends Module {
         boolean drift = !up && !rising() && !(landIn > 0 && landIn <= need + 1 && !landing);
         float pitchNow = mc.player.getXRot();
         float downTo = drift ? pitchNow + Math.max(-mouseSpeed.get().floatValue(), Math.min(mouseSpeed.get().floatValue(), aimPitch - pitchNow)) : aimPitch;
-        // + is to the right of the way you go. Turned round, left moves you that way and right the other.
-        double aside = (ex - (lineX + 0.5)) * -dz + (ez - (lineZ + 0.5)) * dx;
         mc.options.keyUp.setDown(false);
         mc.options.keySprint.setDown(false);
         if (phase == 1) {
@@ -536,30 +536,31 @@ public class TellyBridge extends Module {
             } else {
                 mc.player.setYRot(aimYaw);
                 mc.player.setXRot(downTo);
-                mc.options.keyLeft.setDown(aside < 0.08);
+                steer(false);
                 phase = 2;
             }
         } else if (phase == 2) {
             // Round: back and left held; right instead of left once you are off to that side.
             // The crosshair stays on the spot.
             mc.options.keyDown.setDown(true);
-            mc.options.keyLeft.setDown(aside < 0.08);
-            mc.options.keyRight.setDown(aside > 0.16);
+            steer(false);
             mc.player.setYRot(aimYaw);
             mc.player.setXRot(downTo);
         } else {
-            // Half a turn forward in two ticks, through your left: right half way, forward again at the end
+            // Half a turn forward in two ticks, back the way it came (to the left). Half way the camera
+            // faces the right of the bridge, so it is the left key that pushes you on along it.
             phaseTick++;
             mc.options.keyDown.setDown(false);
             mc.options.keyLeft.setDown(false);
+            mc.options.keyRight.setDown(false);
             if (phaseTick == 1) {
-                mc.player.setYRot(forwardYaw + 270);
+                mc.player.setYRot(forwardYaw + 90);
                 mc.player.setXRot((mc.player.getXRot() + 20) / 2);
-                mc.options.keyRight.setDown(true);
+                mc.options.keyLeft.setDown(true);
             } else {
-                mc.player.setYRot(forwardYaw + 360);
+                mc.player.setYRot(forwardYaw);
                 mc.player.setXRot(20);
-                mc.options.keyRight.setDown(false);
+                mc.options.keyLeft.setDown(false);
                 forward();
                 phase = 0;
             }
@@ -575,6 +576,21 @@ public class TellyBridge extends Module {
         } else {
             clicks = Math.max(clicks, 1);
         }
+    }
+
+    /**
+     * Keeps you on the middle of the bridge with the left and right keys, the camera staying square to it.
+     * Looks at where you will be a few ticks on, so it lets go before you are across the middle.
+     * Facing forward, left moves you to the left of the way you go; turned round it is the other way about.
+     */
+    private void steer(boolean facingForward) {
+        // + is to the right of the way you go
+        double aside = (mc.player.getX() - (lineX + 0.5)) * -dz + (mc.player.getZ() - (lineZ + 0.5)) * dx;
+        double drift = mc.player.getDeltaMovement().x * -dz + mc.player.getDeltaMovement().z * dx;
+        double soon = aside + drift * (mc.player.onGround() ? 2 : 4);
+        boolean goLeft = soon > 0.1, goRight = soon < -0.1;
+        mc.options.keyLeft.setDown(facingForward ? goLeft : goRight);
+        mc.options.keyRight.setDown(facingForward ? goRight : goLeft);
     }
 
     /** Whether there is a bridge block of this level under your feet, this far on along the bridge. */
@@ -665,14 +681,6 @@ public class TellyBridge extends Module {
         mc.player.setYRot(current + stepY);
         mc.player.setXRot(mc.player.getXRot() + stepP);
         return Math.abs(dy - stepY) < 0.5f && Math.abs(dp - stepP) < 0.5f;
-    }
-
-    /** The direction to run in: along the bridge, leaning back towards its middle when you have drifted. */
-    private float ahead() {
-        double off = dx != 0 ? mc.player.getZ() - (lineZ + 0.5) : mc.player.getX() - (lineX + 0.5);
-        // Aim at the middle of the bridge three blocks on
-        double tx = dx != 0 ? dx * 3 : -off, tz = dz != 0 ? dz * 3 : -off;
-        return (float) Math.toDegrees(Math.atan2(-tx, tz));
     }
 
     private static double clamp(double value, double low, double high) {
