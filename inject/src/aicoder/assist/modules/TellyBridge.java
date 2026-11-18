@@ -35,6 +35,8 @@ public class TellyBridge extends Module {
     public enum Mode {
         /** Sprint forward, turn around in the air to place. */
         Telly,
+        /** The ordinary telly going up: one jump on along the level, the next one up a level. */
+        TellyUp,
         /** Speed telly: sprint-jump without a break, flick round only to place a couple of blocks. */
         Speed,
         /** Walk backwards the whole way, camera 45 degrees off, hopping. */
@@ -47,7 +49,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, turns round in the air, drag clicks and turns forward again; the bridge is flat, and because the camera comes down slowly while it clicks, some blocks land on top of it. Speed: speed telly, the same keys, but every jump builds one block higher so it lands sooner. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same, but every second jump goes up a level, the new level starting on top of the last blocks of the one below. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
@@ -80,19 +82,19 @@ public class TellyBridge extends Module {
 
     private final Setting<Boolean> bumps = sgGeneral.add(new BoolSetting.Builder()
         .name("bumps")
-        .description("Speed mode: one more block on top of the second block of every jump, the way a speed telly bridge looks.")
+        .description("Telly Up and Speed modes: one more block on top of the second block of every jump that goes up.")
         .defaultValue(true)
-        .visible(() -> mode.get() == Mode.Speed)
+        .visible(() -> mode.get() == Mode.TellyUp || mode.get() == Mode.Speed)
         .build()
     );
 
     private final Setting<Double> mouseSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("mouse-speed")
-        .description("Telly mode: degrees a tick the camera comes down after turning round, while right click is drag clicked. Slower puts more blocks on top of the bridge instead of on its end.")
+        .description("Telly and Telly Up modes: degrees a tick the camera comes down after turning round, while right click is drag clicked. Slower puts more blocks on top of the bridge instead of on its end.")
         .defaultValue(8)
         .range(2, 90)
         .sliderRange(2, 90)
-        .visible(() -> mode.get() == Mode.Telly)
+        .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
         .build()
     );
 
@@ -132,7 +134,12 @@ public class TellyBridge extends Module {
     /** Where the camera pointed a tick ago and where it points this tick; frames glide between them. */
     private float fromYaw, fromPitch, toYaw, toPitch;
     private boolean steering;
+    /** Telly Up and Speed build higher; Telly stays on the level it started on. */
     private boolean rising() {
+        return mode.get() == Mode.TellyUp || mode.get() == Mode.Speed;
+    }
+
+    private boolean speedy() {
         return mode.get() == Mode.Speed;
     }
 
@@ -142,6 +149,10 @@ public class TellyBridge extends Module {
     private int jumps;
     /** Speed mode: where the bridge ended when this jump began, and whether its bump is in. */
     private int takeoffEnd;
+    /** Whether the jump just made was one that goes up a level. */
+    private boolean wentUp;
+    /** Ticks in the air this jump, and where the run of this jump starts (its step), if it is in. */
+    private int airT, runStart = Integer.MAX_VALUE;
     private boolean bumped;
     private double clicks;
 
@@ -348,7 +359,13 @@ public class TellyBridge extends Module {
         if (mc.player.onGround()) {
             // The flat bridge stays on the level it started on, also when you land on a block that
             // went on top of it
-            if (rising() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
+            // Speed telly stands one level higher after every jump. The ordinary telly only after a
+            // jump that went up and got there; a block that merely went on top of the bridge is not
+            // the bridge.
+            int standing = floor(mc.player.getY() - 0.2);
+            if (speedy() || jumps == 0) floorY = standing;
+            else if (wentUp && standing >= floorY + 1) floorY++;
+            wentUp = false;
             // Landed still turned round: it turns forward the way it always does (to the left), not
             // whichever way is shorter, and jumps at once while it does. You land on the very end of
             // the bridge, so a tick spent turning on the ground walks you off it. Facing the right of
@@ -388,14 +405,18 @@ public class TellyBridge extends Module {
             return;
         }
 
+        airT++;
         double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ(), feetY = mc.player.getY();
         double vy = mc.player.getDeltaMovement().y;
         double vh = mc.player.getDeltaMovement().x * dx + mc.player.getDeltaMovement().z * dz;
         // This jump builds one block up. Already falling below that with no step in: the level you left.
         // The first jump stays on the level you left
-        int level = rising() && jumps > 1 ? floorY + 1 : floorY;
+        // Speed telly goes up on every jump after the first. The ordinary telly takes turns: one jump
+        // on along the level, the next one up.
+        int level = rising() && jumps > 1 && (speedy() || jumps % 2 == 0) ? floorY + 1 : floorY;
         if (level > floorY && vy < 0 && feetY < level + 1 - 0.01 && run(level) == null) level = floorY;
         boolean up = level > floorY;
+        if (up) wentUp = true;
         int[] end = up ? run(level) : last(level);
         int[] below = end == null ? last(level - 1) : null;
 
@@ -425,6 +446,8 @@ public class TellyBridge extends Module {
         double fx = 0, fy = 0, fz = 0;
         boolean spot = false;
         boolean spotAhead = false;
+        int stepIndex = Integer.MIN_VALUE;
+        boolean bumpSpot = false;
         // Blocks you are already past that are not there yet
         boolean late = end == null;
         // Blocks between the end of the bridge and where you come down
@@ -444,7 +467,8 @@ public class TellyBridge extends Module {
             // The step: the top of a block of the level below, far enough behind you for the camera
             // not to have to look further down than max-pitch
             double plane = dx != 0 ? below[0] + 0.5 + dx * 0.5 : below[1] + 0.5 + dz * 0.5;
-            double back = Math.max(0.3, (ey - level) / Math.tan(Math.toRadians(cap)));
+            // The ordinary telly looks back at a flatter angle, so its step goes further back
+            double back = Math.max(0.3, (ey - level) / Math.tan(Math.toRadians(speedy() ? cap : Math.min(cap, 55))));
             double at = Math.min(along - back, plane * sign - 0.15) * sign;
             int cx = dx != 0 ? floor(at) : lineX, cz = dz != 0 ? floor(at) : lineZ;
             fx = dx != 0 ? at : clamp(ex, cx + 0.12, cx + 0.88);
@@ -456,18 +480,12 @@ public class TellyBridge extends Module {
             double front = sign > 0 ? floor(at) + 1 : -floor(at);
             boolean clear = feetY >= level + 1 + 0.01 || along - 0.3 > front + 0.01;
             onSpot = clear && solid(cx, level - 1, cz) && replaceable(cx, level, cz);
+            if (onSpot) stepIndex = dx != 0 ? cx * dx : cz * dz;
         }
         // The bump: one block on top of the second block of this jump, once you are clear of it and
         // it is not the moment to save the landing
         if (up && bumps.get() && !bumped && !(landIn > 0 && landIn <= 3 && !landing)) {
-            int i = Integer.MIN_VALUE;
-            if (up) {
-                int[] low = last(level - 1);
-                if (low != null) {
-                    int at = index(low);
-                    i = (solid(low[0], level, low[1]) ? at : at - 1) + 1;
-                }
-            }
+            int i = runStart != Integer.MAX_VALUE ? runStart + 1 : Integer.MIN_VALUE;
             if (i != Integer.MIN_VALUE) {
                 int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
                 if (!replaceable(bx, level + 1, bz)) {
@@ -486,6 +504,7 @@ public class TellyBridge extends Module {
                         fz = tz;
                         spot = true;
                         onSpot = true;
+                        bumpSpot = true;
                     }
                 }
             }
@@ -512,7 +531,10 @@ public class TellyBridge extends Module {
         // Speed telly turns round as soon as it is off the ground. The ordinary telly flies on facing
         // forward first, and turns round when there is just time left to fill in the blocks behind:
         // one a tick, two ticks for the turn, two to spare.
-        if (phase == 0 && !landing && (up || rising() || landIn > 0 && landIn <= need + 4)) {
+        // The ordinary telly going up flies on for two ticks and turns round on the third: the step then
+        // goes on a block further back, and the new level lies over the last blocks of the old one.
+        boolean turnNow = speedy() || (up ? airT >= 3 : landIn > 0 && landIn <= need + 4);
+        if (phase == 0 && !landing && turnNow) {
             phase = 1;
             phaseTick = 0;
             clicks = 0;
@@ -533,7 +555,7 @@ public class TellyBridge extends Module {
         // On the flat bridge the mouse comes down at mouse-speed while the clicks go on, so the first
         // clicks of a jump land on top of blocks further back instead of on the side of the last one.
         // Not when the bridge is a block behind you, or the landing has to be saved.
-        boolean drift = !up && !rising() && !(landIn > 0 && landIn <= need + 1 && !landing);
+        boolean drift = !up && !speedy() && !(landIn > 0 && landIn <= need + 1 && !landing);
         float pitchNow = mc.player.getXRot();
         float downTo = drift ? pitchNow + Math.max(-mouseSpeed.get().floatValue(), Math.min(mouseSpeed.get().floatValue(), aimPitch - pitchNow)) : aimPitch;
         mc.options.keyUp.setDown(false);
@@ -579,6 +601,7 @@ public class TellyBridge extends Module {
         }
 
         // Drag click at cps, while the crosshair is on the spot
+        if (phase == 2 && !spotAhead && onSpot && stepIndex != Integer.MIN_VALUE && !bumpSpot) runStart = stepIndex;
         if (phase == 2 && !spotAhead && (up ? onSpot : flatClick(level))) {
             clicks += cps.get() / 20.0;
             while (clicks >= 1) {
@@ -610,6 +633,8 @@ public class TellyBridge extends Module {
         mc.options.keyJump.setDown(true);
         pressedJump = true;
         jumps++;
+        airT = 0;
+        runStart = Integer.MAX_VALUE;
         bumped = false;
         int[] here = last(floorY);
         takeoffEnd = here == null ? 0 : index(here);
@@ -659,13 +684,12 @@ public class TellyBridge extends Module {
     }
 
     /**
-     * The last block of the run being built at this level: like last(), but a block further back than one
-     * behind the end of the level below is not part of it. That is the bump of the run before.
+     * The last block of the run this jump is building at this level: a block of that level from the step
+     * of this jump on. Blocks further back are bumps of earlier jumps.
      */
     private int[] run(int level) {
-        int[] end = last(level), low = last(level - 1);
-        if (end == null || low == null) return end;
-        return index(end) < index(low) - 1 ? null : end;
+        int[] end = last(level);
+        return end != null && runStart != Integer.MAX_VALUE && index(end) >= runStart ? end : null;
     }
 
     private int[] last(int level) {
