@@ -1,5 +1,6 @@
 package aicoder.combat;
 
+import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.mixin.KeyMappingAccessor;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -134,6 +135,9 @@ public class TellyBridge extends Module {
     private int floorY, lineX, lineZ;
     private int restSlot = -1;
     private boolean running, air, pressedJump, reversed;
+    /** Where the camera pointed a tick ago and where it points this tick; frames glide between them. */
+    private float fromYaw, fromPitch, toYaw, toPitch;
+    private boolean steering;
     private boolean rising() {
         return mode.get() == Mode.Speed;
     }
@@ -183,6 +187,7 @@ public class TellyBridge extends Module {
         reversed = false;
         phase = 0;
         jumps = 0;
+        steering = false;
         running = true;
         noteFloor();
     }
@@ -191,6 +196,12 @@ public class TellyBridge extends Module {
     public void onDeactivate() {
         if (!running) return;
         running = false;
+        if (steering && mc.player != null) {
+            // Leave the camera where the last tick put it
+            mc.player.setYRot(toYaw);
+            mc.player.setXRot(toPitch);
+        }
+        steering = false;
         // Leave every key as the keyboard has it
         mc.options.keyUp.setDown(Input.isPressed(mc.options.keyUp));
         mc.options.keyDown.setDown(Input.isPressed(mc.options.keyDown));
@@ -202,8 +213,42 @@ public class TellyBridge extends Module {
         if (mc.player != null && restoreSlot.get() && restSlot >= 0) mc.player.getInventory().setSelectedSlot(restSlot);
     }
 
+    /**
+     * The camera is moved, not placed. Each tick works out where it should point and the game uses that for
+     * the tick, but what you see glides there from where it pointed the tick before, frame by frame, the
+     * way a mouse movement looks. While the module steers, your own mouse is left out: every frame the
+     * camera is put back on that path, so moving the mouse cannot spoil the bridge.
+     */
     @EventHandler
     private void onTick(TickEvent.Pre event) {
+        if (!running || mc.player == null) {
+            step();
+            return;
+        }
+        // Back to where the last tick left it, whatever the frames and the mouse did since
+        if (steering) {
+            mc.player.setYRot(toYaw);
+            mc.player.setXRot(toPitch);
+        }
+        float beforeYaw = mc.player.getYRot(), beforePitch = mc.player.getXRot();
+        step();
+        if (!running || mc.player == null) return;
+        fromYaw = steering ? toYaw : beforeYaw;
+        fromPitch = steering ? toPitch : beforePitch;
+        toYaw = mc.player.getYRot();
+        toPitch = mc.player.getXRot();
+        steering = true;
+    }
+
+    @EventHandler
+    private void onRender(Render3DEvent event) {
+        if (!running || !steering || mc.player == null) return;
+        float t = Math.max(0, Math.min(1, event.tickDelta));
+        mc.player.setYRot(fromYaw + wrap(toYaw - fromYaw) * t);
+        mc.player.setXRot(fromPitch + (toPitch - fromPitch) * t);
+    }
+
+    private void step() {
         if (!running) return;
         if (mc.player == null || mc.level == null) {
             toggle();

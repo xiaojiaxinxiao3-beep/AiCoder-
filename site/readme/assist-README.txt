@@ -37,6 +37,8 @@ In the game
   the moment it lands, turns round as soon as it is off the ground and builds one block higher
   on every jump, a staircase going up. "Bumps" adds one block on top of the second block of
   every jump. "Max Pitch" is how far down the camera looks while turned round.
+  The camera glides from one direction to the next. While Telly Bridge is on, moving your own
+  mouse does nothing; it works again when the module stops.
   "Bridge Mode" Diagonal: backwards the whole way, back and one strafe key
   held ("Side" picks left or right), hopping, never sneaking. For this mode stand with your back
   to where the bridge should go: it turns the camera 45 degrees to the chosen side and keeps it
