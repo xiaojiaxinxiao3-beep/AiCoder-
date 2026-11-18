@@ -229,7 +229,10 @@ public class TellyBridge extends Module {
         if (!running || mc.player == null) return;
         fromYaw = steering ? toYaw : beforeYaw;
         fromPitch = steering ? toPitch : beforePitch;
-        toYaw = mc.player.getYRot();
+        // The same way round every time: half a turn is never taken as the other half
+        float turned = wrap(mc.player.getYRot() - fromYaw);
+        if (Math.abs(Math.abs(turned) - 180) < 1) turned = 180;
+        toYaw = fromYaw + turned;
         toPitch = mc.player.getXRot();
         steering = true;
     }
@@ -238,7 +241,7 @@ public class TellyBridge extends Module {
     private void onRender(Render3DEvent event) {
         if (!running || !steering || mc.player == null) return;
         float t = Math.max(0, Math.min(1, event.tickDelta));
-        mc.player.setYRot(fromYaw + wrap(toYaw - fromYaw) * t);
+        mc.player.setYRot(fromYaw + (toYaw - fromYaw) * t);
         mc.player.setXRot(fromPitch + (toPitch - fromPitch) * t);
     }
 
@@ -343,6 +346,22 @@ public class TellyBridge extends Module {
      */
     private void telly() {
         if (mc.player.onGround()) {
+            // Landed still turned round: forward the same way round as always (through your left),
+            // not whichever way is shorter, which at half a turn could be either
+            if (phase == 1 || phase == 2) {
+                phase = 3;
+                phaseTick = 1;
+                mc.player.setYRot(forwardYaw + 270);
+                mc.player.setXRot((mc.player.getXRot() + 20) / 2);
+                mc.options.keyLeft.setDown(false);
+                mc.options.keyRight.setDown(false);
+                forward();
+                return;
+            }
+            if (phase == 3) {
+                mc.player.setYRot(forwardYaw + 360);
+                mc.player.setXRot(20);
+            }
             phase = 0;
             reversed = false;
             // The flat bridge stays on the level it started on, also when you land on a block that
