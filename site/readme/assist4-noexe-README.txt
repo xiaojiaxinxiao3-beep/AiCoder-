@@ -39,6 +39,9 @@ In the game
   the ground (back, then back and left held), drag clicks right click at "Cps" all the way, and turns
   forward just before landing (right half way, then forward). Every jump builds one block higher, so
   the bridge is a staircase going up, three or four blocks a step. Press back or sneak to stop.
+  It always starts with one ordinary telly: it runs to the very edge of the block before the first
+  jump. "Rise" off keeps the bridge flat instead. "Max Pitch" is how far down the camera looks
+  while turned round; it only clicks with the crosshair on the block it is aiming at.
 - Wind Jump now throws the charge one tick before the jump key ("Throw Timing" -1), which measured
   about 11 blocks instead of about 9.
 - Offhand Totem (Utility): when your off hand has no totem it opens the inventory, moves the mouse
