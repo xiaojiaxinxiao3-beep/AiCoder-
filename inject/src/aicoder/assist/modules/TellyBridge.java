@@ -78,6 +78,24 @@ public class TellyBridge extends Module {
         .build()
     );
 
+    private final Setting<Boolean> rise = sgGeneral.add(new BoolSetting.Builder()
+        .name("rise")
+        .description("Speed mode: on builds one block higher on every jump, a staircase going up. Off keeps the bridge flat, one straight line.")
+        .defaultValue(true)
+        .visible(() -> mode.get() == Mode.Speed)
+        .build()
+    );
+
+    private final Setting<Double> maxPitch = sgGeneral.add(new DoubleSetting.Builder()
+        .name("max-pitch")
+        .description("Speed mode: the furthest down the camera looks while turned round, in degrees. 90 is straight down. Only when you are two ticks from landing with no block there yet does it look further down.")
+        .defaultValue(80)
+        .range(60, 89)
+        .sliderRange(60, 89)
+        .visible(() -> mode.get() == Mode.Speed)
+        .build()
+    );
+
     private final Setting<Double> turnSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("turn-speed")
         .description("Telly and Diagonal modes: most degrees the camera turns per tick. 180 turns around at once, lower is smoother but places fewer blocks. Speed mode always takes two ticks for each half turn.")
@@ -132,8 +150,8 @@ public class TellyBridge extends Module {
     private int airTicks;
     /** Speed mode: 0 facing forward, 1 turning round, 2 round, 3 turning forward. */
     private int phase, phaseTick;
-    /** Speed mode: ticks the camera still stays where it was last pointed; clicks still to make. */
-    private int hold;
+    /** Speed mode: jumps made since it was switched on. */
+    private int jumps;
     private double clicks;
 
     public TellyBridge() {
@@ -171,6 +189,7 @@ public class TellyBridge extends Module {
         air = false;
         reversed = false;
         phase = 0;
+        jumps = 0;
         running = true;
         noteFloor();
     }
@@ -372,9 +391,14 @@ public class TellyBridge extends Module {
             mc.options.keyRight.setDown(false);
             turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
             forward();
-            if (facing(forwardYaw)) {
+            // The first jump is an ordinary telly: run to the very edge of the block, then jump.
+            // After it, jump the moment you land.
+            double lip = 0.1;
+            boolean edge = !solid(floor(mc.player.getX() + dx * lip), floorY, floor(mc.player.getZ() + dz * lip));
+            if (facing(forwardYaw) && (jumps > 0 || edge)) {
                 mc.options.keyJump.setDown(true);
                 pressedJump = true;
+                jumps++;
             }
             return;
         }
@@ -383,8 +407,9 @@ public class TellyBridge extends Module {
         double vy = mc.player.getDeltaMovement().y;
         double vh = mc.player.getDeltaMovement().x * dx + mc.player.getDeltaMovement().z * dz;
         // This jump builds one block up. Already falling below that with no step in: the level you left.
-        int level = floorY + 1;
-        if (vy < 0 && feetY < level + 1 - 0.01 && last(level) == null) level = floorY;
+        // The first jump stays on the level you left
+        int level = rise.get() && jumps > 1 ? floorY + 1 : floorY;
+        if (level > floorY && vy < 0 && feetY < level + 1 - 0.01 && last(level) == null) level = floorY;
         int[] end = last(level);
         int[] below = end == null ? last(level - 1) : null;
 
@@ -403,31 +428,49 @@ public class TellyBridge extends Module {
         }
         boolean landing = landIn > 0 && under(advance, level);
 
-        // Where to look while round
-        float aimYaw = forwardYaw + 180, aimPitch = 78;
-        if (end != null || below != null) {
-            int[] from = end != null ? end : below;
-            double plane = dx != 0 ? from[0] + 0.5 + dx * 0.5 : from[1] + 0.5 + dz * 0.5;
-            double fx, fy, fz;
-            if (end != null) {
-                // The side of the last block, a little above its middle
-                fx = dx != 0 ? plane : clamp(ex, end[0] + 0.12, end[0] + 0.88);
-                fz = dz != 0 ? plane : clamp(ez, end[1] + 0.12, end[1] + 0.88);
-                fy = level + 0.7;
-            } else {
-                // The step: the top of the last block of the level below, at its edge nearest to you
-                // (or right under you)
-                int sign = dx != 0 ? dx : dz;
-                double at = Math.min(dx != 0 ? ex * dx : ez * dz, plane * sign - 0.3) * sign;
-                fx = dx != 0 ? at : clamp(ex, below[0] + 0.12, below[0] + 0.88);
-                fz = dz != 0 ? at : clamp(ez, below[1] + 0.12, below[1] + 0.88);
-                // Just under the top, so the line of sight comes in through the top and not the side
-                fy = level - 0.02;
-            }
+        // Where to look while round. The camera never tilts further down than max-pitch, and a click is
+        // only made with the crosshair on the spot.
+        // Two ticks from coming down with nothing there yet is the one time it looks further down
+        float cap = landIn > 0 && landIn <= 2 && !landing ? 89 : maxPitch.get().floatValue();
+        float aimYaw = forwardYaw + 180, aimPitch = cap;
+        boolean onSpot = false;
+        int sign = dx != 0 ? dx : dz;
+        double along = dx != 0 ? ex * dx : ez * dz;
+        double fx = 0, fy = 0, fz = 0;
+        boolean spot = false;
+        if (end != null) {
+            // The side of the last block, near its top
+            double plane = dx != 0 ? end[0] + 0.5 + dx * 0.5 : end[1] + 0.5 + dz * 0.5;
+            double beyond = dx != 0 ? (ex - plane) * dx : (ez - plane) * dz;
+            fx = dx != 0 ? plane : clamp(ex, end[0] + 0.12, end[0] + 0.88);
+            fz = dz != 0 ? plane : clamp(ez, end[1] + 0.12, end[1] + 0.88);
+            fy = level + 0.95;
+            spot = true;
+            onSpot = beyond >= 0.08 && replaceable(end[0] + dx, level, end[1] + dz);
+        } else if (below != null) {
+            // The step: the top of a block of the level below, far enough behind you for the camera
+            // not to have to look further down than max-pitch
+            double plane = dx != 0 ? below[0] + 0.5 + dx * 0.5 : below[1] + 0.5 + dz * 0.5;
+            double back = Math.max(0.3, (ey - level) / Math.tan(Math.toRadians(cap)));
+            double at = Math.min(along - back, plane * sign - 0.15) * sign;
+            int cx = dx != 0 ? floor(at) : lineX, cz = dz != 0 ? floor(at) : lineZ;
+            fx = dx != 0 ? at : clamp(ex, cx + 0.12, cx + 0.88);
+            fz = dz != 0 ? at : clamp(ez, cz + 0.12, cz + 0.88);
+            // Just under the top, so the line of sight comes in through the top and not the side
+            fy = level - 0.02;
+            spot = true;
+            // It fits once your feet are above it or you are past it
+            double front = sign > 0 ? floor(at) + 1 : -floor(at);
+            boolean clear = feetY >= level + 1 + 0.01 || along - 0.3 > front + 0.01;
+            onSpot = clear && solid(cx, level - 1, cz) && replaceable(cx, level, cz);
+        }
+        if (spot) {
             double ax = fx - ex, ay = fy - ey, az = fz - ez;
             double flat = Math.sqrt(ax * ax + az * az);
-            aimPitch = (float) -Math.toDegrees(Math.atan2(ay, flat));
+            float pitch = (float) -Math.toDegrees(Math.atan2(ay, flat));
             if (flat >= 0.15) aimYaw = (float) Math.toDegrees(Math.atan2(-ax, az));
+            if (pitch > cap + 0.5f) onSpot = false;
+            aimPitch = Math.min(pitch, cap);
         }
 
         if (phase == 0 && !landing) {
@@ -462,22 +505,16 @@ public class TellyBridge extends Module {
                 mc.player.setYRot(aimYaw);
                 mc.player.setXRot(aimPitch);
                 mc.options.keyLeft.setDown(aside < 0.08);
-                hold = 1;
                 phase = 2;
             }
         } else if (phase == 2) {
-            // Round: back and left held; right instead of left once you are off to that side
+            // Round: back and left held; right instead of left once you are off to that side.
+            // The crosshair stays on the spot.
             mc.options.keyDown.setDown(true);
             mc.options.keyLeft.setDown(aside < 0.08);
             mc.options.keyRight.setDown(aside > 0.16);
-            // About to come down with nothing there yet: no waiting
-            if (hold <= 0 || landIn > 0 && landIn <= 3 && !landing) {
-                mc.player.setYRot(aimYaw);
-                mc.player.setXRot(aimPitch);
-                hold = 1;
-            } else {
-                hold--;
-            }
+            mc.player.setYRot(aimYaw);
+            mc.player.setXRot(aimPitch);
         } else {
             // Half a turn forward in two ticks, through your left: right half way, forward again at the end
             phaseTick++;
@@ -496,11 +533,15 @@ public class TellyBridge extends Module {
             }
         }
 
-        // Drag click: right click at cps, all the way through
-        clicks += cps.get() / 20.0;
-        while (clicks >= 1) {
-            clicks -= 1;
-            KeyMapping.click(Input.keyOf(mc.options.keyUse));
+        // Drag click at cps, while the crosshair is on the spot
+        if (phase == 2 && onSpot) {
+            clicks += cps.get() / 20.0;
+            while (clicks >= 1) {
+                clicks -= 1;
+                KeyMapping.click(Input.keyOf(mc.options.keyUse));
+            }
+        } else {
+            clicks = Math.max(clicks, 1);
         }
     }
 
