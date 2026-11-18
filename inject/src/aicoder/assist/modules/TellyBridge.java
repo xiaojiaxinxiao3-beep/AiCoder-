@@ -49,7 +49,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same keys and the same sprint, but a jump that starts facing forward turns round early, while you are still high, so the blocks go in one level up and you land on them. A jump that starts still turned round is filled in late and flat. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same keys and the same sprint, but a jump that starts facing forward turns round early, while you are still high, so the blocks go in one level up and you land on them. It takes turns with a jump on along the level. This needs Turn Ticks at 2: with slower turns there is no time to turn round early, and the bridge stays flat. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
@@ -90,7 +90,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Integer> turnTicks = sgGeneral.add(new IntSetting.Builder()
         .name("turn-ticks")
-        .description("Telly and Telly Up modes: how many ticks half a turn takes, round and forward again. More is slower and easier on the eyes, and leaves less time for placing. Speed mode always takes two.")
+        .description("Telly and Telly Up modes: how many ticks half a turn takes, round and forward again. More is slower and easier on the eyes, and leaves less time for placing: above 2, Telly Up cannot go up any more. Speed mode always takes two.")
         .defaultValue(4)
         .range(2, 6)
         .sliderRange(2, 6)
@@ -384,7 +384,9 @@ public class TellyBridge extends Module {
                     phaseTick = 0;
                 }
                 turnForward(speedy() ? 2 : turnTicks.get());
-                takeOff(speedy());
+                // With half a turn in two ticks there is time to face forward and turn round again
+                // early enough to go up; with slower turns there is not
+                takeOff(speedy() || rising() && turnTicks.get() <= 2);
                 return;
             }
             phase = 0;
@@ -648,7 +650,8 @@ public class TellyBridge extends Module {
      * turned round leaves no time for that, and that jump is filled in late and flat instead.
      */
     private void takeOff(boolean mayGoUp) {
-        upJump = mayGoUp && jumps >= 1;
+        // Telly Up takes turns: a jump on along the level, then one up
+        upJump = mayGoUp && jumps >= 1 && (speedy() || !upJump);
         mc.options.keyJump.setDown(true);
         pressedJump = true;
         jumps++;
