@@ -100,7 +100,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Double> mouseSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("mouse-speed")
-        .description("Telly and Telly Up modes: the most degrees a tick the camera comes down after turning round. The pull down follows a curve (see Pull Curve), hardly moving at first and then faster and faster, reaching this speed after six ticks, while right click is drag clicked. Lower puts more blocks on top of the bridge instead of on its end.")
+        .description("Telly and Telly Up modes: degrees a tick the camera comes down after turning round, while the crosshair is still on nothing. From the tick it comes onto the bridge it slows right down and speeds up again along Pull Curve, back to this speed after six ticks, so some clicks land on top of the blocks.")
         .defaultValue(45)
         .range(2, 90)
         .sliderRange(2, 90)
@@ -110,8 +110,8 @@ public class TellyBridge extends Module {
 
     private final Setting<Double> pullCurve = sgGeneral.add(new DoubleSetting.Builder()
         .name("pull-curve")
-        .description("Telly and Telly Up modes: how sharply the pull down speeds up. 1 is an even speed; higher is slower at the start and faster at the end.")
-        .defaultValue(4)
+        .description("Telly and Telly Up modes: how the pull down speeds up again after the crosshair has come onto the bridge. 1 is evenly; higher stays slow on the bridge for longer and is faster at the end.")
+        .defaultValue(2)
         .range(1, 8)
         .sliderRange(1, 8)
         .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
@@ -173,8 +173,9 @@ public class TellyBridge extends Module {
     private boolean upJump;
     /** Ticks in the air this jump, and where the run of this jump starts (its step), if it is in. */
     private int airT, runStart = Integer.MAX_VALUE;
-    /** Ticks since the turn round of this jump began; the pull down speeds up with it. */
+    /** Ticks since the crosshair first came onto the bridge in this turn round; the pull down speeds up with it. */
     private int downT;
+    private boolean touched;
     private boolean bumped;
     private double clicks;
 
@@ -550,6 +551,7 @@ public class TellyBridge extends Module {
             phaseTick = 0;
             clicks = 0;
             downT = 0;
+            touched = false;
         } else if (phase == 2 && landing && landIn <= n) {
             phase = 3;
             phaseTick = 0;
@@ -569,11 +571,14 @@ public class TellyBridge extends Module {
         // Not when the bridge is a block behind you, or the landing has to be saved.
         boolean drift = !up && !speedy() && !(landIn > 0 && landIn <= need + 1 && !landing);
         float pitchNow = mc.player.getXRot();
-        // The pull down follows a curve: hardly moving at first, then faster and faster. Its speed
-        // grows with the time since the turn began raised to pull-curve, up to mouse-speed after six
-        // ticks: 1 is a straight line, 2 a parabola, 4 and more stay slow for long and then shoot down.
-        downT++;
-        float most = mouseSpeed.get().floatValue() * (float) Math.pow(Math.min(1.0, downT / 6.0), pullCurve.get());
+        // The pull down: at mouse-speed while the crosshair is still on nothing, then, from the tick
+        // it first comes onto the bridge, slowly, so that it stays on the tops of the blocks for a
+        // while, and faster and faster again down to your feet. From that tick the speed grows with
+        // time raised to pull-curve, back up to mouse-speed after six ticks.
+        if (!touched && seesBlock()) touched = true;
+        if (touched) downT++;
+        float most = !touched ? mouseSpeed.get().floatValue()
+            : Math.max(1.5f, mouseSpeed.get().floatValue() * (float) Math.pow(Math.min(1.0, downT / 6.0), pullCurve.get()));
         float downTo = drift ? pitchNow + Math.max(-most, Math.min(most, aimPitch - pitchNow)) : aimPitch;
         if (phase == 1) {
             // Half a turn to the right in n ticks. Back is pressed as soon as forward is let go of.
@@ -691,6 +696,17 @@ public class TellyBridge extends Module {
     }
 
     /** The last solid block of the bridge at this level, from where you are back: {x, z}, or null within seven. */
+    /** Whether the camera points at a block within reach now. */
+    private boolean seesBlock() {
+        double yaw = Math.toRadians(mc.player.getYRot()), pitch = Math.toRadians(mc.player.getXRot());
+        double vx = -Math.sin(yaw) * Math.cos(pitch), vy = -Math.sin(pitch), vz = Math.cos(yaw) * Math.cos(pitch);
+        double ox = mc.player.getX(), oy = mc.player.getEyeY(), oz = mc.player.getZ();
+        for (double t = 0.05; t < 4.4; t += 0.05) {
+            if (solid(floor(ox + vx * t), floor(oy + vy * t), floor(oz + vz * t))) return true;
+        }
+        return false;
+    }
+
     /**
      * The flat bridge: whether a click where the camera points now does one of the two things wanted,
      * a block on top of a block of the bridge (nothing on top of that) or a block on the end of the bridge.
