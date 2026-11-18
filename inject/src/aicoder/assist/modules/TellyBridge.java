@@ -86,6 +86,14 @@ public class TellyBridge extends Module {
         .build()
     );
 
+    private final Setting<Boolean> bumps = sgGeneral.add(new BoolSetting.Builder()
+        .name("bumps")
+        .description("Speed mode: one more block on top of the second block of every jump, the way a speed telly bridge looks.")
+        .defaultValue(true)
+        .visible(() -> mode.get() == Mode.Speed)
+        .build()
+    );
+
     private final Setting<Double> maxPitch = sgGeneral.add(new DoubleSetting.Builder()
         .name("max-pitch")
         .description("Speed mode: the furthest down the camera looks while turned round, in degrees. 90 is straight down. Only when you are two ticks from landing with no block there yet does it look further down.")
@@ -152,6 +160,9 @@ public class TellyBridge extends Module {
     private int phase, phaseTick;
     /** Speed mode: jumps made since it was switched on. */
     private int jumps;
+    /** Speed mode: where the bridge ended when this jump began, and whether its bump is in. */
+    private int takeoffEnd;
+    private boolean bumped;
     private double clicks;
 
     public TellyBridge() {
@@ -399,6 +410,9 @@ public class TellyBridge extends Module {
                 mc.options.keyJump.setDown(true);
                 pressedJump = true;
                 jumps++;
+                bumped = false;
+                int[] here = last(floorY);
+                takeoffEnd = here == null ? 0 : index(here);
             }
             return;
         }
@@ -409,8 +423,9 @@ public class TellyBridge extends Module {
         // This jump builds one block up. Already falling below that with no step in: the level you left.
         // The first jump stays on the level you left
         int level = rise.get() && jumps > 1 ? floorY + 1 : floorY;
-        if (level > floorY && vy < 0 && feetY < level + 1 - 0.01 && last(level) == null) level = floorY;
-        int[] end = last(level);
+        if (level > floorY && vy < 0 && feetY < level + 1 - 0.01 && run(level) == null) level = floorY;
+        boolean up = level > floorY;
+        int[] end = up ? run(level) : last(level);
         int[] below = end == null ? last(level - 1) : null;
 
         // When and where you come down on this level: the game adds the push of the keys, moves, then
@@ -463,6 +478,41 @@ public class TellyBridge extends Module {
             double front = sign > 0 ? floor(at) + 1 : -floor(at);
             boolean clear = feetY >= level + 1 + 0.01 || along - 0.3 > front + 0.01;
             onSpot = clear && solid(cx, level - 1, cz) && replaceable(cx, level, cz);
+        }
+        // The bump: one block on top of the second block of this jump, once you are clear of it and
+        // it is not the moment to save the landing
+        if (bumps.get() && !bumped && !(landIn > 0 && landIn <= 3 && !landing)) {
+            int i = Integer.MIN_VALUE;
+            if (up) {
+                int[] low = last(level - 1);
+                if (low != null) {
+                    int at = index(low);
+                    i = (solid(low[0], level, low[1]) ? at : at - 1) + 1;
+                }
+            } else if (jumps > 0) {
+                i = takeoffEnd + 2;
+            }
+            if (i != Integer.MIN_VALUE) {
+                int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
+                if (!replaceable(bx, level + 1, bz)) {
+                    bumped = solid(bx, level, bz);
+                } else if (solid(bx, level, bz)) {
+                    double front = sign > 0 ? i + 1 : i;
+                    boolean clear = feetY >= level + 2 + 0.01 || along - 0.3 > front + 0.01;
+                    double at = (front - 0.2) * sign;
+                    double tx = dx != 0 ? at : clamp(ex, bx + 0.12, bx + 0.88), tz = dz != 0 ? at : clamp(ez, bz + 0.12, bz + 0.88);
+                    double ty = level + 1 - 0.02;
+                    double flat = Math.sqrt((tx - ex) * (tx - ex) + (tz - ez) * (tz - ez));
+                    float pitch = (float) -Math.toDegrees(Math.atan2(ty - ey, flat));
+                    if (clear && pitch <= cap) {
+                        fx = tx;
+                        fy = ty;
+                        fz = tz;
+                        spot = true;
+                        onSpot = true;
+                    }
+                }
+            }
         }
         if (spot) {
             double ax = fx - ex, ay = fy - ey, az = fz - ez;
@@ -557,6 +607,21 @@ public class TellyBridge extends Module {
     }
 
     /** The last solid block of the bridge at this level, from where you are back: {x, z}, or null within seven. */
+    /** How far along the bridge a block is, in blocks, growing the way you go. */
+    private int index(int[] block) {
+        return dx != 0 ? block[0] * dx : block[1] * dz;
+    }
+
+    /**
+     * The last block of the run being built at this level: like last(), but a block further back than one
+     * behind the end of the level below is not part of it. That is the bump of the run before.
+     */
+    private int[] run(int level) {
+        int[] end = last(level), low = last(level - 1);
+        if (end == null || low == null) return end;
+        return index(end) < index(low) - 1 ? null : end;
+    }
+
     private int[] last(int level) {
         int along = dx != 0 ? floor(mc.player.getX()) * dx : floor(mc.player.getZ()) * dz;
         for (int i = 0; i < 7; i++) {
