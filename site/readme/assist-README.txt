@@ -27,23 +27,20 @@ In the game
 - Every module has a BIND section at the bottom of its settings: click Key and press a key
   (Esc or right click clears it), Mode is TOGGLE or HOLD.
 - Telly Bridge (Utility): stand on the ground holding blocks in the hotbar, face the way the bridge
-  should go and switch it on (give it a key in BIND). It sprints to the edge, jumps, turns around in
-  the air, places blocks and turns forward before landing. Straight north/south/east/west only.
+  should go and switch it on (give it a key in BIND). Straight north/south/east/west only.
   It stops when you press back or sneak, open a screen, run out of blocks or fall.
-  Its setting "Bridge Mode" also has Diagonal: backwards the whole way, back and one strafe key
+  "Bridge Mode" Telly is the ordinary telly: it sprints to the very edge, jumps, flies on facing
+  forward, then turns round and fills in the blocks behind with a drag click ("Cps"), and turns
+  forward before landing. The bridge is flat. The camera comes down slowly while it clicks
+  ("Mouse Speed"), so about one block a jump lands on top of the bridge; faster gives fewer.
+  "Bridge Mode" Speed is speed telly: the first jump is an ordinary telly, after that it jumps
+  the moment it lands, turns round as soon as it is off the ground and builds one block higher
+  on every jump, a staircase going up. "Bumps" adds one block on top of the second block of
+  every jump. "Max Pitch" is how far down the camera looks while turned round.
+  "Bridge Mode" Diagonal: backwards the whole way, back and one strafe key
   held ("Side" picks left or right), hopping, never sneaking. For this mode stand with your back
   to where the bridge should go: it turns the camera 45 degrees to the chosen side and keeps it
   there. There is no half turn. Press forward or sneak to stop.
-  "Bridge Mode" Speed is speed telly: it jumps the moment it lands, turns round as soon as it is off
-  the ground (back, then back and left held), drag clicks right click at "Cps" all the way, and turns
-  forward just before landing (right half way, then forward). Every jump builds one block higher, so
-  the bridge is a staircase going up, three or four blocks a step. Press back or sneak to stop.
-  It always starts with one ordinary telly: it runs to the very edge of the block before the first
-  jump. "Rise" off keeps the bridge flat instead. "Max Pitch" is how far down the camera looks
-  while turned round; it only clicks with the crosshair on the block it is aiming at.
-  With "Rise" on, "Bumps" adds one block on top of the second block of every jump. With "Rise" off
-  the camera comes down slowly ("Mouse Speed") while it keeps clicking, so some blocks land on top
-  of the bridge instead of on its end; a faster "Mouse Speed" gives fewer of them.
 - Mace Dive has a "Spear Mode": it dives on a firework with a spear held level, and on three ticks
   in a row the spear hits, the chestplate goes on and the mace hits. Needs a spear in the hotbar.
   Tested with Height 20 and Attack Range 1.99. Mace Dive also no longer loses its target when
