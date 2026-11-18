@@ -9,7 +9,7 @@ JD=${JAVA_HOME:-/opt/jdk/jdk-25.0.5+8}/bin
 # V=1.21.4 ./build.sh builds for another game version: its files are in work-$V/ (see tools/fetch.py), its
 # sources are made from src/ by tools/port_version.py, and the result is work-$V/AiCoderAssist-$V.jar.
 V=${V:-1.21.11}
-if [ "$V" = 1.21.11 ]; then W=work; SRC=src; OUT=AiCoderAssist; GAME=${GAME_JAR:-$HOME/.gradle/caches/fabric-loom/1.21.11/minecraft-client.jar}
+if [ "$V" = 1.21.11 ]; then W=work; SRC=src; OUT=AiCoderAssist; GAME=${GAME_JAR:-$HOME/.gradle/caches/fabric-loom/1.21.11/minecraft-client.jar}; [ -f "$GAME" ] || GAME=$W/minecraft-client.jar
 else W=work-$V; SRC=$W/src; OUT=AiCoderAssist-$V; GAME=$W/minecraft-client.jar; [ -f $W/remapper-cp.txt ] || cp work/remapper-cp.txt $W/; fi
 ASM=$(tr ':' '\n' < $W/remapper-cp.txt | grep '/asm-9' | head -1)
 REMAP="$JD/java -cp $(cat $W/remapper-cp.txt) net.fabricmc.tinyremapper.Main"

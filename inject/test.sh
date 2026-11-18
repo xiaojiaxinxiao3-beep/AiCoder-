@@ -7,7 +7,7 @@ JD=${JAVA_HOME:-/opt/jdk/jdk-25.0.5+8}/bin
 export XDG_RUNTIME_DIR=/tmp/xdg-rt LIBGL_ALWAYS_SOFTWARE=1 DISPLAY=:77
 # V=1.21.4 ./test.sh tests the build for another version (files from tools/fetch.py in work-$V/)
 V=${V:-1.21.11}
-if [ "$V" = 1.21.11 ]; then W=$PWD/work; JAR=AiCoderAssist.jar; INDEX=1.21.11-29; else W=$PWD/work-$V; JAR=AiCoderAssist-$V.jar; INDEX=$(cat $W/asset-index.txt); fi
+if [ "$V" = 1.21.11 ]; then W=$PWD/work; JAR=AiCoderAssist.jar; INDEX=$(cat $W/asset-index.txt 2>/dev/null || echo 1.21.11-29); else W=$PWD/work-$V; JAR=AiCoderAssist-$V.jar; INDEX=$(cat $W/asset-index.txt); fi
 mkdir -p $XDG_RUNTIME_DIR $W/game; chmod 700 $XDG_RUNTIME_DIR
 [ -f $W/game/options.txt ] || printf 'onboardAccessibility:false\ntutorialStep:none\nskipMultiplayerWarning:true\nrenderDistance:3\nmaxFps:60\npauseOnLostFocus:false\n' > $W/game/options.txt
 pkill -f "net.minecraft.client.main.[M]ain"; pkill -f "knot.[K]notClient"; sleep 2

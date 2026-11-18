@@ -1,4 +1,127 @@
-# 交接：把 Meteor addon 改成「不靠 Meteor 的注入式模組」
+# AiCoder Assist 交接（給接手的模型）
+
+這份文件分兩部分：
+- **第一部分（現況交接）**：這個客戶端現在是什麼狀態、怎麼從零把環境弄起來、哪些驗證過、哪些沒有、使用者在意什麼。接手先看這部分。
+- **第二部分**：把 Meteor addon 的模組轉成注入式模組的流程（較早寫的，內容仍然正確）。
+
+更細的實作筆記在 repo 根目錄的 `CLAUDE.md`（「模組 addon：戰鬥巨集」與「注入式客戶端」兩節）和 `inject/README.md`。
+
+---
+
+# 第一部分：現況交接
+
+## 1. 這是什麼
+AiCoder Assist 是使用者自己的 Minecraft Java 版客戶端，**不靠 Fabric mod、不靠 Meteor**：一個 jar 用 Java Attach API 注入到已經在跑的遊戲裡。
+
+- 支援：Minecraft **1.21.11** 與 **1.21.4**，原版或用 Fabric Loader 啟動的都可以（同一個 jar 自己判斷）
+- 成品：`inject/work/AiCoderAssist.jar`／`.exe`、`inject/work-1.21.4/AiCoderAssist-1.21.4.jar`／`.exe`（`work*/` 不進 repo）
+- 內容：15 個模組（1.21.4 是 13 個，沒有長矛的兩個）、選單（兩種版面、極光與液態玻璃兩種外觀、背景圖）、六個小遊戲、按鍵綁定、可自訂選單鍵、選用的授權檢查
+- 另有基岩版（`bedrock/`，C++，只送按鍵、不讀遊戲），和這份文件無關
+
+## 2. 從零開始（新的環境要先做這些）
+`inject/work*/` 不在 repo 裡，新環境是空的。先把遊戲檔和工具抓回來：
+
+```
+cd inject
+python3 tools/fetch.py 1.21.11 work            # 遊戲 jar、Mojang 對照表、函式庫、資源
+python3 tools/fetch.py 1.21.4  work-1.21.4
+python3 tools/fetch_remapper.py work           # tiny-remapper（寫出 work/remapper-cp.txt）
+python3 tools/fetch_fabric.py 1.21.11 work     # 要 Fabric 支援才需要
+python3 tools/fetch_fabric.py 1.21.4  work-1.21.4
+./build.sh                                     # → work/AiCoderAssist.jar、.exe
+V=1.21.4 ./build.sh                            # → work-1.21.4/AiCoderAssist-1.21.4.jar、.exe
+```
+
+- 需要：JDK（`JAVA_HOME`，預設找 `/opt/jdk/jdk-25.0.5+8`，編譯目標是 Java 21）、Python 3、mingw（只有 `.exe` 需要）、測試要 Xvfb／xdotool／ImageMagick
+- **這套「從零抓檔」的流程沒有在乾淨的機器上從頭跑完過**：`fetch.py 1.21.11` 與 `fetch_remapper.py` 各自驗證過會產生需要的檔案，但原本的環境是用 Loom 快取裡的遊戲 jar 建的。第一次跑如果卡住，先看 `build.sh` 開頭的註解
+- 模組原始碼**不在 `inject/`**：`inject/src/aicoder/assist/modules/` 是建置時由 `tools/port_modules.py` 從 `combat-macros/src/main/java/aicoder/combat/` 轉過來的。**改模組一律改 `combat-macros/`**，然後重跑 `./build.sh`。新增模組要改三處：`combat-macros` 的 `CombatAddon`、`inject/src/aicoder/assist/Client.java`、`inject/tools/port_modules.py` 的 `FILES`
+
+## 3. 測試
+```
+./test.sh --quickPlaySingleplayer "New World"                    # 原版 1.21.11
+V=1.21.4 ./test.sh --quickPlaySingleplayer "New World"
+FABRIC=1 ./test.sh --quickPlaySingleplayer "New World"           # Fabric
+```
+它在 `Xvfb :77` 上啟動遊戲再注入。操作用 xdotool；`site/test-tools/x.sh` 有三個輔助函式（`click x y`、`snap 名稱`、`chat "指令"`，用之前把裡面的 `$SP` 設成你的暫存資料夾）。
+
+- 模組的設定與綁定鍵可以事先寫進 `work*/game/aicoder-assist.properties`（例如 `wind-jump.bind=71`），注入版沒有聊天指令
+- 讀結果：`grep -a "CHAT" work*/game.log`
+- 不要用 `| tail` 接 `test.sh`；殺遊戲用 `pkill -f "client.main.[M]ain"`、`pkill -f "knot.[K]notClient"`
+- **世界檔 `New World` 不在 repo 裡**，新環境要自己先建一個（第一次不帶 `--quickPlaySingleplayer` 啟動，在遊戲裡建超平坦、創造、允許指令的世界，取名 New World）
+
+### 踩過的測試陷阱（每一個都曾讓我回報錯的結果）
+1. **舊橋**：測搭橋要換一條沒用過的路線，並先用 `/execute if block … air` 確認是空的。`/fill … air` 對沒載入的區塊會失敗。在舊橋上「搭橋」怎樣都不會掉
+2. **緩降效果**：測試角色身上如果有 `slow_falling`，伺服器的掉落距離永遠是 0，重錘沒有落下加成。先 `/effect clear`
+3. **判定方式**：「世界上沒有 TNT 礦車」不等於「炸了」，也可能根本沒放出去。要同時確認物品離開了快捷列
+4. **殘留方塊**：上一輪沒炸掉的鐵軌會讓下一輪選到錯的方塊。每輪清場
+5. **模組開著時打指令**：會吃到按鍵或被模組打斷。打指令前先關模組
+6. **看錯截圖**：曾把使用者截圖上的 20 看成 90。數字不確定就問
+
+## 4. 各功能的驗證狀態
+「實測」都是在 Linux 的單人世界。**沒有任何一項在 Windows 上或多人伺服器上驗證過**，使用者實際是在 Windows 上用。
+
+| 功能 | 狀態 |
+|---|---|
+| 注入、選單、兩種外觀、背景圖、小遊戲 | 1.21.11 與 1.21.4、原版與 Fabric 都實測過 |
+| Anchor／Crystal Macro、連點、Crosshair Drift、Wind Pearl、Mace Swap、Spear Lunge、Trigger Bot | 1.21.11 實測過；1.21.4 大多只確認編譯 |
+| Wind Jump（預設先丟後跳，`throw-timing` -1） | 1.21.11 實測：平均 11 格 |
+| Mace Dive（含 `spear-mode`） | 1.21.11 實測（高度 20、攻擊距離 1.99、鑽石長矛對鐵巨人） |
+| Spear Smash | 1.21.11 實測；穿鞘翅那條路徑只確認編譯 |
+| Offhand Totem | 1.21.11、1.21.4、Fabric 1.21.11 實測。使用者回報過 Windows 上「滑鼠不會動」，之後加了直接呼叫 `MouseHandler.onMove`，**使用者還沒回報修好了沒** |
+| Telly Bridge（Telly 與 Diagonal 兩種模式） | 1.21.11 實測；Diagonal 在 1.21.4 只確認編譯 |
+| Cart Bomb（`draw` 預設 4） | 1.21.11 實測 8/8，1.21.4 測過兩輪 |
+| 自訂選單鍵 | 1.21.11 實測 |
+| 授權（HWID 綁定） | 用本機測試伺服器，1.21.11／1.21.4／Fabric 都實測；Windows 的硬體指紋與 `start-license-server.bat` 沒有實機驗證 |
+
+## 5. 進行中與還沒做的事
+- **使用者說過會傳影片**，要把 Telly 搭橋改得像真人那樣「半空中放一坨方塊」（他嫌現在太平整）。影片還沒來。做的時候是照影片改成固定的搭法；如果目的是加隨機抖動讓反作弊認不出來，那個不做
+- **授權**：預設關閉（建置時沒給 `LICENSE_URL`／`LICENSE_PUBKEY` 就沒有授權檢查，下載頁上的是沒有的）。已經給過使用者一包本機測試用的東西（伺服器 jar、啟動腳本、5 組序號、連 127.0.0.1 的授權版客戶端）。使用者還沒有正式的授權伺服器
+- **下載頁沒有更新到最後幾次改動以外的東西**：見第 7 節
+
+## 6. 使用者的習慣與底線
+- 用**繁體中文**回覆。使用者的訊息很短、常有錯字（「長毛」是長矛、「慧星」是 Meteor、「鞘次」是鞘翅），不確定就問，但問題要具體
+- 使用者會在工作中途插話改需求，這很正常。每一步盡量短，做完先回報
+- 分支 `claude/new-session-bpyhbc`，直接 commit 並 push 到這個分支。**沒被要求不要開 PR**
+- 回報時要分清楚：進遊戲測過的、只確認編譯的、完全沒測的
+- **原則：只做原版按鍵會做的事**。點擊照抄 `Minecraft.startUseItem()`／`startAttack()` 的呼叫順序（`combat-macros` 的 `Clicks.java`），切物品只改選取的欄位，多按一下用 `KeyMapping.click(按鍵)`，視角是真的轉
+- **明確不做的事**（使用者要求過其中幾項，都拒絕了）：
+  - 躲避偵測：隱藏類別或行程、偽裝檔名、清痕跡、繞過啟動器或反作弊、為了過防毒而加殼、給轉頭加假的顫抖或失誤
+  - 用 ProGuard 混淆（類別名稱維持 `aicoder.assist.*`）
+  - 「下載的只是載入器，模組本體授權後才從伺服器抓下來執行」
+  - 網易版基岩版（要繞過它的保護）、讀基岩版的記憶體
+  - 小遊戲不要做成既有遊戲的名字或樣子
+
+## 7. 下載頁
+使用者是從一個 claude.ai Artifact 頁面下載成品的：<https://claude.ai/artifact/2gE73NCveR1ri1pgXGqaZF>（只有使用者本人能開）。
+
+- 產生方式：`python3 site/site.py <資料夾>`，資料夾裡要有 `template.html`、各張 `.jpg`、`zorynth.zip`，以及放成品的子資料夾 `pack/`、`pack121/`（Meteor 的 jar）、`assist/`、`assist-noexe/`、`assist4/`、`assist4-noexe/`、`bedrock/`。輸出 `aicoder-downloads.html`，再用 Artifact 工具以上面的網址發布（頁面上限 16MB，目前約 15.5MB，`capabilities` 的 `downloads` 會沿用）
+- `site/` 裡放了 `site.py`、`template.html`、圖片，以及各下載包附的 `README.txt`（`site/readme/`）。**成品 jar／exe 不在 repo**，要重新建置後放進對應的子資料夾
+- 更新客戶端時要一起改 `site/readme/assist*-README.txt`（英文，使用者下載包裡的說明）
+- 如果你的環境沒有 Artifact 工具，就把 jar 直接傳給使用者
+
+## 8. 檔案在哪
+```
+combat-macros/src/main/java/aicoder/combat/   ★ 模組的原始碼（Meteor 版，也是注入版的來源）
+inject/
+  build.sh  test.sh  README.md  HANDOFF.md
+  tools/      fetch.py fetch_fabric.py fetch_remapper.py（抓檔）、port_modules.py port_version.py（轉原始碼）、
+              gen_names.py fabric_names.py names.py tiny.py（名稱對照）、LicenseServer.java（測試用授權伺服器）
+  launcher/   launcher.c（exe）、AiCoderAssist.bat、start-license-server.bat
+  res/        字型、內建背景圖
+  src/aicoder/assist/
+    Agent.java Injector.java Client.java Hooks.java Names.java
+    api/      Meteor 的替身 API
+    gfx/      繪圖（Backend 是唯一和版本有關的）
+    aurora/   選單、兩種外觀、小遊戲
+    license/  HwidProvider、License
+    modules/  ★ 產生出來的，不要手改
+  src-1.21.4/ 1.21.4 專用的檔案（目前只有 gfx/Backend.java）
+site/         下載頁的產生器、圖片、下載包裡的 README、測試輔助腳本
+```
+
+---
+
+# 第二部分：把 Meteor addon 改成「不靠 Meteor 的注入式模組」
 
 這份文件給接手的 Claude Code 分頁看。目標是：拿一個寫給 Meteor Client 的模組（addon），讓它能注入到**執行中的原版或 Fabric 版 Minecraft**，不需要 Fabric mod、不需要 Meteor。
 

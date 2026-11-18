@@ -1,0 +1,500 @@
+<title>AiCoder 下載站</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column of release cards, each a screenshot beside its file details; a slim bar on top takes everything at once. */
+:root {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --line: #d8deea;
+  --fg: #141a29;
+  --muted: #586179;
+  --accent: #2f5fe0;
+  --accent-fg: #ffffff;
+  --ok: #17794a;
+  --warn: #a14b12;
+  --shot: #0d1220;
+  --display: "Space Grotesk", "Noto Sans TC", system-ui, sans-serif;
+  --body: "Noto Sans TC", system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c111d; --surface: #141b2b; --line: #26304a; --fg: #e8edf8; --muted: #97a3bf;
+    --accent: #7ea2ff; --accent-fg: #0b1020; --ok: #5fd39a; --warn: #f0a868; --shot: #070a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c111d; --surface: #141b2b; --line: #26304a; --fg: #e8edf8; --muted: #97a3bf;
+  --accent: #7ea2ff; --accent-fg: #0b1020; --ok: #5fd39a; --warn: #f0a868; --shot: #070a12;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-block: 40px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+header { display: flex; flex-direction: column; gap: 8px; }
+h1 {
+  font-family: var(--display);
+  font-size: clamp(28px, 5vw, 40px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0;
+  text-wrap: balance;
+}
+.lede { color: var(--muted); max-width: 62ch; margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.chip {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.all {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.all p { margin: 0; min-width: 0; }
+.all strong { font-weight: 700; }
+.all span { color: var(--muted); font-size: 13px; display: block; }
+
+.releases { display: flex; flex-direction: column; gap: 20px; }
+.release {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.shot { background: var(--shot); display: flex; align-items: center; min-width: 0; }
+.shot img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: cover; object-position: top center; }
+.info { padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+h2 { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1.25; margin: 0; text-wrap: balance; }
+.info p { margin: 0; }
+.info ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; }
+.info li + li { margin-top: 2px; }
+.file {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.file b { color: var(--fg); font-weight: 500; }
+.note { font-size: 13px; color: var(--warn); }
+.actions { margin-top: auto; padding-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+
+button.dl {
+  font: 700 15px/1 var(--body);
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+button.dl.alt { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+button.dl:hover { filter: brightness(1.08); }
+button.dl:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+button.dl:disabled { opacity: 0.55; cursor: default; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.status.ok { color: var(--ok); }
+.status.bad { color: var(--warn); }
+
+#unavailable {
+  padding: 14px 18px;
+  border: 1px solid var(--warn);
+  border-radius: 10px;
+  color: var(--warn);
+  background: var(--surface);
+}
+
+section.how { display: flex; flex-direction: column; gap: 10px; }
+h3 { font-family: var(--display); font-size: 18px; font-weight: 700; margin: 0; }
+ol { margin: 0; padding-left: 1.4em; max-width: 68ch; }
+ol li + li { margin-top: 6px; }
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  overflow-wrap: anywhere;
+}
+.fine { color: var(--muted); font-size: 13px; max-width: 68ch; margin: 0; }
+
+@media (max-width: 760px) {
+  .release { grid-template-columns: minmax(0, 1fr); }
+  .shot img { max-height: 260px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  button.dl { transition: filter 0.15s; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>AiCoder 下載站</h1>
+    <p class="lede">七個 Meteor Client 的 GUI 主題 addon，加上一個戰鬥巨集模組包（不含在「全部」裡）。每個都是獨立的 jar，可以只裝一個，也可以一起裝。Minecraft 26.3 和 1.21.11 各有一份，功能相同。</p>
+    <div class="meta">
+      <span class="chip">Minecraft 26.3 / 1.21.11</span>
+      <span class="chip">Fabric</span>
+      <span class="chip">需要 Meteor Client</span>
+      <span class="chip">Java 25（26.3）· Java 21（1.21.11）</span>
+    </div>
+  </header>
+
+  <div id="unavailable" hidden>這個檢視畫面無法儲存檔案。請在 claude.ai 的網頁版或桌面版開啟這個頁面再下載。</div>
+
+  <div class="all">
+    <p><strong>全部一次下載</strong><span>每個版本七個 jar，各約 %%KB_ALL%% KB</span></p>
+    <div class="actions">
+      <span class="status" id="st-all" role="status"></span>
+      <button class="dl" id="dl-all" data-key="all" data-name="AiCoder全部主題-26.3.zip">全部 26.3 版</button>
+      <button class="dl alt" id="dl-all121" data-key="all121" data-status="all" data-name="AiCoder全部主題-1.21.11.zip">全部 1.21.11 版</button>
+    </div>
+  </div>
+
+  <div class="releases">
+    <article class="release">
+      <div class="shot"><img alt="賽博龐克主題的遊戲內畫面：洋紅與青色的切角玻璃視窗" src="data:image/jpeg;base64,%%IMG_CYBER%%"></div>
+      <div class="info">
+        <h2>賽博龐克</h2>
+        <p>洋紅與青的切角玻璃視窗，六角形開關、分段滑桿，背景有資料雨和漂移的光點。</p>
+        <ul>
+          <li>會直接取代 Meteor 原本的主題</li>
+          <li>顏色、背景壓暗、資料雨都能在 GUI 分頁調整</li>
+        </ul>
+        <p class="file"><b>AiCoder賽博龐克.jar</b> · %%KB_CYBER%% KB · v0.3.0</p>
+        <p class="note">和其他「取代 Meteor 主題」的 addon 不能同時安裝。</p>
+        <div class="actions">
+          <button class="dl" id="dl-cyber" data-key="cyber" data-name="AiCoder賽博龐克.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-cyber121" data-key="cyber121" data-status="cyber" data-name="AiCoder賽博龐克-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-cyber" role="status"></span>
+        </div>
+      </div>
+    </article>
+
+    <article class="release">
+      <div class="shot"><img alt="地球科學十個主題的遊戲內畫面：地層、火山、冰河、深海、地形圖、大氣、地震儀、礦物晶體、衛星地球、琥珀化石" src="data:image/jpeg;base64,%%IMG_EARTH%%"></div>
+      <div class="info">
+        <h2>地球科學 · 十個主題</h2>
+        <p>地層、火山、冰河、深海、地形圖、大氣、地震儀、礦物晶體、衛星地球、琥珀化石。</p>
+        <ul>
+          <li>視窗標題列的 ◀ 03/10 ▶ 可以來回切換</li>
+          <li>也能在 GUI 分頁的 Theme 下拉選單直接選</li>
+          <li>Meteor 原本的主題會保留</li>
+        </ul>
+        <p class="file"><b>AiCoder地球科學.jar</b> · %%KB_EARTH%% KB · v1.0.0</p>
+        <div class="actions">
+          <button class="dl" id="dl-earth" data-key="earth" data-name="AiCoder地球科學.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-earth121" data-key="earth121" data-status="earth" data-name="AiCoder地球科學-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-earth" role="status"></span>
+        </div>
+      </div>
+    </article>
+
+    <article class="release">
+      <div class="shot"><img alt="液態玻璃主題的遊戲內畫面：藍紫色玻璃視窗，裡面透出壁紙" src="data:image/jpeg;base64,%%IMG_GLASS%%"></div>
+      <div class="info">
+        <h2>液態玻璃</h2>
+        <p>圓角玻璃視窗，兩種顏色由左上漸層到右下，玻璃裡有緩慢流動的光斑。</p>
+        <ul>
+          <li>兩個顏色都能自己選，即時生效</li>
+          <li>關掉 Color 就是沒有顏色的透明玻璃</li>
+          <li>面板裡可以顯示壁紙，內建一張，也能放自己的圖</li>
+        </ul>
+        <p class="file"><b>AiCoder液態玻璃.jar</b> · %%KB_GLASS%% KB · v1.0.0</p>
+        <div class="actions">
+          <button class="dl" id="dl-glass" data-key="glass" data-name="AiCoder液態玻璃.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-glass121" data-key="glass121" data-status="glass" data-name="AiCoder液態玻璃-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-glass" role="status"></span>
+        </div>
+      </div>
+    </article>
+
+    <article class="release">
+      <div class="shot"><img alt="多欄賽博龐克主題的遊戲內畫面：七個分類欄並排，滑鼠停在 Auto Armor 上顯示說明卡" src="data:image/jpeg;base64,%%IMG_COLUMNS%%"></div>
+      <div class="info">
+        <h2>多欄賽博龐克 · 含音效</h2>
+        <p>Meteor 原本「每個分類一欄」的版面，換成賽博龐克外觀。開關模組時會有合成音效。</p>
+        <ul>
+          <li>左鍵開關模組，右鍵開啟設定</li>
+          <li>滑鼠停留會出現說明卡</li>
+          <li>音效可以在 GUI 分頁關掉或調音量</li>
+        </ul>
+        <p class="file"><b>AiCoder多欄賽博龐克.jar</b> · %%KB_COLUMNS%% KB · v0.3.0</p>
+        <p class="note">會取代 Meteor 原本的主題，不能和上面的「賽博龐克」同時安裝。</p>
+        <div class="actions">
+          <button class="dl" id="dl-columns" data-key="columns" data-name="AiCoder多欄賽博龐克.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-columns121" data-key="columns121" data-status="columns" data-name="AiCoder多欄賽博龐克-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-columns" role="status"></span>
+        </div>
+      </div>
+    </article>
+
+    <article class="release">
+      <div class="shot"><img alt="液態玻璃直立式主題的遊戲內畫面：藍紫色玻璃分類欄並排，滑鼠停在 Auto Anvil 上顯示說明卡" src="data:image/jpeg;base64,%%IMG_GLASSCOL%%"></div>
+      <div class="info">
+        <h2>液態玻璃直立式 · 含音效</h2>
+        <p>液態玻璃的外觀，配上每個分類一欄的直立式版面。開關模組時有水滴落在玻璃上的聲音。</p>
+        <ul>
+          <li>左鍵開關模組，右鍵開啟設定</li>
+          <li>兩個顏色、透明度、音效都能在 GUI 分頁調整</li>
+          <li>面板裡可以顯示壁紙，內建一張，也能放自己的圖</li>
+        </ul>
+        <p class="file"><b>AiCoder液態玻璃直立式.jar</b> · %%KB_GLASSCOL%% KB · v1.0.0</p>
+        <div class="actions">
+          <button class="dl" id="dl-glasscol" data-key="glasscol" data-name="AiCoder液態玻璃直立式.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-glasscol121" data-key="glasscol121" data-status="glasscol" data-name="AiCoder液態玻璃直立式-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-glasscol" role="status"></span>
+        </div>
+      </div>
+    </article>
+    <article class="release">
+      <div class="shot"><img alt="極光玻璃主題的遊戲內畫面：夜空與綠紫極光前的一個玻璃視窗，分成分類、模組、設定三欄" src="data:image/jpeg;base64,%%IMG_AURORA%%"></div>
+      <div class="info">
+        <h2>極光玻璃 · 單視窗三欄</h2>
+        <p>夜空、緩慢飄動的極光和液態玻璃面板。分類、模組、設定在同一個視窗裡。</p>
+        <ul>
+          <li>點模組列是選取，點右邊的開關或按右鍵是開關模組</li>
+          <li>動態和背景模糊都能在 GUI 分頁關掉</li>
+          <li>遊戲視窗比較小的時候整個介面會等比縮小</li>
+        </ul>
+        <p class="file"><b>AiCoder極光玻璃.jar</b> · %%KB_AURORA%% KB · v1.0.0</p>
+        <div class="actions">
+          <button class="dl" id="dl-aurora" data-key="aurora" data-name="AiCoder極光玻璃.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-aurora121" data-key="aurora121" data-status="aurora" data-name="AiCoder極光玻璃-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-aurora" role="status"></span>
+        </div>
+      </div>
+    </article>
+
+    <article class="release">
+      <div class="shot"><img alt="極光玻璃直立式主題的遊戲內畫面：每個分類一欄玻璃面板並排，滑鼠停在 Bed Aura 上顯示說明卡" src="data:image/jpeg;base64,%%IMG_AURORACOL%%"></div>
+      <div class="info">
+        <h2>極光玻璃直立式 · 含音效</h2>
+        <p>同樣的極光與玻璃，換成每個分類一欄的版面。開啟的模組會亮起並緩慢呼吸。</p>
+        <ul>
+          <li>左鍵開關模組，右鍵開啟設定，停留時顯示說明卡</li>
+          <li>水滴音效沿用液態玻璃直立式，可以在 GUI 分頁關掉</li>
+          <li>動態和背景模糊都能關掉</li>
+        </ul>
+        <p class="file"><b>AiCoder極光玻璃直立式.jar</b> · %%KB_AURORACOL%% KB · v1.0.0</p>
+        <div class="actions">
+          <button class="dl" id="dl-auroracol" data-key="auroracol" data-name="AiCoder極光玻璃直立式.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-auroracol121" data-key="auroracol121" data-status="auroracol" data-name="AiCoder極光玻璃直立式-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-auroracol" role="status"></span>
+        </div>
+      </div>
+    </article>
+    <article class="release">
+      <div class="shot"><img alt="遊戲內畫面：分頁列最右邊的 AiCoder 分頁被選中，下面是 Explosives、Melee、Utility 三欄模組" src="data:image/jpeg;base64,%%IMG_COMBAT%%"></div>
+      <div class="info">
+        <h2>戰鬥巨集 · 九個模組</h2>
+        <p>不是主題，是九個模組，放在 Meteor 介面裡自己的 AiCoder 分頁（圖中右上角）。只幫你按按鍵：切快捷列、對準心指到的東西點擊、真的轉動視角。</p>
+        <ul>
+          <li>Anchor Macro：放下重生錨後自動補螢光石並引爆</li>
+          <li>Crystal Macro：放下水晶後自動點爆，按住右鍵就能連續炸；可選自動補黑曜石</li>
+          <li>Mace Swap：拿其他武器打人時，出手瞬間切成重錘再切回來</li>
+          <li>Mace Dive：鞘翅飛高、俯衝、換胸甲用重錘打，自動循環</li>
+          <li>Spear Lunge：按住按鍵連續長矛突進，放開就停</li>
+          <li>Right Clicker／Left Clicker：長按變連點，左右鍵是兩個獨立的模組</li>
+          <li>Crosshair Drift：設定距離內有玩家時，準心慢慢飄向他</li>
+          <li>Wind Pearl：丟珍珠後自動補丟風彈，預判兩者在空中相遇</li>
+        </ul>
+        <p class="file"><b>AiCoder戰鬥巨集.jar</b> · %%KB_COMBAT%% KB · v1.0.0</p>
+        <div class="actions">
+          <button class="dl" id="dl-combat" data-key="combat" data-name="AiCoder戰鬥巨集.zip">下載 26.3 版</button>
+          <button class="dl alt" id="dl-combat121" data-key="combat121" data-status="combat" data-name="AiCoder戰鬥巨集-1.21.11.zip">下載 1.21.11 版</button>
+          <span class="status" id="st-combat" role="status"></span>
+        </div>
+      </div>
+    </article>
+    <article class="release">
+      <div class="shot"><img alt="原版 Minecraft 1.21.11 被注入後的畫面：左邊是液態玻璃多欄版面與 STYLE 外觀設定視窗，面板裡透出背景圖片；右邊是粉紫色的液態玻璃單視窗三欄版面" src="data:image/jpeg;base64,%%IMG_ASSIST%%"></div>
+      <div class="info">
+        <h2>AiCoder Assist · 注入式（1.21.11 與 1.21.4）</h2>
+        <p>不需要 Meteor。先開 Minecraft（1.21.11 或 1.21.4，原版或用 Fabric 啟動的都可以；下載對應的版本），再執行，九個模組和兩個極光介面就會進到遊戲裡，按右 Shift 開啟。</p>
+        <ul>
+          <li>四種介面：極光玻璃與液態玻璃，各有多欄並排、單視窗三欄；選單上方的 STYLE 切換外觀</li>
+          <li>液態玻璃可以調兩個顏色、透明度和背景圖片；自己的圖放進遊戲資料夾的 <code>aicoder-assist-wallpapers</code></li>
+          <li>十五個模組，包含 Telly Bridge（自動疊橋）、Offhand Totem（自動補圖騰）、Spear Smash（長矛接重錘）、Cart Bomb（火焰弓引爆 TNT 礦車）（1.21.4 版沒有長矛衝刺，因為那一版沒有長矛）</li>
+          <li>內建六個小遊戲（選單上方的 GAMES）：落下方塊、貪食蛇、踩地雷、數字合併、打磚塊，還有一個可以挖和蓋的 2D 側視沙盒</li>
+          <li>exe 版可能被防毒軟體擋下（未簽章，而且它做的事就是注入）；沒有 exe 的版本用一個看得懂的腳本做同樣的事</li>
+        </ul>
+        <p class="file"><b>AiCoderAssist.exe</b> · %%KB_ASSIST%% KB · 只支援原版 1.21.11</p>
+        <div class="actions">
+          <button class="dl" id="dl-assistbat" data-key="assistbat" data-status="assist" data-name="AiCoderAssist-1.21.11-script.zip">下載（jar＋腳本，沒有 exe）</button>
+          <button class="dl alt" id="dl-assist" data-key="assist" data-name="AiCoderAssist-1.21.11.zip">下載 exe 版</button>
+          <button class="dl" id="dl-assist4bat" data-key="assist4bat" data-status="assist" data-name="AiCoderAssist-1.21.4-script.zip">1.21.4：下載（jar＋腳本）</button>
+          <button class="dl alt" id="dl-assist4" data-key="assist4" data-status="assist" data-name="AiCoderAssist-1.21.4.zip">1.21.4：下載 exe 版</button>
+          <span class="status" id="st-assist" role="status"></span>
+        </div>
+      </div>
+    </article>
+    <article class="release">
+      <div class="shot"><img alt="六張預覽：賽博龐克、極光、液態玻璃、冰河、岩漿主題的三欄視窗，以及賽博龐克的直立式多欄版面" src="data:image/jpeg;base64,%%IMG_ZORYNTH%%"></div>
+      <div class="info">
+        <h2>AiCoder Themes · Zorynth 外掛</h2>
+        <p>給 Zorynth 客戶端的主題外掛（API 1、UI 擴充 2）。13 個主題：賽博龐克、液態玻璃、極光，加上地球科學十款。開啟後整個模組介面換成該主題。</p>
+        <ul>
+          <li>兩種版面可切換：單視窗三欄（分類｜模組｜設定）與每個分類一欄的直立式</li>
+          <li>模組開關、所有設定、按鍵綁定（Toggle／Hold）、打字搜尋都在介面裡</li>
+          <li>沒有在真正的 Zorynth 裡跑過；預覽圖是用模擬的宿主和假模組畫的</li>
+        </ul>
+        <p class="file"><b>aicoder-themes-1.0.0.jar</b> · %%KB_ZORYNTH%% KB · 放進 <code>zorynth/plugins/</code>，不是 <code>mods/</code></p>
+        <div class="actions">
+          <button class="dl" id="dl-zorynth" data-key="zorynth" data-name="AiCoderThemes-Zorynth.zip">下載（jar＋原始碼）</button>
+          <span class="status" id="st-zorynth" role="status"></span>
+        </div>
+      </div>
+    </article>
+    <article class="release">
+      <div class="shot"><img alt="基岩版選單的 GAMES 分頁：左邊是落下方塊遊戲，右邊是 2D 側視沙盒，有樹、草地和快捷列" src="data:image/jpeg;base64,%%IMG_BEDROCK%%"></div>
+      <div class="info">
+        <h2>AiCoder Assist · 基岩版（Windows 國際版）</h2>
+        <p>先開 Minecraft 基岩版並進入世界，再執行 exe，回遊戲按右 Shift。不讀也不改遊戲內部，只幫你按滑鼠和數字鍵。</p>
+        <ul>
+          <li>十個模組：左右鍵連點、水晶、重生錨、錘切、長矛衝刺、風彈珍珠、風彈跳、鞘翅起飛、俯衝重錘；都能綁按鍵（Toggle／Hold）</li>
+          <li>選單裡有和 Java 注入版同樣六個小遊戲（GAMES）：落下方塊、貪食蛇、踩地雷、數字合併、打磚塊、2D 沙盒</li>
+          <li>全部是「照順序按數字鍵和滑鼠」，每樣東西在快捷列第幾格要自己設定；沒有自動瞄準，準心飄移沒有做</li>
+          <li>只在 Wine 的替身程式上測過，沒有在真正的基岩版跑過；不支援網易版；防毒可能會擋</li>
+        </ul>
+        <p class="file"><b>AiCoderAssist-Bedrock.exe ＋ .dll</b> · %%KB_BEDROCK%% KB · 兩個檔案要放同一個資料夾</p>
+        <div class="actions">
+          <button class="dl" id="dl-bedrock" data-key="bedrock" data-name="AiCoderAssist-Bedrock.zip">下載</button>
+          <span class="status" id="st-bedrock" role="status"></span>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <section class="how">
+    <h3>安裝方式</h3>
+    <ol>
+      <li>選和你的遊戲相同的版本（26.3 或 1.21.11），Meteor Client 也要是同一個版本。</li>
+      <li>按下載，確認儲存。拿到的是 <code>.zip</code>，解壓縮後裡面就是 <code>.jar</code>。</li>
+      <li>把 <code>.jar</code> 放進 Minecraft 的 <code>mods</code> 資料夾，和 Meteor Client 放在一起。</li>
+      <li>啟動遊戲，按 <code>右 Shift</code> 開啟 Meteor 的 GUI。地球科學和液態玻璃第一次安裝會自動套用。</li>
+      <li>之後想換主題：GUI 分頁最上面的 Theme 下拉選單。</li>
+    </ol>
+    <p class="fine">自己的壁紙：把 PNG 或 JPG 放進遊戲資料夾的 <code>meteor-client/aicoder-wallpapers</code>，再到 GUI 分頁的 Wallpaper 下拉選單選它。兩個液態玻璃共用這個資料夾。</p>
+    <p class="fine">為什麼是 zip：這個頁面只能儲存特定幾種檔案類型，jar 不在其中，所以每個 jar 外面包了一層 zip。賽博龐克、地球科學、液態玻璃、極光玻璃這四個單視窗主題裡，點模組列是選取，點右邊的開關圖示或按右鍵才是開關模組，Ctrl+F 可以搜尋；多欄版和兩個直立式則是左鍵開關、右鍵設定。</p>
+  </section>
+</div>
+
+<script>
+const FILES = {
+  cyber: "%%ZIP_CYBER%%",
+  earth: "%%ZIP_EARTH%%",
+  glass: "%%ZIP_GLASS%%",
+  columns: "%%ZIP_COLUMNS%%",
+  glasscol: "%%ZIP_GLASSCOL%%",
+  aurora: "%%ZIP_AURORA%%",
+  auroracol: "%%ZIP_AURORACOL%%",
+  combat: "%%ZIP_COMBAT%%",
+  assist: "%%ZIP_ASSIST%%",
+  assistbat: "%%ZIP_ASSISTBAT%%",
+  assist4: "%%ZIP_ASSIST4%%",
+  assist4bat: "%%ZIP_ASSIST4BAT%%",
+  zorynth: "%%ZIP_ZORYNTH%%",
+  bedrock: "%%ZIP_BEDROCK%%",
+  combat121: "%%ZIP_COMBAT121%%",
+  all: "%%ZIP_ALL%%",
+  cyber121: "%%ZIP_CYBER121%%",
+  earth121: "%%ZIP_EARTH121%%",
+  glass121: "%%ZIP_GLASS121%%",
+  columns121: "%%ZIP_COLUMNS121%%",
+  glasscol121: "%%ZIP_GLASSCOL121%%",
+  aurora121: "%%ZIP_AURORA121%%",
+  auroracol121: "%%ZIP_AURORACOL121%%",
+  all121: "%%ZIP_ALL121%%"
+};
+
+function bytesOf(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+const MESSAGES = {
+  declined: "已取消。",
+  rate_limited: "已經有一個儲存視窗開著，請先處理它。",
+  unavailable: "這個檢視畫面無法儲存檔案。",
+  extension_not_enabled: "這裡目前不能儲存 zip。",
+  rejected_extension: "這裡目前不能儲存 zip。"
+};
+
+const buttons = Array.from(document.querySelectorAll("button.dl"));
+buttons.forEach(b => { b.disabled = true; });
+
+function setStatus(key, text, kind) {
+  const el = document.getElementById("st-" + key);
+  el.textContent = text;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+
+function start(downloads) {
+  if (!downloads) {
+    document.getElementById("unavailable").hidden = false;
+    return;
+  }
+
+  buttons.forEach(button => {
+    button.disabled = false;
+    button.addEventListener("click", async () => {
+      const key = button.dataset.key;
+      const slot = button.dataset.status || key;
+      button.disabled = true;
+      setStatus(slot, "請在跳出的視窗確認儲存…");
+      try {
+        await downloads.save({ filename: button.dataset.name, data: bytesOf(FILES[key]) });
+        setStatus(slot, "已儲存，解壓縮後把 jar 放進 mods。", "ok");
+      } catch (err) {
+        const code = err && err.code;
+        setStatus(slot, MESSAGES[code] || "沒有儲存成功，請再試一次。", code === "declined" ? "" : "bad");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+}
+
+if (window.claude && window.claude.use) {
+  window.claude.use("downloads").then(start, () => start(null));
+} else {
+  start(null);
+}
+</script>
