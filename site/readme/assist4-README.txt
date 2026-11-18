@@ -41,6 +41,9 @@ In the game
   It always starts with one ordinary telly: it runs to the very edge of the block before the first
   jump. "Rise" off keeps the bridge flat instead. "Max Pitch" is how far down the camera looks
   while turned round; it only clicks with the crosshair on the block it is aiming at.
+  With "Rise" on, "Bumps" adds one block on top of the second block of every jump. With "Rise" off
+  the camera comes down slowly ("Mouse Speed") while it keeps clicking, so some blocks land on top
+  of the bridge instead of on its end; a faster "Mouse Speed" gives fewer of them.
 - Wind Jump now throws the charge one tick before the jump key ("Throw Timing" -1), which measured
   about 11 blocks instead of about 9.
 - Offhand Totem (Utility): when your off hand has no totem it opens the inventory, moves the mouse

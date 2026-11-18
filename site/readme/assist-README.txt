@@ -41,6 +41,9 @@ In the game
   It always starts with one ordinary telly: it runs to the very edge of the block before the first
   jump. "Rise" off keeps the bridge flat instead. "Max Pitch" is how far down the camera looks
   while turned round; it only clicks with the crosshair on the block it is aiming at.
+  With "Rise" on, "Bumps" adds one block on top of the second block of every jump. With "Rise" off
+  the camera comes down slowly ("Mouse Speed") while it keeps clicking, so some blocks land on top
+  of the bridge instead of on its end; a faster "Mouse Speed" gives fewer of them.
 - Mace Dive has a "Spear Mode": it dives on a firework with a spear held level, and on three ticks
   in a row the spear hits, the chestplate goes on and the mace hits. Needs a spear in the hotbar.
   Tested with Height 20 and Attack Range 1.99. Mace Dive also no longer loses its target when

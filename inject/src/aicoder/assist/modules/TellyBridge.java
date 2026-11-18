@@ -88,9 +88,19 @@ public class TellyBridge extends Module {
 
     private final Setting<Boolean> bumps = sgGeneral.add(new BoolSetting.Builder()
         .name("bumps")
-        .description("Speed mode: one more block on top of the second block of every jump, the way a speed telly bridge looks.")
+        .description("Speed mode with Rise on: one more block on top of the second block of every jump, the way a speed telly bridge looks.")
         .defaultValue(true)
-        .visible(() -> mode.get() == Mode.Speed)
+        .visible(() -> mode.get() == Mode.Speed && rise.get())
+        .build()
+    );
+
+    private final Setting<Double> mouseSpeed = sgGeneral.add(new DoubleSetting.Builder()
+        .name("mouse-speed")
+        .description("Speed mode with Rise off: degrees a tick the camera comes down after turning round, while right click is drag clicked. Slower puts more blocks on top of the bridge instead of on its end.")
+        .defaultValue(25)
+        .range(8, 90)
+        .sliderRange(8, 90)
+        .visible(() -> mode.get() == Mode.Speed && !rise.get())
         .build()
     );
 
@@ -397,7 +407,9 @@ public class TellyBridge extends Module {
         if (mc.player.onGround()) {
             phase = 0;
             reversed = false;
-            floorY = floor(mc.player.getY() - 0.2);
+            // The flat bridge stays on the level it started on, also when you land on a block that
+            // went on top of it
+            if (rise.get() || jumps == 0) floorY = floor(mc.player.getY() - 0.2);
             mc.options.keyLeft.setDown(false);
             mc.options.keyRight.setDown(false);
             turn(ahead(), mc.player.getXRot() > 60 ? 20 : mc.player.getXRot());
@@ -453,6 +465,8 @@ public class TellyBridge extends Module {
         double along = dx != 0 ? ex * dx : ez * dz;
         double fx = 0, fy = 0, fz = 0;
         boolean spot = false;
+        // Blocks you are already past that are not there yet
+        boolean late = end == null;
         if (end != null) {
             // The side of the last block, near its top
             double plane = dx != 0 ? end[0] + 0.5 + dx * 0.5 : end[1] + 0.5 + dz * 0.5;
@@ -462,6 +476,7 @@ public class TellyBridge extends Module {
             fy = level + 0.95;
             spot = true;
             onSpot = beyond >= 0.08 && replaceable(end[0] + dx, level, end[1] + dz);
+            late = beyond >= 1;
         } else if (below != null) {
             // The step: the top of a block of the level below, far enough behind you for the camera
             // not to have to look further down than max-pitch
@@ -481,7 +496,7 @@ public class TellyBridge extends Module {
         }
         // The bump: one block on top of the second block of this jump, once you are clear of it and
         // it is not the moment to save the landing
-        if (bumps.get() && !bumped && !(landIn > 0 && landIn <= 3 && !landing)) {
+        if (up && bumps.get() && !bumped && !(landIn > 0 && landIn <= 3 && !landing)) {
             int i = Integer.MIN_VALUE;
             if (up) {
                 int[] low = last(level - 1);
@@ -489,8 +504,6 @@ public class TellyBridge extends Module {
                     int at = index(low);
                     i = (solid(low[0], level, low[1]) ? at : at - 1) + 1;
                 }
-            } else if (jumps > 0) {
-                i = takeoffEnd + 2;
             }
             if (i != Integer.MIN_VALUE) {
                 int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
@@ -540,6 +553,12 @@ public class TellyBridge extends Module {
         }
 
         reversed = true;
+        // On the flat bridge the mouse comes down at mouse-speed while the clicks go on, so the first
+        // clicks of a jump land on top of blocks further back instead of on the side of the last one.
+        // Not when the bridge is a block behind you, or the landing has to be saved.
+        boolean drift = !up && !late && !(landIn > 0 && landIn <= 3 && !landing);
+        float pitchNow = mc.player.getXRot();
+        float downTo = drift ? pitchNow + Math.max(-mouseSpeed.get().floatValue(), Math.min(mouseSpeed.get().floatValue(), aimPitch - pitchNow)) : aimPitch;
         // + is to the right of the way you go. Turned round, left moves you that way and right the other.
         double aside = (ex - (lineX + 0.5)) * -dz + (ez - (lineZ + 0.5)) * dx;
         mc.options.keyUp.setDown(false);
@@ -550,10 +569,10 @@ public class TellyBridge extends Module {
             mc.options.keyDown.setDown(true);
             if (phaseTick == 1) {
                 mc.player.setYRot(forwardYaw + 90);
-                mc.player.setXRot((mc.player.getXRot() + aimPitch) / 2);
+                mc.player.setXRot(drift ? downTo : (pitchNow + aimPitch) / 2);
             } else {
                 mc.player.setYRot(aimYaw);
-                mc.player.setXRot(aimPitch);
+                mc.player.setXRot(downTo);
                 mc.options.keyLeft.setDown(aside < 0.08);
                 phase = 2;
             }
@@ -564,7 +583,7 @@ public class TellyBridge extends Module {
             mc.options.keyLeft.setDown(aside < 0.08);
             mc.options.keyRight.setDown(aside > 0.16);
             mc.player.setYRot(aimYaw);
-            mc.player.setXRot(aimPitch);
+            mc.player.setXRot(downTo);
         } else {
             // Half a turn forward in two ticks, through your left: right half way, forward again at the end
             phaseTick++;
@@ -584,7 +603,7 @@ public class TellyBridge extends Module {
         }
 
         // Drag click at cps, while the crosshair is on the spot
-        if (phase == 2 && onSpot) {
+        if (phase == 2 && (up ? onSpot : flatClick(level))) {
             clicks += cps.get() / 20.0;
             while (clicks >= 1) {
                 clicks -= 1;
@@ -607,6 +626,32 @@ public class TellyBridge extends Module {
     }
 
     /** The last solid block of the bridge at this level, from where you are back: {x, z}, or null within seven. */
+    /**
+     * The flat bridge: whether a click where the camera points now does one of the two things wanted,
+     * a block on top of a block of the bridge (nothing on top of that) or a block on the end of the bridge.
+     * Follows the line of sight in small steps to the first solid block.
+     */
+    private boolean flatClick(int level) {
+        double yaw = Math.toRadians(mc.player.getYRot()), pitch = Math.toRadians(mc.player.getXRot());
+        double vx = -Math.sin(yaw) * Math.cos(pitch), vy = -Math.sin(pitch), vz = Math.cos(yaw) * Math.cos(pitch);
+        double ox = mc.player.getX(), oy = mc.player.getEyeY(), oz = mc.player.getZ();
+        int px = floor(ox), py = floor(oy), pz = floor(oz);
+        for (double t = 0.02; t < 4.4; t += 0.02) {
+            int bx = floor(ox + vx * t), by = floor(oy + vy * t), bz = floor(oz + vz * t);
+            if (solid(bx, by, bz)) {
+                if (by != level) return false;
+                // In through the top: a block on top, if it is the bridge and nothing is on it
+                if (py == by + 1 && px == bx && pz == bz) return (dx != 0 ? bz == lineZ : bx == lineX) && replaceable(bx, by + 1, bz);
+                // In through the side that faces the way you go: the next block of the bridge
+                return py == by && px == bx + dx && pz == bz + dz && replaceable(px, py, pz);
+            }
+            px = bx;
+            py = by;
+            pz = bz;
+        }
+        return false;
+    }
+
     /** How far along the bridge a block is, in blocks, growing the way you go. */
     private int index(int[] block) {
         return dx != 0 ? block[0] * dx : block[1] * dz;
