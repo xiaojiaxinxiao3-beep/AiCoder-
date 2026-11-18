@@ -100,7 +100,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Double> mouseSpeed = sgGeneral.add(new DoubleSetting.Builder()
         .name("mouse-speed")
-        .description("Telly and Telly Up modes: the most degrees a tick the camera comes down after turning round. It comes down fast at first and slower the closer it gets, while right click is drag clicked, so towards the end of each jump some clicks land on top of the blocks just placed instead of on the end of the bridge.")
+        .description("Telly and Telly Up modes: the most degrees a tick the camera comes down after turning round. The pull down follows a curve, slow at first and faster and faster, reaching this speed after six ticks, while right click is drag clicked. Lower puts more blocks on top of the bridge instead of on its end.")
         .defaultValue(25)
         .range(2, 90)
         .sliderRange(2, 90)
@@ -163,6 +163,8 @@ public class TellyBridge extends Module {
     private boolean upJump;
     /** Ticks in the air this jump, and where the run of this jump starts (its step), if it is in. */
     private int airT, runStart = Integer.MAX_VALUE;
+    /** Ticks since the turn round of this jump began; the pull down speeds up with it. */
+    private int downT;
     private boolean bumped;
     private double clicks;
 
@@ -537,6 +539,7 @@ public class TellyBridge extends Module {
             phase = 1;
             phaseTick = 0;
             clicks = 0;
+            downT = 0;
         } else if (phase == 2 && landing && landIn <= n) {
             phase = 3;
             phaseTick = 0;
@@ -556,8 +559,12 @@ public class TellyBridge extends Module {
         // Not when the bridge is a block behind you, or the landing has to be saved.
         boolean drift = !up && !speedy() && !(landIn > 0 && landIn <= need + 1 && !landing);
         float pitchNow = mc.player.getXRot();
-        // Fast at first, slower the closer it gets
-        float downTo = drift ? pitchNow + Math.max(-mouseSpeed.get().floatValue(), Math.min(mouseSpeed.get().floatValue(), (aimPitch - pitchNow) * 0.45f)) : aimPitch;
+        // The pull down follows a curve: slow at first and faster and faster, the speed growing with the
+        // square of the time since the turn began, up to mouse-speed after six ticks
+        downT++;
+        float ramp = Math.min(1f, downT / 6f);
+        float most = mouseSpeed.get().floatValue() * ramp * ramp;
+        float downTo = drift ? pitchNow + Math.max(-most, Math.min(most, aimPitch - pitchNow)) : aimPitch;
         if (phase == 1) {
             // Half a turn to the right in n ticks. Back is pressed as soon as forward is let go of.
             phaseTick++;
