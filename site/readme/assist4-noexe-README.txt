@@ -40,6 +40,8 @@ In the game
   jump goes up a level. "Bumps" adds one block on top of the second block of every jump.
   "Turn Ticks" is how long half a turn takes (Speed always takes 2). "Top Blocks" is how many
   blocks a jump puts on top of the bridge while it fills in (Telly and Telly Up).
+  "Fill Back" (Telly Up) is how many blocks a jump goes back for behind where it took off:
+  0 leaves the bridge thin, 6 makes it nearly solid, 2 is in between.
   "Max Pitch" is how far down the camera looks while turned round.
   It always turns right to look back and left to face forward again, and it presses the left
   and right keys by itself to stay on the middle of the bridge.

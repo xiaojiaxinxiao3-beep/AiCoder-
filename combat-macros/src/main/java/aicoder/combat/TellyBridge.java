@@ -114,6 +114,16 @@ public class TellyBridge extends Module {
         .build()
     );
 
+    private final Setting<Integer> fillBack = sgGeneral.add(new IntSetting.Builder()
+        .name("fill-back")
+        .description("Telly Up mode: how many blocks a jump goes back for behind where it took off, to fill what earlier jumps left open. 0 leaves the bridge thin, with gaps in the upper layer; 6 makes it nearly solid.")
+        .defaultValue(2)
+        .range(0, 6)
+        .sliderRange(0, 6)
+        .visible(() -> mode.get() == Mode.TellyUp)
+        .build()
+    );
+
     private final Setting<Double> maxPitch = sgGeneral.add(new DoubleSetting.Builder()
         .name("max-pitch")
         .description("Telly and Speed modes: the furthest down the camera looks while turned round, in degrees. 90 is straight down. Only when you are two ticks from landing with no block there yet does it look further down.")
@@ -172,6 +182,8 @@ public class TellyBridge extends Module {
     private int airT, runStart = Integer.MAX_VALUE;
     /** Blocks this jump has put on top of the bridge. */
     private int tops;
+    /** Telly Up: blocks this jump has gone back for, behind where it took off. */
+    private int backFills;
     /** A jump up of the ordinary telly: whether its one more block on the lower level is in, and where. */
     private boolean baseDone;
     private int baseIndex;
@@ -480,6 +492,7 @@ public class TellyBridge extends Module {
         boolean bumpSpot = false;
         boolean topSpot = false;
         boolean pairTop = false;
+        boolean backSpot = false;
         boolean baseSpot = false;
         // Blocks between the end of the bridge and where you come down
         int need = 1;
@@ -513,6 +526,9 @@ public class TellyBridge extends Module {
                     for (int i = Math.max(endI - 6, takeoffEnd - 5); i <= endI && !pairTop; i++) {
                         int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
                         if (!solid(bx, base, bz) || !replaceable(bx, base + 1, bz)) continue;
+                        // Blocks of earlier jumps: only fill-back of them a jump
+                        boolean old = pass == 0 || i <= takeoffEnd;
+                        if (old && backFills >= fillBack.get()) continue;
                         double front = sign > 0 ? i + 1 : i;
                         if (feetY < base + 2 + 0.01 && along - 0.3 <= front + 0.01) {
                             // The newest block, still under your feet: on along the lower layer first
@@ -530,6 +546,7 @@ public class TellyBridge extends Module {
                         onSpot = true;
                         topSpot = true;
                         pairTop = true;
+                        backSpot = old;
                     }
                 }
             } else if (!up && !speedy() && tops < topBlocks.get() && beyond > 0.4 && replaceable(end[0], level + 1, end[1])
@@ -697,6 +714,7 @@ public class TellyBridge extends Module {
         if (phase == 2 && !spotAhead && onSpot && stepIndex != Integer.MIN_VALUE && !bumpSpot) runStart = stepIndex;
         if (phase == 2 && !spotAhead && (up || pairTop ? onSpot : flatClick(level))) {
             if (topSpot) tops++;
+            if (backSpot) backFills++;
             if (baseSpot) {
                 baseDone = true;
                 baseIndex = index(below) + 1;
@@ -769,6 +787,7 @@ public class TellyBridge extends Module {
         pressedJump = true;
         jumps++;
         tops = 0;
+        backFills = 0;
         baseDone = false;
         airT = 0;
         runStart = Integer.MAX_VALUE;
