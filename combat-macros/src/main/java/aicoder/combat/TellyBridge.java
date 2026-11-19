@@ -55,7 +55,7 @@ public class TellyBridge extends Module {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same keys and the same sprint, but a jump that starts facing forward turns round early, while you are still high, so the blocks go in one level up and you land on them. It takes turns with a jump on along the level. This needs Turn Ticks at 2: with slower turns there is no time to turn round early, and the bridge stays flat. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same keys, but it turns round at once and builds two layers together, a block on and then a block on top of it, the way a player's bridge grows. You land on the upper layer and the next jump carries on from there, so the bridge climbs. Best with Turn Ticks at 2. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
@@ -167,6 +167,7 @@ public class TellyBridge extends Module {
     private int takeoffEnd;
     /** Whether the jump being made builds one block up. */
     private boolean upJump;
+    private boolean pairJump;
     /** Ticks in the air this jump, and where the run of this jump starts (its step), if it is in. */
     private int airT, runStart = Integer.MAX_VALUE;
     /** Blocks this jump has put on top of the bridge. */
@@ -443,6 +444,26 @@ public class TellyBridge extends Module {
             if (down && y <= level + 1) landIn = k;
         }
         boolean landing = landIn > 0 && under(advance, level);
+        // Telly Up builds two layers and comes down on the upper one if it is there
+        boolean pair = pairJump && !up && !speedy();
+        if (pair) {
+            double y2 = feetY, v2 = vy, h2 = vh, adv2 = 0;
+            for (int k = 1; k <= 14; k++) {
+                boolean down = v2 < 0;
+                h2 += 0.0196;
+                y2 += v2;
+                adv2 += h2;
+                v2 = (v2 - 0.08) * 0.98;
+                h2 *= 0.91;
+                if (down && y2 <= level + 2) {
+                    if (under(adv2, level + 1)) {
+                        landIn = k;
+                        landing = true;
+                    }
+                    break;
+                }
+            }
+        }
 
         // Where to look while round. The camera never tilts further down than max-pitch, and a click is
         // only made with the crosshair on the spot.
@@ -458,6 +479,7 @@ public class TellyBridge extends Module {
         int stepIndex = Integer.MIN_VALUE;
         boolean bumpSpot = false;
         boolean topSpot = false;
+        boolean pairTop = false;
         boolean baseSpot = false;
         // Blocks between the end of the bridge and where you come down
         int need = 1;
@@ -475,7 +497,28 @@ public class TellyBridge extends Module {
             // to nine degrees above its side, so the camera hardly moves between the two: it is your
             // flying on that carries the crosshair over the edge. The top can be clicked once you are
             // clear of the block, and not when the landing has to be saved.
-            if (!up && !speedy() && tops < topBlocks.get() && beyond > 0.4 && replaceable(end[0], level + 1, end[1])
+            if (pair) {
+                // The way a player's bridge grows in the replay: a block on, then a block on top of
+                // it, then the next one on, and so on, two layers at once. The block on top goes on
+                // the first block of this jump that has none yet, once your feet are above it or you
+                // are past it; until then it carries on along the lower layer.
+                int endI = index(end);
+                for (int i = takeoffEnd + 1; i <= endI; i++) {
+                    int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
+                    if (!replaceable(bx, level + 1, bz)) continue;
+                    double front = sign > 0 ? i + 1 : i;
+                    if (feetY >= level + 2 + 0.01 || along - 0.3 > front + 0.01) {
+                        double at = Math.min(along - 0.1, front - 0.35) * sign;
+                        fx = dx != 0 ? at : clamp(ex, bx + 0.12, bx + 0.88);
+                        fz = dz != 0 ? at : clamp(ez, bz + 0.12, bz + 0.88);
+                        fy = level + 1 - 0.02;
+                        onSpot = true;
+                        topSpot = true;
+                        pairTop = true;
+                    }
+                    break;
+                }
+            } else if (!up && !speedy() && tops < topBlocks.get() && beyond > 0.4 && replaceable(end[0], level + 1, end[1])
                 && !(landIn > 0 && landIn <= need + 1 && !landing)) {
                 fx = dx != 0 ? plane - dx * 0.35 : fx;
                 fz = dz != 0 ? plane - dz * 0.35 : fz;
@@ -573,8 +616,11 @@ public class TellyBridge extends Module {
             } else if (flat >= 0.15) {
                 aimYaw = forwardYaw + 180 + Math.max(-30, Math.min(30, wrap((float) Math.toDegrees(Math.atan2(-ax, az)) - forwardYaw - 180)));
             }
-            if (pitch > cap + 0.5f) onSpot = false;
-            aimPitch = Math.min(pitch, cap);
+            // The block on top in a two layer jump is nearly under you: that one may be looked at
+            // straight down
+            float most = pairTop ? 89 : cap;
+            if (pitch > most + 0.5f) onSpot = false;
+            aimPitch = Math.min(pitch, most);
         }
 
         // Speed telly turns round as soon as it is off the ground. The ordinary telly flies on facing
@@ -583,7 +629,7 @@ public class TellyBridge extends Module {
         // The ordinary telly going up flies on for two ticks and turns round on the third: the step then
         // goes on a block further back, and the new level lies over the last blocks of the old one.
         int n = speedy() ? 2 : turnTicks.get();
-        boolean turnNow = speedy() || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + topBlocks.get() + n + 2);
+        boolean turnNow = speedy() || pair || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + topBlocks.get() + n + 2);
         if (phase == 0 && !landing && turnNow) {
             phase = 1;
             phaseTick = 0;
@@ -702,7 +748,9 @@ public class TellyBridge extends Module {
      */
     private void takeOff(boolean mayGoUp) {
         // Telly Up takes turns: a jump on along the level, then one up
-        upJump = mayGoUp && jumps >= 1 && (speedy() || !upJump);
+        upJump = mayGoUp && jumps >= 1 && speedy();
+        // Telly Up, after the first jump: two layers at once, a block on, a block on top of it
+        pairJump = mode.get() == Mode.TellyUp && jumps >= 1;
         mc.options.keyJump.setDown(true);
         pressedJump = true;
         jumps++;
