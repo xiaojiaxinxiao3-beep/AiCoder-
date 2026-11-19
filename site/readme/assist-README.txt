@@ -45,9 +45,11 @@ In the game
   0 leaves the bridge thin, 6 makes it nearly solid, 2 is in between.
   "Turn Side" (Telly, Telly Up, Speed) is which way the camera turns round, Right or Left;
   it turns back the way it came.
-  "Stay Round" (Telly Up) is how many ticks it stays turned round on the bridge after landing,
-  still bridging, before it turns forward and jumps: the camera turns half as often. 0 is the
-  old way (jump the moment it lands). With it, "Turn Ticks" 3 also goes up.
+  "Bridge Mode" Telly Replay follows a player's recording, frame by frame: it turns round in two
+  ticks, the camera drifts down slowly for "Glide Ticks" before the first block goes on, it lands
+  still turned round and walks on backwards placing for "Stay Round" ticks, then turns forward in
+  three ticks and jumps. The camera turns half as often as in Telly Up. With the default
+  "Glide Ticks" 6 the bridge is flat with a block on top each jump; with 0 it climbs like Telly Up.
   "Max Pitch" is how far down the camera looks while turned round.
   It always turns right to look back and left to face forward again, and it presses the left
   and right keys by itself to stay on the middle of the bridge.

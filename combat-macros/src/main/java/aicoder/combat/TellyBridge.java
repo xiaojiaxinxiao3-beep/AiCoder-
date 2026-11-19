@@ -43,6 +43,12 @@ public class TellyBridge extends HintModule {
         Telly,
         /** The ordinary telly going up: a jump that starts facing forward turns round early and builds a level up. */
         TellyUp,
+        /**
+         * Telly Up with the rhythm of a player's recording: it lands still turned round, walks on backwards
+         * along the bridge placing for a few ticks, and only then turns forward and jumps, so the camera
+         * turns half as often.
+         */
+        TellyReplay,
         /** Speed telly: sprint-jump without a break, flick round only to place a couple of blocks. */
         Speed,
         /** Walk backwards the whole way, camera 45 degrees off, hopping. */
@@ -55,7 +61,7 @@ public class TellyBridge extends HintModule {
 
     private final Setting<Mode> mode = sgGeneral.add(new EnumSetting.Builder<Mode>()
         .name("bridge-mode")
-        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same keys, but it turns round at once and builds two layers together, a block on and then a block on top of it, the way a player's bridge grows. You land on the upper layer and the next jump carries on from there, so the bridge climbs. Best with Turn Ticks at 2. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
+        .description("Telly: face where the bridge goes. An ordinary telly: it runs to the edge, jumps, flies on a moment, turns round, drag clicks and turns forward again. The bridge is flat, with a block on top here and there. Telly Up: the same keys, but it turns round at once and builds two layers together, a block on and then a block on top of it, the way a player's bridge grows. You land on the upper layer and the next jump carries on from there, so the bridge climbs. Best with Turn Ticks at 2. Telly Replay: Telly Up with a recording's rhythm, where it stays turned round on the bridge after landing and goes on placing before it turns forward to jump, so the camera turns half as often. Speed: speed telly, it turns round the moment it is off the ground and every jump goes up a level. Diagonal: stand with your back to where the bridge goes; it turns the camera 45 degrees aside (no half turn), holds back and a strafe key, hops and places.")
         .defaultValue(Mode.Telly)
         .build()
     );
@@ -108,7 +114,7 @@ public class TellyBridge extends HintModule {
         .defaultValue(4)
         .range(2, 6)
         .sliderRange(2, 6)
-        .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
+        .visible(() -> mode.get() == Mode.Telly || tellyUp())
         .build()
     );
 
@@ -118,7 +124,7 @@ public class TellyBridge extends HintModule {
         .defaultValue(2)
         .range(0, 4)
         .sliderRange(0, 4)
-        .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
+        .visible(() -> mode.get() == Mode.Telly || tellyUp())
         .build()
     );
 
@@ -128,17 +134,27 @@ public class TellyBridge extends HintModule {
         .defaultValue(2)
         .range(0, 6)
         .sliderRange(0, 6)
-        .visible(() -> mode.get() == Mode.TellyUp)
+        .visible(() -> tellyUp())
         .build()
     );
 
     private final Setting<Integer> stayRound = sgGeneral.add(new IntSetting.Builder()
         .name("stay-round")
-        .description("Telly Up mode: ticks it stays turned round on the bridge after landing, still placing, before it turns forward and jumps again. The camera turns half as often. 0 jumps again the moment it lands.")
+        .description("Telly Replay mode: ticks it stays turned round on the bridge after landing, still placing, before it turns forward and jumps again.")
         .defaultValue(5)
-        .range(0, 12)
-        .sliderRange(0, 12)
-        .visible(() -> mode.get() == Mode.TellyUp)
+        .range(1, 12)
+        .sliderRange(1, 12)
+        .visible(() -> mode.get() == Mode.TellyReplay)
+        .build()
+    );
+
+    private final Setting<Integer> glide = sgGeneral.add(new IntSetting.Builder()
+        .name("glide-ticks")
+        .description("Telly Replay mode: after turning round in the air the camera drifts down slowly for this many ticks of the jump before the first block goes on, as in the recording. It places sooner when the landing needs it.")
+        .defaultValue(6)
+        .range(0, 8)
+        .sliderRange(0, 8)
+        .visible(() -> mode.get() == Mode.TellyReplay)
         .build()
     );
 
@@ -180,7 +196,7 @@ public class TellyBridge extends HintModule {
     private boolean steering;
     /** Telly Up and Speed build higher; Telly stays on the level it started on. */
     private boolean rising() {
-        return mode.get() == Mode.TellyUp || mode.get() == Mode.Speed;
+        return tellyUp() || mode.get() == Mode.Speed;
     }
 
     private boolean speedy() {
@@ -202,6 +218,9 @@ public class TellyBridge extends HintModule {
     private int tops;
     /** Telly Up: ticks spent turned round on the ground since the last jump. */
     private int stayT;
+    private boolean gliding;
+    /** Telly Replay: ticks for the half turn forward; three here (the recording takes about four, but with four the jump starts too slowly to build upward), and two to turn round. */
+    private static final int REPLAY_FORWARD = 3;
     /** Telly Up: blocks this jump has gone back for, behind where it took off. */
     private int backFills;
     /** A jump up of the ordinary telly: whether its one more block on the lower level is in, and where. */
@@ -412,10 +431,10 @@ public class TellyBridge extends HintModule {
     private void telly() {
         // Telly Up, the unhurried way: land still turned round, stay that way on the bridge for a few
         // ticks and go on placing, then turn forward standing where you are, and only then jump
-        boolean calm = mode.get() == Mode.TellyUp && pairJump && stayRound.get() > 0;
+        boolean calm = mode.get() == Mode.TellyReplay && pairJump;
         // It walks on backwards meanwhile, bridging the level it stands on, and turns forward only with
         // enough of that level ahead to turn on
-        int turnN = turnTicks.get();
+        int turnN = REPLAY_FORWARD;
         boolean staying = calm && mc.player.onGround() && phase == 2
             && (stayT < stayRound.get() || overhang() > -(0.22 * turnN - 0.1));
         if (staying) {
@@ -429,7 +448,7 @@ public class TellyBridge extends HintModule {
             // on: in Telly Up that is higher when you came down on blocks that went on top of the
             // bridge at the end of the jump.
             int standing = floor(mc.player.getY() - 0.2);
-            if (speedy() || mode.get() == Mode.TellyUp || jumps == 0) floorY = standing;
+            if (speedy() || tellyUp() || jumps == 0) floorY = standing;
             // Landed still turned round, or part of the way forward: it goes on turning forward the
             // way it always does (to the left), not whichever way is shorter, and jumps at once while it
             // does. You land on the very end of the bridge, so a tick spent turning on the ground walks
@@ -439,13 +458,13 @@ public class TellyBridge extends HintModule {
                     phase = 3;
                     phaseTick = 0;
                 }
-                turnForward(speedy() ? 2 : turnTicks.get());
+                turnForward(speedy() ? 2 : calm ? REPLAY_FORWARD : turnN());
                 // The unhurried Telly Up turns on the bridge and jumps once it faces forward; only
                 // with the end of the bridge under its feet does it jump while still turning
                 if (calm && overhang() < 0.15) return;
                 // With half a turn in two ticks there is time to face forward and turn round again
                 // early enough to go up; with slower turns there is not
-                takeOff(speedy() || rising() && turnTicks.get() <= 2);
+                takeOff(speedy() || rising() && turnN() <= 2);
                 return;
             }
             phase = 0;
@@ -694,7 +713,7 @@ public class TellyBridge extends HintModule {
         // one a tick, two ticks for the turn, two to spare.
         // The ordinary telly going up flies on for two ticks and turns round on the third: the step then
         // goes on a block further back, and the new level lies over the last blocks of the old one.
-        int n = speedy() ? 2 : turnTicks.get();
+        int n = speedy() || calm ? 2 : turnN();
         boolean turnNow = speedy() || pair || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + topBlocks.get() + n + 2);
         if (phase == 0 && !landing && turnNow) {
             phase = 1;
@@ -714,21 +733,25 @@ public class TellyBridge extends HintModule {
         }
 
         reversed = true;
+        gliding = false;
         float pitchNow = mc.player.getXRot();
         float downTo = aimPitch;
+        // Telly Replay comes round looking about 30 degrees down and drifts on from there
+        boolean drift = calm && glide.get() > 0 && !(landIn > 0 && landIn <= 4 && !landing);
         if (phase == 1) {
             // Half a turn to the right in n ticks. Back is pressed as soon as forward is let go of.
             phaseTick++;
             if (phaseTick < n) {
                 turnKeys(180f * phaseTick / n);
                 mc.player.setYRot(forwardYaw + turnSign() * 180f * phaseTick / n);
-                mc.player.setXRot(pitchNow + (aimPitch - pitchNow) / (n - phaseTick + 1));
+                mc.player.setXRot(pitchNow + ((drift ? 30 : aimPitch) - pitchNow) / (n - phaseTick + 1));
             } else {
                 mc.options.keyUp.setDown(false);
                 mc.options.keySprint.setDown(false);
                 mc.options.keyDown.setDown(true);
                 mc.player.setYRot(aimYaw);
-                mc.player.setXRot(downTo);
+                gliding = drift;
+                mc.player.setXRot(drift ? 30 : downTo);
                 steer(false);
                 phase = 2;
             }
@@ -745,14 +768,18 @@ public class TellyBridge extends HintModule {
                 mc.options.keyUp.setDown(vh > 0.03);
             }
             mc.player.setYRot(aimYaw);
+            // The recording: round in two ticks at about 30 degrees down, then a slow drift to about 50
+            // with nothing placed, and only then down onto the end of the bridge
+            gliding = calm && !staying && airT <= glide.get() && !(landIn > 0 && landIn <= 4 && !landing);
+            if (gliding) downTo = Math.min(downTo, 30 + 3.5f * Math.max(0, airT - 2));
             mc.player.setXRot(downTo);
         } else {
-            turnForward(n);
+            turnForward(calm ? REPLAY_FORWARD : n);
         }
 
         // Drag click at cps, while the crosshair is on the spot
         if (phase == 2 && !spotAhead && onSpot && stepIndex != Integer.MIN_VALUE && !bumpSpot) runStart = stepIndex;
-        if (phase == 2 && !spotAhead && (up || pairTop ? onSpot : flatClick(level))) {
+        if (phase == 2 && !spotAhead && !gliding && (up || pairTop ? onSpot : flatClick(level))) {
             if (topSpot) tops++;
             if (backSpot) backFills++;
             if (baseSpot) {
@@ -825,7 +852,7 @@ public class TellyBridge extends HintModule {
         // Telly Up takes turns: a jump on along the level, then one up
         upJump = mayGoUp && jumps >= 1 && speedy();
         // Telly Up, after the first jump: two layers at once, a block on, a block on top of it
-        pairJump = mode.get() == Mode.TellyUp && jumps >= 1;
+        pairJump = tellyUp() && jumps >= 1;
         mc.options.keyJump.setDown(true);
         pressedJump = true;
         jumps++;
@@ -985,5 +1012,16 @@ public class TellyBridge extends HintModule {
         if (end == null) return 9;
         double plane = dx != 0 ? end[0] + 0.5 + dx * 0.5 : end[1] + 0.5 + dz * 0.5;
         return dx != 0 ? (mc.player.getX() - plane) * dx : (mc.player.getZ() - plane) * dz;
+    }
+
+    /** Telly Up or its replay rhythm: both build the same two layers. */
+    private boolean tellyUp() {
+        return mode.get() == Mode.TellyUp || mode.get() == Mode.TellyReplay;
+    }
+
+    /** Ticks for half a turn. The recording turns in two to three, so Telly Replay keeps to that. */
+    private int turnN() {
+        int n = turnTicks.get();
+        return mode.get() == Mode.TellyReplay ? Math.max(2, Math.min(3, n)) : n;
     }
 }
