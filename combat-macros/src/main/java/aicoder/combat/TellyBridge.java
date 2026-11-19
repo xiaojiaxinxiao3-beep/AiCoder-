@@ -171,6 +171,9 @@ public class TellyBridge extends Module {
     private int airT, runStart = Integer.MAX_VALUE;
     /** Blocks this jump has put on top of the bridge. */
     private int tops;
+    /** A jump up of the ordinary telly: whether its one more block on the lower level is in, and where. */
+    private boolean baseDone;
+    private int baseIndex;
     private boolean bumped;
     private double clicks;
 
@@ -455,6 +458,7 @@ public class TellyBridge extends Module {
         int stepIndex = Integer.MIN_VALUE;
         boolean bumpSpot = false;
         boolean topSpot = false;
+        boolean baseSpot = false;
         // Blocks between the end of the bridge and where you come down
         int need = 1;
         if (end != null) {
@@ -479,9 +483,38 @@ public class TellyBridge extends Module {
                 onSpot = true;
                 topSpot = true;
             }
+        } else if (below != null && !speedy()) {
+            // The ordinary telly going up carries on from the front of the last block first: one more
+            // block on the level below. Then, still high in the air, the click on top of that new
+            // block, which is the step, and from the step's side on along the upper level.
+            if (baseDone) {
+                int bx = dx != 0 ? baseIndex * dx : lineX, bz = dz != 0 ? baseIndex * dz : lineZ;
+                if (!solid(bx, level - 1, bz)) baseDone = false;
+            }
+            if (!baseDone) {
+                double plane = dx != 0 ? below[0] + 0.5 + dx * 0.5 : below[1] + 0.5 + dz * 0.5;
+                double beyond = dx != 0 ? (ex - plane) * dx : (ez - plane) * dz;
+                fx = dx != 0 ? plane : clamp(ex, below[0] + 0.12, below[0] + 0.88);
+                fz = dz != 0 ? plane : clamp(ez, below[1] + 0.12, below[1] + 0.88);
+                fy = level - 0.05;
+                spot = true;
+                onSpot = beyond >= 0.08 && replaceable(below[0] + dx, level - 1, below[1] + dz);
+                baseSpot = true;
+            } else {
+                int bx = dx != 0 ? baseIndex * dx : lineX, bz = dz != 0 ? baseIndex * dz : lineZ;
+                double front = sign > 0 ? baseIndex + 1 : baseIndex;
+                double at = (front - 0.35) * sign;
+                fx = dx != 0 ? at : clamp(ex, bx + 0.12, bx + 0.88);
+                fz = dz != 0 ? at : clamp(ez, bz + 0.12, bz + 0.88);
+                fy = level - 0.02;
+                spot = true;
+                boolean clear = feetY >= level + 1 + 0.01 || along - 0.3 > front + 0.01;
+                onSpot = clear && replaceable(bx, level, bz);
+                if (onSpot) stepIndex = baseIndex;
+            }
         } else if (below != null) {
-            // The step: the top of a block of the level below, far enough behind you for the camera
-            // not to have to look further down than max-pitch
+            // Speed telly's step: the top of a block of the level below, far enough behind you for
+            // the camera not to have to look further down than max-pitch
             double plane = dx != 0 ? below[0] + 0.5 + dx * 0.5 : below[1] + 0.5 + dz * 0.5;
             // The ordinary telly looks back at a flatter angle, so its step goes further back
             double back = Math.max(0.3, (ey - level) / Math.tan(Math.toRadians(speedy() ? cap : Math.min(cap, 55))));
@@ -604,6 +637,10 @@ public class TellyBridge extends Module {
         if (phase == 2 && !spotAhead && onSpot && stepIndex != Integer.MIN_VALUE && !bumpSpot) runStart = stepIndex;
         if (phase == 2 && !spotAhead && (up ? onSpot : flatClick(level))) {
             if (topSpot) tops++;
+            if (baseSpot) {
+                baseDone = true;
+                baseIndex = index(below) + 1;
+            }
             clicks += cps.get() / 20.0;
             while (clicks >= 1) {
                 clicks -= 1;
@@ -670,6 +707,7 @@ public class TellyBridge extends Module {
         pressedJump = true;
         jumps++;
         tops = 0;
+        baseDone = false;
         airT = 0;
         runStart = Integer.MAX_VALUE;
         bumped = false;
