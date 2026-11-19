@@ -132,6 +132,16 @@ public class TellyBridge extends HintModule {
         .build()
     );
 
+    private final Setting<Integer> stayRound = sgGeneral.add(new IntSetting.Builder()
+        .name("stay-round")
+        .description("Telly Up mode: ticks it stays turned round on the bridge after landing, still placing, before it turns forward and jumps again. The camera turns half as often. 0 jumps again the moment it lands.")
+        .defaultValue(5)
+        .range(0, 12)
+        .sliderRange(0, 12)
+        .visible(() -> mode.get() == Mode.TellyUp)
+        .build()
+    );
+
     private final Setting<Double> maxPitch = sgGeneral.add(new DoubleSetting.Builder()
         .name("max-pitch")
         .description("Telly and Speed modes: the furthest down the camera looks while turned round, in degrees. 90 is straight down. Only when you are two ticks from landing with no block there yet does it look further down.")
@@ -190,6 +200,8 @@ public class TellyBridge extends HintModule {
     private int airT, runStart = Integer.MAX_VALUE;
     /** Blocks this jump has put on top of the bridge. */
     private int tops;
+    /** Telly Up: ticks spent turned round on the ground since the last jump. */
+    private int stayT;
     /** Telly Up: blocks this jump has gone back for, behind where it took off. */
     private int backFills;
     /** A jump up of the ordinary telly: whether its one more block on the lower level is in, and where. */
@@ -398,7 +410,19 @@ public class TellyBridge extends HintModule {
      * level you left, which is the time speed telly saves. It comes to about four blocks a jump.
      */
     private void telly() {
-        if (mc.player.onGround()) {
+        // Telly Up, the unhurried way: land still turned round, stay that way on the bridge for a few
+        // ticks and go on placing, then turn forward standing where you are, and only then jump
+        boolean calm = mode.get() == Mode.TellyUp && pairJump && stayRound.get() > 0;
+        // It walks on backwards meanwhile, bridging the level it stands on, and turns forward only with
+        // enough of that level ahead to turn on
+        int turnN = turnTicks.get();
+        boolean staying = calm && mc.player.onGround() && phase == 2
+            && (stayT < stayRound.get() || overhang() > -(0.22 * turnN - 0.1));
+        if (staying) {
+            stayT++;
+            floorY = floor(mc.player.getY() - 0.2);
+        }
+        if (mc.player.onGround() && !staying) {
             // The flat bridge stays on the level it started on, also when you land on a block that
             // went on top of it
             // Telly keeps the level it started on. Telly Up and Speed take the level you are standing
@@ -416,6 +440,9 @@ public class TellyBridge extends HintModule {
                     phaseTick = 0;
                 }
                 turnForward(speedy() ? 2 : turnTicks.get());
+                // The unhurried Telly Up turns on the bridge and jumps once it faces forward; only
+                // with the end of the bridge under its feet does it jump while still turning
+                if (calm && overhang() < 0.15) return;
                 // With half a turn in two ticks there is time to face forward and turn round again
                 // early enough to go up; with slower turns there is not
                 takeOff(speedy() || rising() && turnTicks.get() <= 2);
@@ -465,7 +492,7 @@ public class TellyBridge extends HintModule {
         }
         boolean landing = landIn > 0 && under(advance, level);
         // Telly Up builds two layers and comes down on the upper one if it is there
-        boolean pair = pairJump && !up && !speedy();
+        boolean pair = pairJump && !up && !speedy() && !staying;
         if (pair) {
             double y2 = feetY, v2 = vy, h2 = vh, adv2 = 0;
             for (int k = 1; k <= 14; k++) {
@@ -488,7 +515,7 @@ public class TellyBridge extends HintModule {
         // Where to look while round. The camera never tilts further down than max-pitch, and a click is
         // only made with the crosshair on the spot.
         // Two ticks from coming down with nothing there yet is the one time it looks further down
-        float cap = landIn > 0 && landIn <= 2 && !landing ? 89 : maxPitch.get().floatValue();
+        float cap = staying || landIn > 0 && landIn <= 2 && !landing ? 89 : maxPitch.get().floatValue();
         float aimYaw = forwardYaw + 180, aimPitch = cap;
         boolean onSpot = false;
         int sign = dx != 0 ? dx : dz;
@@ -673,7 +700,7 @@ public class TellyBridge extends HintModule {
             phase = 1;
             phaseTick = 0;
             clicks = 0;
-        } else if (phase == 2 && landing && landIn <= n) {
+        } else if (phase == 2 && landing && landIn <= n && !calm) {
             phase = 3;
             phaseTick = 0;
         }
@@ -712,6 +739,11 @@ public class TellyBridge extends HintModule {
             mc.options.keySprint.setDown(false);
             mc.options.keyDown.setDown(true);
             steer(false);
+            if (staying && overhang() > 0.2) {
+                // Nothing went on in front in time: stop at the end instead of walking off it
+                mc.options.keyDown.setDown(false);
+                mc.options.keyUp.setDown(vh > 0.03);
+            }
             mc.player.setYRot(aimYaw);
             mc.player.setXRot(downTo);
         } else {
@@ -798,6 +830,7 @@ public class TellyBridge extends HintModule {
         pressedJump = true;
         jumps++;
         tops = 0;
+        stayT = 0;
         backFills = 0;
         baseDone = false;
         airT = 0;
@@ -944,5 +977,13 @@ public class TellyBridge extends HintModule {
     /** 1 when the camera turns round to the right, -1 to the left. */
     private int turnSign() {
         return mode.get() != Mode.Diagonal && turnSide.get() == Side.Left ? -1 : 1;
+    }
+
+    /** How far you are past the front of the last block of the level you stand on; negative while it is still ahead. */
+    private double overhang() {
+        int[] end = last(floor(mc.player.getY() - 0.2));
+        if (end == null) return 9;
+        double plane = dx != 0 ? end[0] + 0.5 + dx * 0.5 : end[1] + 0.5 + dz * 0.5;
+        return dx != 0 ? (mc.player.getX() - plane) * dx : (mc.player.getZ() - plane) * dz;
     }
 }
