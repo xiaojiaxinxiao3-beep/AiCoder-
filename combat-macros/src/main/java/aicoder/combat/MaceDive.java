@@ -38,7 +38,7 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>Everything is a key press (jump, use, attack, hotbar slots) and the view really turns.
  */
-public class MaceDive extends Module {
+public class MaceDive extends HintModule {
     private enum Stage {
         /** Getting the elytra on. */
         Prepare,

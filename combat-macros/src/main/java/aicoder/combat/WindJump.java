@@ -23,7 +23,7 @@ import net.minecraft.world.item.Items;
  *
  * <p>Everything is a key press: the real camera turns, the jump key and the use key are pressed.
  */
-public class WindJump extends Module {
+public class WindJump extends HintModule {
     private enum Stage { Jump, Throw, LateJump, Restore, Flight }
 
     /** Timings auto-tune tries: FIRST, FIRST + 1, ... ticks after the jump key. */

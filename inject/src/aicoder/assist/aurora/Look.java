@@ -73,6 +73,8 @@ public class Look extends Module {
 
     public Look() {
         super(null, "style", "Aurora or liquid glass, the glass colors, and the image behind the glass.");
+        // Not a real module: nothing to say in chat, so no chat-hints row
+        settings.groups.removeIf(group -> group.name.equals("General"));
     }
 
     private Setting<Integer> channel(String name, String description, int value) {

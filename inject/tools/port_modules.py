@@ -25,6 +25,8 @@ def port(text):
         text = text.replace('package aicoder.assist.modules;\n', 'package aicoder.assist.modules;\n\nimport static aicoder.assist.Client.mc;\n', 1)
 
     text = text.replace('AiCoderTab.', 'Category.')
+    # The chat-hints switch of HintModule lives in the stand-in Module itself
+    text = text.replace(' extends HintModule {', ' extends Module {')
     text = text.replace('mc.gui.screen()', 'mc.screen')
     text = re.sub(r'\(\(KeyMappingAccessor\) (mc\.options\.\w+)\)\.meteor\$getKey\(\)', r'Input.keyOf(\1)', text)
 

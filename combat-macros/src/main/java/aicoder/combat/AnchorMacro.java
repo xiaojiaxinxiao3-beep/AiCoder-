@@ -29,7 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * click only happens while the crosshair is on the anchor, using the game's own hit result. Nothing is sent
  * that the vanilla client would not send for the same key presses, and the view is never turned.
  */
-public class AnchorMacro extends Module {
+public class AnchorMacro extends HintModule {
     private enum Stage {
         Idle,
         /** The place click went out; waiting to see the anchor where it should appear. */

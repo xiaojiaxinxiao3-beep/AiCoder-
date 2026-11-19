@@ -19,6 +19,8 @@
 
 沒有 `.exe` 可用的環境（Linux、macOS）：`java -jar AiCoderAssist.jar`，需要 JDK 21 以上。
 
+- 每個模組的設定最上面都有 `Chat Hints` 開關（預設開）：關掉後那個模組不在聊天欄說任何話。授權鎖定的訊息不受影響。實測（原版 1.21.11）：Wind Jump 沒有風彈時，開著會出現提示、關掉就沒有
+
 ## 測過與沒測過的
 - 測過：Linux 上手動啟動的原版 1.21.11。注入、五個掛鉤、兩個介面、設定視窗，以及五個模組的實際效果
   （Anchor Macro、Crystal Macro 含自動黑曜石、Right Clicker、Mace Swap、Wind Pearl）

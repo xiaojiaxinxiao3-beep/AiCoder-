@@ -24,7 +24,7 @@ import org.lwjgl.sdl.SDLMouse;
  * <p>The real cursor moves and the real inventory screen opens, so you see it happen and cannot do
  * anything else for those few ticks. The delay setting is the number of ticks between the steps.
  */
-public class OffhandTotem extends Module {
+public class OffhandTotem extends HintModule {
     private enum Stage { Idle, Open, Hover, Close }
 
     /** Size of the inventory window, and how far the recipe book pushes it aside when it is open. */

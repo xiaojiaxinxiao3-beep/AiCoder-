@@ -29,7 +29,7 @@ import net.minecraft.world.phys.Vec3;
  * tick where a charge thrown now would be level with it, and throws along that line. The longer the delay
  * after the pearl, the further out (and, thrown upwards, the higher) they meet.
  */
-public class WindPearl extends Module {
+public class WindPearl extends HintModule {
     /** Blocks per tick of a thrown wind charge. It has no gravity and no drag. */
     private static final double CHARGE_SPEED = 1.5;
     private static final double PEARL_GRAVITY = 0.03;

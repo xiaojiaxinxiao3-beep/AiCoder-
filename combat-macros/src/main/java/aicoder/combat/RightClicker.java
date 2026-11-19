@@ -20,7 +20,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * other press. The game looks at the mouse twenty times a second, so above 20 clicks per second several
  * presses are handed over at once and handled one after another within the same tick.
  */
-public class RightClicker extends Module {
+public class RightClicker extends HintModule {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Integer> cps = sgGeneral.add(new IntSetting.Builder()

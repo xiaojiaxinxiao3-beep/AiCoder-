@@ -29,7 +29,7 @@ import java.util.Map;
  * connection itself depends on (keep-alive, teleport confirmation, login and configuration) are
  * never limited and are not listed.
  */
-public class PacketLimiter extends Module {
+public class PacketLimiter extends HintModule {
     /** Gameplay packets the connection or the signed chat chain depends on. Never limited, not listed. */
     private static final List<String> PROTECTED = List.of("accept_teleportation", "chunk_batch_received", "configuration_acknowledged",
         "chat", "chat_ack", "chat_command_signed", "chat_session_update");

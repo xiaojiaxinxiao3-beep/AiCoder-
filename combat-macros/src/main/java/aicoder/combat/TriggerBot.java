@@ -25,7 +25,7 @@ import net.minecraft.world.phys.EntityHitResult;
  * <p>Cooldown: Auto waits until the held weapon's attack charge is full (so a sword, an axe and a
  * mace each get their own rhythm); Custom waits a fixed number of ticks between presses.
  */
-public class TriggerBot extends Module {
+public class TriggerBot extends HintModule {
     public enum Cooldown { Auto, Custom }
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();

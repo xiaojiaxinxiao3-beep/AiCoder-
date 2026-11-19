@@ -37,7 +37,7 @@ import net.minecraft.world.item.BlockItem;
  * <p>Stops by itself when you run out of blocks, fall below the bridge, open a screen, or press sneak or
  * the opposite movement key yourself (back in telly mode, forward in diagonal mode).
  */
-public class TellyBridge extends Module {
+public class TellyBridge extends HintModule {
     public enum Mode {
         /** Sprint forward, turn around in the air to place. */
         Telly,

@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
  * the camera (nothing is faked towards the server), it only acts inside a cone around where you already
  * look, and by default it lets go once the crosshair is on the target.
  */
-public class CrosshairDrift extends Module {
+public class CrosshairDrift extends HintModule {
     public enum Part {
         Head,
         Body,

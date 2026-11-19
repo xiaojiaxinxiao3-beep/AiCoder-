@@ -30,7 +30,7 @@ import net.minecraft.world.phys.EntityHitResult;
  * attack damage and the charge of the weapon you were holding. The slot change is a real one: other
  * players see the mace in your hand for as long as it stays selected.
  */
-public class MaceSwap extends Module {
+public class MaceSwap extends HintModule {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgWhen = settings.createGroup("When");
 

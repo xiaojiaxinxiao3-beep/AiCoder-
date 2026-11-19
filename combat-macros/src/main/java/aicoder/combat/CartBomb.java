@@ -25,7 +25,7 @@ import net.minecraft.world.phys.HitResult;
  * the bow, the use key on the block for the rail and the cart, and the real camera turns.
  * The blast is three or four blocks from you: it hurts you as well.
  */
-public class CartBomb extends Module {
+public class CartBomb extends HintModule {
     private enum Stage { Draw, Done }
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();

@@ -24,6 +24,8 @@ In the game
   place, 1-9 or the wheel to pick). P pauses, R restarts. Minecraft keeps running behind the menu.
 - Columns layout: left click a module to switch it, right click for its settings.
   Window layout: click a module to select it, click its switch or right click to switch it.
+- Every module has a "Chat Hints" switch at the top of its settings. Off: that module writes
+  nothing to chat (no "what it did" or "why it could not" lines). On by default.
 - Every module has a BIND section at the bottom of its settings: click Key and press a key
   (Esc or right click clears it), Mode is TOGGLE or HOLD.
 - Telly Bridge (Utility): stand on the ground holding blocks in the hotbar, face the way the bridge

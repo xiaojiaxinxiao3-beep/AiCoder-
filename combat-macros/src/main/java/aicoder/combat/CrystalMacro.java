@@ -26,7 +26,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * only while the crosshair is on the crystal, the way the attack key would. Holding the use key then
  * places the next one as soon as the last has gone off, so right click alone keeps the chain going.
  */
-public class CrystalMacro extends Module {
+public class CrystalMacro extends HintModule {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Integer> attackDelay = sgGeneral.add(new IntSetting.Builder()

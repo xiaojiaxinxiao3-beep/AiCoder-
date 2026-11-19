@@ -31,7 +31,7 @@ import net.minecraft.world.phys.EntityHitResult;
  * seen when you press attack with the crosshair on someone; the levelled spear is seen when the hurt
  * flash starts on whoever is in front of you. Every step is a key press: hotbar slot, use, attack.
  */
-public class SpearSmash extends Module {
+public class SpearSmash extends HintModule {
     private enum Stage { Idle, Equip, Hit, Back }
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();

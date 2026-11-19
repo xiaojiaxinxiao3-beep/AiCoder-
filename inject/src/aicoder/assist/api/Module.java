@@ -20,6 +20,14 @@ public abstract class Module {
 
     private boolean active;
 
+    /** Off: the module writes nothing to chat. */
+    private final Setting<Boolean> chatHints = settings.getDefaultGroup().add(new BoolSetting.Builder()
+        .name("chat-hints")
+        .description("Lets this module write to chat (what it did, or why it could not). Turn off to keep chat clear.")
+        .defaultValue(true)
+        .build()
+    );
+
     protected Module(Category category, String name, String description) {
         this.category = category;
         this.name = name;
@@ -68,14 +76,14 @@ public abstract class Module {
     }
 
     protected void info(String message, Object... args) {
-        Client.chat(title, String.format(message, args), 0xFF4DFFB8);
+        if (chatHints.get()) Client.chat(title, String.format(message, args), 0xFF4DFFB8);
     }
 
     protected void warning(String message, Object... args) {
-        Client.chat(title, String.format(message, args), 0xFFFFC857);
+        if (chatHints.get()) Client.chat(title, String.format(message, args), 0xFFFFC857);
     }
 
     protected void error(String message, Object... args) {
-        Client.chat(title, String.format(message, args), 0xFFFF6F8A);
+        if (chatHints.get()) Client.chat(title, String.format(message, args), 0xFFFF6F8A);
     }
 }

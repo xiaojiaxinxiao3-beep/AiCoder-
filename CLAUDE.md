@@ -247,6 +247,7 @@
 - `CrystalMacro` 的 `auto-obsidian`：切到黑曜石、點擊、切回水晶在**同一個 tick** 內做完，否則玩家按住右鍵時原版的連續使用會多放一塊
 - 連點模組用 `Input.isPressed(keyUse／keyAttack)` 判斷實體按鍵；每一下點擊是 `KeyMapping.click(綁定的按鍵)`（按鍵用 Meteor 的 `KeyMappingAccessor.meteor$getKey()` 取得），等於多按一次，由原版的 `handleKeybinds()` 在同一個 tick 逐一處理，所以一個 tick 可以有好幾下（100 CPS = 每 tick 5 下）。不要用 `Utils.rightClick()`，它一個 tick 只會點一次
 - `AnchorMacro` 的延遲都是 0 時，`onTick()` 的迴圈會在同一個 tick 內走完切換、補充、切回、引爆（補充後方塊狀態是客戶端預測的，不用等伺服器）。改過預設值的設定要換名字（`swap-delay`、`use-delay`），否則玩家存檔裡的舊值會蓋掉新預設
+- **每個模組的聊天提示開關**（使用者說提示太多會蓋掉重要訊息）：`chat-hints`（預設開）。Meteor 版在 `HintModule`（所有模組的基底，覆寫 `info`／`warning`／`error`），注入版在 `api/Module.java` 本身，`port_modules.py` 把 `extends HintModule` 換回 `extends Module`。新模組要繼承 `HintModule`。`Look`（STYLE）不是真的模組，建構子裡把 General 群組拿掉。各模組原本的 `messages`／`feedback` 細項開關還在。實測（注入版 1.21.11）：Wind Jump 沒有風彈時，開著有提示、關掉沒有；Meteor 版這個環境沒有編譯
 - **原則是只做原版按鍵會做的事**。所有點擊都走 `Clicks.java`，呼叫順序照抄 `Minecraft.startUseItem()`／`startAttack()`（先取揮手動畫、再 `useItemOn`／`useItem`／`attack`、結果是 `PREDICTED` 才揮手）。切物品只用 `inventory.setSelectedSlot()`，點方塊只用 `mc.hitResult`，不偽造視角
 - 偵測「玩家自己放的」：`InteractBlockEvent`（重生錨、水晶）、`InteractItemEvent` 加 `EntityAddedEvent`（珍珠）。模組自己的點擊也會觸發這些事件，所以用 `clicking` 旗標擋掉
 - `WindPearl` 的物理（從 26.3 的 bytecode 查到的）：

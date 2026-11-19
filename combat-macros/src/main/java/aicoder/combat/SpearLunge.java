@@ -24,7 +24,7 @@ import net.minecraft.world.item.ItemStack;
  * bars, so the module only starts with at least that much and stops when it runs out, or when the key is
  * released. Every step is a key press: jump key, hotbar slot, attack key.
  */
-public class SpearLunge extends Module {
+public class SpearLunge extends HintModule {
     public enum HoldKey {
         R(InputConstants.KEY_R, false),
         V(InputConstants.KEY_V, false),
