@@ -70,6 +70,14 @@ public class TellyBridge extends Module {
         .build()
     );
 
+    private final Setting<Side> turnSide = sgGeneral.add(new EnumSetting.Builder<Side>()
+        .name("turn-side")
+        .description("Telly, Telly Up and Speed modes: which way the camera turns round to place. It always turns back the way it came.")
+        .defaultValue(Side.Right)
+        .visible(() -> mode.get() != Mode.Diagonal)
+        .build()
+    );
+
     private final Setting<Integer> cps = sgGeneral.add(new IntSetting.Builder()
         .name("cps")
         .description("Telly and Speed modes: clicks per second of the drag click, which goes on from the start of the turn round to the end of the turn forward.")
@@ -270,7 +278,7 @@ public class TellyBridge extends Module {
         fromPitch = steering ? toPitch : beforePitch;
         // The same way round every time: half a turn is never taken as the other half
         float turned = wrap(mc.player.getYRot() - fromYaw);
-        if (Math.abs(Math.abs(turned) - 180) < 1) turned = 180;
+        if (Math.abs(Math.abs(turned) - 180) < 1) turned = 180 * turnSign();
         toYaw = fromYaw + turned;
         toPitch = mc.player.getXRot();
         steering = true;
@@ -680,7 +688,7 @@ public class TellyBridge extends Module {
             phaseTick++;
             if (phaseTick < n) {
                 turnKeys(180f * phaseTick / n);
-                mc.player.setYRot(forwardYaw + 180f * phaseTick / n);
+                mc.player.setYRot(forwardYaw + turnSign() * 180f * phaseTick / n);
                 mc.player.setXRot(pitchNow + (aimPitch - pitchNow) / (n - phaseTick + 1));
             } else {
                 mc.options.keyUp.setDown(false);
@@ -746,7 +754,7 @@ public class TellyBridge extends Module {
     private void turnForward(int n) {
         phaseTick++;
         float off = Math.max(0, 180f - 180f * phaseTick / n);
-        mc.player.setYRot(forwardYaw + off);
+        mc.player.setYRot(forwardYaw + turnSign() * off);
         mc.player.setXRot(mc.player.getXRot() + (20 - mc.player.getXRot()) / Math.max(1, n - phaseTick + 1));
         turnKeys(off);
         if (phaseTick >= n) phase = 0;
@@ -759,10 +767,13 @@ public class TellyBridge extends Module {
      * nearly straight, or a jump would be thrown aslant.
      */
     private void turnKeys(float off) {
+        // (turnSign: 1 when the camera turns round to the right, -1 to the left)
         mc.options.keyUp.setDown(off < 67);
         mc.options.keySprint.setDown(off <= 20);
-        mc.options.keyLeft.setDown(off >= 67 && off <= 113);
-        mc.options.keyRight.setDown(false);
+        // Turned to the right it is the left key that pushes you on; turned to the left, the right key
+        boolean square = off >= 67 && off <= 113;
+        mc.options.keyLeft.setDown(square && turnSign() > 0);
+        mc.options.keyRight.setDown(square && turnSign() < 0);
         mc.options.keyDown.setDown(off > 113);
     }
 
@@ -922,5 +933,10 @@ public class TellyBridge extends Module {
     private void stop(String why) {
         info(why);
         toggle();
+    }
+
+    /** 1 when the camera turns round to the right, -1 to the left. */
+    private int turnSign() {
+        return mode.get() != Mode.Diagonal && turnSide.get() == Side.Left ? -1 : 1;
     }
 }
