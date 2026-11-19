@@ -47,7 +47,96 @@ public final class Injector {
         }
     }
 
+    /** Whether the Java at this home folder has the module that attaches to a running JVM. */
+    private static boolean canAttach(File home) {
+        if (new File(home, "jmods/jdk.attach.jmod").isFile()) return true;
+        try {
+            for (String line : java.nio.file.Files.readAllLines(new File(home, "release").toPath())) {
+                if (line.startsWith("MODULES=") && line.contains("jdk.attach")) return true;
+            }
+        } catch (Exception ignored) {
+            // No release file: not a runtime this can judge
+        }
+        return false;
+    }
+
+    private static void javaHomesIn(File folder, int depth, List<File> out) {
+        File[] children = folder.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (!child.isDirectory()) continue;
+            if (new File(child, "bin/java.exe").isFile() || new File(child, "bin/java").isFile()) out.add(child);
+            else if (depth > 0) javaHomesIn(child, depth - 1, out);
+        }
+    }
+
+    /**
+     * Some launchers run the game on a cut-down Java that cannot attach to another program. This looks for a
+     * Java on this computer that can: JAVA_HOME, the PATH, the official launcher's own runtimes and the usual
+     * install folders. Null when there is none.
+     */
+    private static File javaThatAttaches() {
+        List<File> homes = new ArrayList<>();
+        String env = System.getenv("JAVA_HOME");
+        if (env != null && !env.isBlank()) homes.add(new File(env));
+        String path = System.getenv("PATH");
+        if (path != null) {
+            for (String entry : path.split(File.pathSeparator)) {
+                File bin = new File(entry);
+                try {
+                    if (new File(bin, "java.exe").isFile() || new File(bin, "java").isFile()) homes.add(new File(bin, "java").getCanonicalFile().getParentFile().getParentFile());
+                } catch (Exception ignored) {
+                    // Not a folder that can be read
+                }
+            }
+        }
+        List<String> roots = new ArrayList<>();
+        String appData = System.getenv("APPDATA"), local = System.getenv("LOCALAPPDATA");
+        if (appData != null) roots.add(appData + "\\.minecraft\\runtime");
+        if (local != null) roots.add(local + "\\Packages\\Microsoft.4297127D64EC6_8wekyb3d8bbwe\\LocalCache\\Local\\runtime");
+        for (String base : new String[]{System.getenv("ProgramFiles"), System.getenv("ProgramFiles(x86)"), System.getenv("ProgramW6432")}) {
+            if (base == null) continue;
+            for (String vendor : new String[]{"Java", "Eclipse Adoptium", "Microsoft", "Zulu", "BellSoft", "Amazon Corretto", "Semeru", "OpenJDK", "Minecraft Launcher\\runtime"}) roots.add(base + "\\" + vendor);
+        }
+        roots.add("/usr/lib/jvm");
+        for (String root : roots) javaHomesIn(new File(root), 4, homes);
+
+        for (File home : homes) {
+            File exe = new File(home, "bin/java.exe").isFile() ? new File(home, "bin/java.exe") : new File(home, "bin/java");
+            if (exe.isFile() && canAttach(home)) return exe;
+        }
+        return null;
+    }
+
     public static void main(String[] args) throws Exception {
+        // This Java cannot attach to another program (a runtime without the attach module): hand over to
+        // one on this computer that can, or say plainly what to install
+        boolean attach = true;
+        try {
+            Class.forName("com.sun.tools.attach.VirtualMachine");
+        } catch (Throwable missing) {
+            attach = false;
+        }
+        if (!attach) {
+            String self = new File(Injector.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
+            File other = System.getProperty("aicoder.assist.relaunched") == null ? javaThatAttaches() : null;
+            if (other != null) {
+                System.out.println("The game's Java (" + System.getProperty("java.home") + ") cannot attach to a running program.");
+                System.out.println("Using this one instead: " + other.getAbsolutePath());
+                System.out.println();
+                List<String> command = new ArrayList<>(List.of(other.getAbsolutePath(), "-Daicoder.assist.relaunched=true", "-jar", self));
+                command.addAll(List.of(args));
+                System.exit(new ProcessBuilder(command).inheritIO().start().waitFor());
+            }
+            System.out.println("The game is running on a cut-down Java that cannot attach to a running program:");
+            System.out.println("  " + System.getProperty("java.home"));
+            System.out.println("and no full Java was found on this computer.");
+            System.out.println();
+            System.out.println("Fix: install a full JDK 21 (for example \"Temurin 21 JDK\" from adoptium.net, the .msi installer),");
+            System.out.println("then run this again. Nothing else needs to change; the game can keep its own Java.");
+            System.exit(4);
+        }
+
         String payload = new File(Injector.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
 
         // Everything shown in the window also goes to a text file beside the jar, so it can be sent along

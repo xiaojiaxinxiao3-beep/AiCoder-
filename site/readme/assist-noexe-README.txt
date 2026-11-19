@@ -95,3 +95,9 @@ close Minecraft completely and start it again before running this one.
 
 If it does not get in: everything the window shows is also saved as AiCoderAssist-log.txt in this
 folder. The line starting with "Reason:" says why.
+
+If it says "could not attach (java.lang.NoClassDefFoundError: com/sun/tools/attach/VirtualMachine)"
+or "The game is running on a cut-down Java": the launcher runs the game on a Java that cannot attach
+to a running program. This version looks for a full Java on the computer by itself and uses it. If
+there is none, install a full JDK 21 (for example "Temurin 21 JDK" from adoptium.net, the .msi
+installer) and run it again; the game itself can keep its own Java.

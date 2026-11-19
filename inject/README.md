@@ -186,3 +186,10 @@ FABRIC=1 V=1.21.4 ./test.sh --quickPlaySingleplayer "New World"
 - 兩個版本的同一個 jar 在原版上仍然正常
 
 沒測過的：裝了 Fabric API、Sodium、Iris 或其他模組的 Fabric；Forge、NeoForge、Quilt、OptiFine（不支援，注入器會說明）。
+
+## 遊戲用的 Java 不能附加時
+- 使用者朋友的電腦出現 `could not attach (java.lang.NoClassDefFoundError: com/sun/tools/attach/VirtualMachine)`：有些啟動器用精簡過的 Java 跑遊戲，裡面沒有 `jdk.attach` 模組，而注入器原本一律用「遊戲旁邊那個 java.exe」
+- 現在 `Injector.main()` 一開始先確認自己載得到 `VirtualMachine`；載不到就找電腦上有 `jdk.attach` 的 Java（`JAVA_HOME`、PATH、官方啟動器的 runtime、Program Files 下常見的 JDK 資料夾；用 `jmods/jdk.attach.jmod` 或 `release` 檔的 `MODULES` 判斷），用它重新執行自己。找不到就請使用者安裝完整的 JDK 21
+- 實測（Linux）：用 `jlink` 做一個沒有 `jdk.attach` 的 Java 來執行注入器，會改用系統的 JDK 21 並正常往下走。Windows 上的搜尋路徑沒有實測；「一個都找不到」時的訊息也沒有實測
+- 另一種可能仍然修不了：遊戲那個 Java 連 `java.instrument` 都沒有，就載不了 agent，只能請使用者在啟動器裡把遊戲的 Java 換成完整的 JDK
+
