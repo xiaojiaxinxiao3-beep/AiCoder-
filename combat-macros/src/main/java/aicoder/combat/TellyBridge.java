@@ -502,21 +502,35 @@ public class TellyBridge extends Module {
                 // it, then the next one on, and so on, two layers at once. The block on top goes on
                 // the first block of this jump that has none yet, once your feet are above it or you
                 // are past it; until then it carries on along the lower layer.
+                // To keep the bridge two blocks thick it also goes back for what earlier jumps left
+                // open behind you: a gap in the layer you stand on, then a block of it with nothing
+                // on top. Not when the landing still has to be saved.
                 int endI = index(end);
-                for (int i = takeoffEnd + 1; i <= endI; i++) {
-                    int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
-                    if (!replaceable(bx, level + 1, bz)) continue;
-                    double front = sign > 0 ? i + 1 : i;
-                    if (feetY >= level + 2 + 0.01 || along - 0.3 > front + 0.01) {
+                boolean saving = landIn > 0 && landIn <= 3 && !landing;
+                for (int pass = 0; pass < 2 && !pairTop && !saving; pass++) {
+                    // pass 0: gaps in this layer, over a block of the layer below; pass 1: no block on top
+                    int base = pass == 0 ? level - 1 : level;
+                    for (int i = Math.max(endI - 6, takeoffEnd - 5); i <= endI && !pairTop; i++) {
+                        int bx = dx != 0 ? i * dx : lineX, bz = dz != 0 ? i * dz : lineZ;
+                        if (!solid(bx, base, bz) || !replaceable(bx, base + 1, bz)) continue;
+                        double front = sign > 0 ? i + 1 : i;
+                        if (feetY < base + 2 + 0.01 && along - 0.3 <= front + 0.01) {
+                            // The newest block, still under your feet: on along the lower layer first
+                            if (pass == 1) break;
+                            continue;
+                        }
                         double at = Math.min(along - 0.1, front - 0.35) * sign;
-                        fx = dx != 0 ? at : clamp(ex, bx + 0.12, bx + 0.88);
-                        fz = dz != 0 ? at : clamp(ez, bz + 0.12, bz + 0.88);
-                        fy = level + 1 - 0.02;
+                        double tx = dx != 0 ? at : clamp(ex, bx + 0.12, bx + 0.88), tz = dz != 0 ? at : clamp(ez, bz + 0.12, bz + 0.88);
+                        double ty = base + 1 - 0.02;
+                        // Within reach only
+                        if ((tx - ex) * (tx - ex) + (ty - ey) * (ty - ey) + (tz - ez) * (tz - ez) > 4.2 * 4.2) continue;
+                        fx = tx;
+                        fy = ty;
+                        fz = tz;
                         onSpot = true;
                         topSpot = true;
                         pairTop = true;
                     }
-                    break;
                 }
             } else if (!up && !speedy() && tops < topBlocks.get() && beyond > 0.4 && replaceable(end[0], level + 1, end[1])
                 && !(landIn > 0 && landIn <= need + 1 && !landing)) {
@@ -681,7 +695,7 @@ public class TellyBridge extends Module {
 
         // Drag click at cps, while the crosshair is on the spot
         if (phase == 2 && !spotAhead && onSpot && stepIndex != Integer.MIN_VALUE && !bumpSpot) runStart = stepIndex;
-        if (phase == 2 && !spotAhead && (up ? onSpot : flatClick(level))) {
+        if (phase == 2 && !spotAhead && (up || pairTop ? onSpot : flatClick(level))) {
             if (topSpot) tops++;
             if (baseSpot) {
                 baseDone = true;
