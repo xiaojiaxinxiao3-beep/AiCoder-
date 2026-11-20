@@ -1337,6 +1337,13 @@ public class TellyBridge extends Module {
         }
         int e = lastCell(rWalk);
         if (e != Integer.MIN_VALUE && e < target + 1 && replayExtend(rWalk, want)) return;
+        // In the recording the block you come down on is not the highest: one more goes on top of the
+        // block behind first (frame 113), and only then the block for your feet, a level lower and in
+        // front of it (frame 114)
+        if (!rHigher && rBehind >= 1 && mc.player.getY() >= up + 1 && replayTop(rCell - 1, up, want)) {
+            rHigher = true;
+            return;
+        }
         for (int c = rCell + 1; c <= target; c++) {
             if (replayTop(c, rWalk, want)) return;
         }
@@ -1344,12 +1351,14 @@ public class TellyBridge extends Module {
 
     /** The cell the jump up left from, and how many blocks have gone on top behind it. */
     private int rCell, rBehind;
+    private boolean rHigher;
 
     private void replayJump(int stage, int level) {
         rStage = stage;
         rWalk = level;
         rCell = floor(alongNow());
         rBehind = 0;
+        rHigher = false;
         rT = 0;
         jumps++;
         mc.options.keyJump.setDown(true);

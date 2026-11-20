@@ -12,7 +12,7 @@ def predict(x,vx,vy,y,target,accel=0.0196,maxt=16):
         if vy<0 and y<=target: return k,x
         vy=(vy-0.08)*0.98; vx=vx2*0.91
     return None,x
-def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit=1, first=0, early=0):
+def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit=1, first=0, early=0, higher=0):
     w=World()
     for i in range(-12,0): w.b.add((i,-1))
     x,y,vx,vy,ground=-0.6,0.0,0.25,0.0,True
@@ -60,6 +60,7 @@ def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit
                         for c in range(c0-1,c0-1-behind,-1):
                             if act is None and nb<behind and (c,m) in w.b and (c,up) not in w.b and not hits_player(c,up,x,y): act=(c,up); nb+=1
                         if act is None and e<target+lowlimit and x>e+1+0.01 and not hits_player(e+1,m,x,y): act=(e+1,m)
+                        if act is None and higher and (c0-1,up) in w.b and (c0-1,up+1) not in w.b and y>=up+1 and not hits_player(c0-1,up+1,x,y): act=(c0-1,up+1)
                         if act is None:
                             for c in range(c0+1,target+1):
                                 if (c,m) in w.b and (c,up) not in w.b and not hits_player(c,up,x,y): act=(c,up); break
