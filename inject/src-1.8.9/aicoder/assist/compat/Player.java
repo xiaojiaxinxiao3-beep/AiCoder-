@@ -20,7 +20,15 @@ public final class Player {
     public float getXRot() { return p().rotationPitch; }
     public float getYRot() { return p().rotationYaw; }
     public void setXRot(float pitch) { p().rotationPitch = pitch; }
-    public void setYRot(float yaw) { p().rotationYaw = yaw; }
+    /**
+     * In 1.8.9 the crosshair's line is worked out from the head's yaw, which the game copies from the
+     * body's yaw only when the player is updated, later in the tick than the crosshair. Setting both keeps
+     * a click made in the same tick on the spot the camera was turned to.
+     */
+    public void setYRot(float yaw) {
+        p().rotationYaw = yaw;
+        p().rotationYawHead = yaw;
+    }
     public boolean onGround() { return p().onGround; }
     public boolean isUsingItem() { return p().isUsingItem(); }
 

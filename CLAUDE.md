@@ -285,6 +285,21 @@
 - 原則和戰鬥巨集一樣，另外明確不做躲避偵測的功能
 - 測試：`inject/test.sh`（手動用快取裡的官方 jar 啟動原版，再注入）。腳本裡不要用 `| tail` 接它的輸出，背景的遊戲會讓管線等不到結束
 
+## 注入式客戶端的 1.8.9 版（`inject/src-1.8.9/`、`inject/build-1.8.9.sh`）
+- 使用者要求的 1.8.9 版，新版本才有的東西直接不做。產物 `inject/work-1.8.9/AiCoderAssist-1.8.9.jar`／`.exe`；支援原版與 **OptiFine**（使用者的啟動器是 1.8.9＋OF），**不支援 Forge**（Forge 執行時用 SRG 名稱，會明確報錯）
+- 模組只有五個：`TellyBridge`、`LeftClicker`、`RightClicker`、`TriggerBot`、`CrosshairDrift`；選單、兩套外觀、壁紙、小遊戲、按鍵綁定都在。沒有授權檢查（`license/License.java` 是永遠不鎖的替身）
+- **名稱**：1.8.9 沒有官方對照表，用 MCP（`tools/mcp_names.py`：`joined.srg`＋`fields.csv`／`methods.csv` → `mcp.tiny`，三欄 official／srg／named；欄位型別由 `tools/java/FieldDump.java` 從遊戲 jar 讀）。原始碼對著 MCP 名稱寫，建置時轉回混淆名稱
+- **共用原始碼的做法**：`tools/port_version.py 1.8.9` 把 `src/` 複製過去、蓋上 `src-1.8.9/`。`src-1.8.9/aicoder/assist/compat/` 用新版的名稱回答舊遊戲（`Minecraft`、`Player`、`Level`、`Key`、`KeyMapping`、`Screen`、`KeyEvent`…），所以 `TellyBridge`、連點、`AuroraScreen` 幾乎不用改；`mc` 是 `compat.Minecraft`，真正的遊戲物件是 `mc.real()`。`compat.Minecraft.sync()` 在每個 tick、每個畫面、每個按鍵事件開頭更新 `player`／`level`／`screen`。`TriggerBot`、`CrosshairDrift` 保留設定、方法本體換成 `modules/*.tail`
+- **Java 8**：照樣用 javac 21 編譯，再用 JvmDowngrader（`work-1.8.9/jvmdg.jar`，Maven Central 1.3.6）降成 class 52 並把它的替身類別 shade 進 `aicoder/assist/jvmdg`。`ProcessHandle` 沒有替身，由 port 規則換掉
+- **鍵碼**：內部一律用 GLFW 編號（設定檔、小遊戲共用），`compat/Keys.java` 和 LWJGL 2 互轉
+- **繪圖**：`gfx/Backend.java`（1.8.9）用 `Tessellator`＋`GlStateManager` 立即畫；字體沒有 STB，`gfx/TextRenderer.java` 用 Java 的 AWT 把 Comfortaa 畫進貼圖（字高取 ascent＋descent＝像素高，和 STB 的算法一致）
+- **掛鉤只有三個**：`Minecraft.runTick`、`Minecraft.dispatchKeypresses`（每個鍵盤事件都會經過，畫面開著時由 `compat.Screen.handleKeyboardInput` 呼叫）、`EntityRenderer.updateCameraAndRender`。名稱表由 `tools/gen_names_189.py` 產生
+- **OptiFine**：遊戲由 LaunchWrapper 的 `LaunchClassLoader` 載入，名稱和原版一樣。`Agent.joinLaunchWrapper()` 用它的 `addURL` 把自己這個 jar 加進去。版本判斷不靠 `version.json`（1.8.9 沒有），靠主類別的混淆名稱 `ave`、要掛的方法存在、以及啟動時的版本字串
+- **三個坑（都實際踩到）**：(1) 新版 Java 去附加 Java 8 的遊戲，成功時對方回 "0"，新版把它當成失敗丟 `AgentLoadException`；port 規則把這種情況當成功（用類別名稱字串判斷，不能在 catch 裡寫出那個型別，否則沒有 attach 類別的 Java 8 連 `Injector` 都載不進來，使用者的電腦就是這樣報錯）。(2) 1.8.9 的準心是用 `rotationYawHead` 算的，遊戲要到玩家更新時才把它設成 `rotationYaw`，比準心晚；`compat.Player.setYRot` 兩個一起設，否則每個 tick 都在轉頭的 Telly Replay 會點歪（固定在第 32 格掉）。(3) LWJGL 2 要有 `xrandr` 指令才開得了視窗
+- 注入器另外會找其他啟動器帶的 Java（Modrinth、Prism…）以及 Java 8 的 JDK（`tools.jar`，改用 `-cp` 啟動）
+- **測試**：`inject/test-1.8.9.sh`（1.8.9 不能直接進單人世界，所以開一個本機 1.8.9 伺服器、基岩地板的超平坦世界，指令用 `srv "…"` 送到伺服器）；`OPTIFINE=1` 用 OptiFine 啟動（`tools/fetch_optifine.sh`）。每次測試要刪 `server/world/playerdata`（上一輪摔死的玩家會停在死亡畫面）、測試線要離出生點 60 格內（遠的區塊用軟體繪圖載不進來，客戶端會一直「沒踩到地」）、座標用正的 z
+- 實測（Linux，原版與 OptiFine HD U M5）：注入、選單、Telly 15 秒 67 格、Speed 88 格、Telly Up 65 格（OptiFine）、Telly Replay 70 格（兩種都測），都沒有掉。沒測：Windows、exe、公開伺服器、連點／Trigger Bot／Crosshair Drift 的實際效果、小遊戲
+
 ## 壁紙（`liquid-glass/` 與 `glass-columns/` 共同的功能）
 - `gui/Wallpaper.java`（兩個專案各一份，只有 namespace 不同）。圖片**只畫在面板裡**，不是全螢幕背景：`frame()` 每個畫面算一次「鋪滿螢幕」的排版，`renderIn()` 由 `Chrome.panel()` 呼叫，用自己的 `Renderer2D` 畫該面板範圍的那一塊（UV 依螢幕座標），圓角用水平細條拼
 - `renderIn()` 用自己的 scissor 立刻送出，所以面板之後畫的染色、反光、亮邊都疊在圖片上面

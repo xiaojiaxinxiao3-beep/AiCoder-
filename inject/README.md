@@ -195,3 +195,9 @@ FABRIC=1 V=1.21.4 ./test.sh --quickPlaySingleplayer "New World"
 - 實測（Linux）：用 `jlink` 做一個沒有 `jdk.attach` 的 Java 來執行注入器，會改用系統的 JDK 21 並正常往下走。Windows 上的搜尋路徑沒有實測；「一個都找不到」時的訊息也沒有實測
 - 另一種可能仍然修不了：遊戲那個 Java 連 `java.instrument` 都沒有，就載不了 agent，只能請使用者在啟動器裡把遊戲的 Java 換成完整的 JDK
 
+## 1.8.9 版
+- `python3 tools/fetch.py 1.8.9 work-1.8.9` 之後 `./build-1.8.9.sh`，產物 `work-1.8.9/AiCoderAssist-1.8.9.jar`／`.exe`。支援原版與 OptiFine，不支援 Forge
+- 五個模組（Telly Bridge、Left／Right Clicker、Trigger Bot、Crosshair Drift）加上選單、外觀、壁紙、小遊戲；新版本才有的東西（重錘、長矛、風彈、重生錨、水晶巨集、副手圖騰、鞘翅俯衝）沒有，Cart Bomb 也沒有移植
+- 做法（MCP 名稱、`compat/` 層、降成 Java 8、三個掛鉤、OptiFine 的類別載入器）與測試範圍寫在根目錄 `CLAUDE.md` 的「注入式客戶端的 1.8.9 版」
+- 測試：`./test-1.8.9.sh`，`OPTIFINE=1 ./test-1.8.9.sh`
+

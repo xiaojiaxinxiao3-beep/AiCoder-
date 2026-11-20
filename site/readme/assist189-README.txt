@@ -31,4 +31,7 @@ Each module has "Chat Hints" to switch its chat messages off.
 Settings are saved in aicoder-assist.properties in the game folder.
 
 What has been tested
-  See the message this file came with: this is a first build for you to try.
+  On Linux, plain 1.8.9 and 1.8.9 with OptiFine HD U M5, on a local server: injecting (the game on
+  Java 8, the injector handed over to a newer Java), the menu, and 15 second runs of Telly, Telly Up,
+  Telly Replay and Speed without a fall. Not tested: Windows, the .exe, public servers, Forge (not
+  supported), the clickers, Trigger Bot and Crosshair Drift against a real target, the small games.
