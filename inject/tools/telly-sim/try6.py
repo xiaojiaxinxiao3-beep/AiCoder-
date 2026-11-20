@@ -1,7 +1,7 @@
 import sys, math; sys.path.insert(0,'.')
 from sim import World, accel_x, hits_player, HALF
 YAW=[-55.1,-29.1,-23.1,-52.9,-107.7,-167.9,-179.3,-179.3,-178.7,-176.7,-173.4,-168.0,-162.2,-157.0,-150.7,-143.4,-137.4,-129.5,-111.8,-83.9,-58.9]
-KEYS=["D","W","WD","WSD","SD","SD","SD","S","S","S","S","S","S","S","S","S","SD","SD","D","WD","WD"]
+KEYS=["D","WD","WD","WSD","SD","SD","SD","S","S","S","S","S","S","S","S","S","SD","SD","D","WD","WD"]
 SECOND=11
 def last(w,l,near):
     xs=[i for (i,ll) in w.b if ll==l and abs(i-near)<16]
@@ -12,7 +12,7 @@ def predict(x,vx,vy,y,target,accel=0.0196,maxt=16):
         if vy<0 and y<=target: return k,x
         vy=(vy-0.08)*0.98; vx=vx2*0.91
     return None,x
-def simulate(keys=KEYS, rounds=8, rule='java', verbose=False, behind=2, lowlimit=1):
+def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit=1, first=0):
     w=World()
     for i in range(-12,0): w.b.add((i,-1))
     x,y,vx,vy,ground=-0.6,0.0,0.25,0.0,True
@@ -26,7 +26,7 @@ def simulate(keys=KEYS, rounds=8, rule='java', verbose=False, behind=2, lowlimit
         else:
             if ground:
                 second=6<=k<=15
-                jump=True; stage=2 if second else 1; m=stand; k=SECOND if second else 0; c0=math.floor(x); nb=0
+                jump=True; stage=2 if second else 1; m=stand; k=SECOND if second else first; c0=math.floor(x); nb=0
                 if not second: rnd+=1
             ks=keys[k]; off=-YAW[k]
             fwd=(1 if 'W' in ks else 0)-(1 if 'S' in ks else 0); right=1 if 'D' in ks else 0; spr='W' in ks

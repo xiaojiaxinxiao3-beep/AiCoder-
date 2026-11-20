@@ -1232,10 +1232,17 @@ public class TellyBridge extends Module {
      */
     private static final float[] REC_YAW = {-55.1f, -29.1f, -23.1f, -52.9f, -107.7f, -167.9f, -179.3f, -179.3f, -178.7f, -176.7f, -173.4f, -168.0f, -162.2f, -157.0f, -150.7f, -143.4f, -137.4f, -129.5f, -111.8f, -83.9f, -58.9f};
     private static final float[] REC_PITCH = {75.3f, 69.1f, 62.2f, 56.9f, 51.3f, 45.0f, 43.9f, 44.0f, 44.7f, 47.2f, 51.6f, 56.9f, 61.5f, 64.8f, 67.6f, 70.5f, 72.3f, 73.2f, 74.7f, 76.6f, 76.3f};
-    private static final String[] REC_KEYS = {"D", "W", "WD", "WSD", "SD", "SD", "SD", "S", "S", "S", "S", "S", "S", "S", "S", "S", "SD", "SD", "D", "WD", "WD"};
+    private static final String[] REC_KEYS = {"D", "WD", "WD", "WSD", "SD", "SD", "SD", "S", "S", "S", "S", "S", "S", "S", "S", "S", "SD", "SD", "D", "WD", "WD"};
     private static final int[] REC_CLICKS = {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0};
     /** The tick of the table at which the second jump of a round is taken. */
     private static final int REC_SECOND_JUMP = 11;
+    /**
+     * The table tick a round's first jump is set to. One tick into the swing forward the camera is about
+     * 29 degrees off straight ahead with forward held, so the jump is a sprint jump whose push runs
+     * along the bridge; at tick 0 (55 degrees, no forward key) it is a walking jump a block shorter, and
+     * a sprint jump there throws you off to the side (tools/telly-sim/lateral.py).
+     */
+    private static final int REC_FIRST_JUMP = 1;
 
     private void replay() {
         int stand = floor(mc.player.getY() - 0.2);
@@ -1265,7 +1272,7 @@ public class TellyBridge extends Module {
             floorY = stand;
             boolean second = rT >= 6 && rT <= 15;
             replayJump(second ? 2 : 1, stand);
-            rT = second ? REC_SECOND_JUMP : 0;
+            rT = second ? REC_SECOND_JUMP : REC_FIRST_JUMP;
         }
 
         int k = rT % REC_YAW.length;
