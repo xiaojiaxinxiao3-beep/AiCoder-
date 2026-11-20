@@ -1155,7 +1155,7 @@ public class TellyBridge extends HintModule {
      * that face that can be seen, it takes the one nearest to where the camera is meant to be looking
      * anyway, so a click made while turning does not swing the camera back.
      */
-    private void replayClick(int c, int level, boolean top, float wantYaw) {
+    private boolean replayClick(int c, int level, boolean top, float wantYaw) {
         double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ();
         double bestYaw = 0, bestPitch = 0, bestCost = Double.MAX_VALUE;
         for (int i = 0; i <= 8; i++) {
@@ -1171,6 +1171,7 @@ public class TellyBridge extends HintModule {
                 float yaw = flat < 0.05 ? wantYaw : (float) Math.toDegrees(Math.atan2(-ax, az));
                 float pitch = (float) -Math.toDegrees(Math.atan2(ay, flat));
                 if (pitch > 89.5f) continue;
+                if (!replaySees(ex, ey, ez, wx, y, wz)) continue;
                 double cost = Math.abs(wrap(yaw - wantYaw)) * (flat < 0.4 ? flat / 0.4 : 1) + Math.abs(aside - 0.5) * 6;
                 if (cost < bestCost) {
                     bestCost = cost;
@@ -1179,10 +1180,22 @@ public class TellyBridge extends HintModule {
                 }
             }
         }
-        if (bestCost == Double.MAX_VALUE) return;
+        if (bestCost == Double.MAX_VALUE) return false;
         mc.player.setYRot(wantYaw + wrap((float) bestYaw - wantYaw));
         mc.player.setXRot((float) bestPitch);
         KeyMapping.click(((KeyMappingAccessor) mc.options.keyUse).meteor$getKey());
+        return true;
+    }
+
+    /** Nothing solid between the eye and a point on a face: otherwise the click would land on what is in the way. */
+    private boolean replaySees(double ex, double ey, double ez, double tx, double ty, double tz) {
+        double ax = tx - ex, ay = ty - ey, az = tz - ez;
+        double length = Math.sqrt(ax * ax + ay * ay + az * az);
+        for (double d = 0.05; d < length - 0.04; d += 0.05) {
+            double f = d / length;
+            if (solid(floor(ex + ax * f), floor(ey + ay * f), floor(ez + az * f))) return false;
+        }
+        return true;
     }
 
     /** A block on from the front of the last block of a level; false when you are not past that front yet. */
@@ -1190,15 +1203,13 @@ public class TellyBridge extends HintModule {
         int e = lastCell(level);
         if (e == Integer.MIN_VALUE) return false;
         if (alongNow() <= e + 1 + 0.01 || inside(e + 1, level) || !replaceable(cellX(e + 1), level, cellZ(e + 1))) return false;
-        replayClick(e, level, false, wantYaw);
-        return true;
+        return replayClick(e, level, false, wantYaw);
     }
 
     /** A block on top of the block in cell c of a level; false when it would be inside you or is taken. */
     private boolean replayTop(int c, int level, float wantYaw) {
         if (!cell(c, level) || inside(c, level + 1) || !replaceable(cellX(c), level + 1, cellZ(c))) return false;
-        replayClick(c, level, true, wantYaw);
-        return true;
+        return replayClick(c, level, true, wantYaw);
     }
 
     /** Ticks until your feet come down to a height, and where along the bridge you are then; null if never. */
@@ -1227,7 +1238,7 @@ public class TellyBridge extends HintModule {
      */
     private static final float[] REC_YAW = {-55.1f, -29.1f, -23.1f, -52.9f, -107.7f, -167.9f, -179.3f, -179.3f, -178.7f, -176.7f, -173.4f, -168.0f, -162.2f, -157.0f, -150.7f, -143.4f, -137.4f, -129.5f, -111.8f, -83.9f, -58.9f};
     private static final float[] REC_PITCH = {75.3f, 69.1f, 62.2f, 56.9f, 51.3f, 45.0f, 43.9f, 44.0f, 44.7f, 47.2f, 51.6f, 56.9f, 61.5f, 64.8f, 67.6f, 70.5f, 72.3f, 73.2f, 74.7f, 76.6f, 76.3f};
-    private static final String[] REC_KEYS = {"D", "W", "WD", "WSD", "SD", "SD", "SD", "S", "S", "S", "S", "S", "S", "S", "S", "S", "SD", "SD", "D", "WD", "WD"};
+    private static final String[] REC_KEYS = {"WD", "WD", "WD", "WSD", "SD", "SD", "SD", "S", "S", "S", "S", "S", "S", "S", "S", "S", "SD", "SD", "D", "WD", "WD"};
     private static final int[] REC_CLICKS = {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0};
     /** The tick of the table at which the second jump of a round is taken. */
     private static final int REC_SECOND_JUMP = 11;
@@ -1282,27 +1293,32 @@ public class TellyBridge extends HintModule {
         mc.options.keyRight.setDown(keys.indexOf('D') >= 0);
         rT = (k + 1) % REC_YAW.length;
 
-        // The clicks come at the recording's ticks. Which face each one is for follows from where you
-        // are: the point on that face nearest to where the recording looks is taken, so the camera moves
-        // a few degrees at most. One more click is allowed off the beat when without it there would be
-        // nothing to land on.
-        int slots = REC_CLICKS[k];
+        // Which block each click is for follows the bridge such a round leaves behind (a side view of
+        // one, and the same rules run in tools/telly-sim/try4.py): every level is two blocks, a gap where
+        // you stood to jump, and then a long row, each level lying over the end of the one below. The
+        // point clicked is the one on that face nearest to where the recording looks, so the camera
+        // moves a few degrees at most.
         if (ground) return;
         double p = alongNow();
         if (rStage == 1) {
+            int e = lastCell(rWalk);
+            if (e == Integer.MIN_VALUE) return;
             if (k <= 3) {
-                // Just off the ground, looking forward and down: blocks on top of the ones you left
-                int c = floor(p - 0.3) - 1;
-                for (int i = 0; i < slots; i++) replayTop(c - i, rWalk, want);
+                // Just off the ground, looking forward and down: this level goes on over the layer
+                // below, where that reaches further
+                int c = e + 1;
+                if (c <= floor(p) + 2 && cell(c, rWalk - 1)) replayTop(c, rWalk - 1, want);
                 return;
             }
+            // Then on from its end, a block a tick, as late as still puts one under you
             double[] land = replayLanding(rWalk + 1);
-            int e = lastCell(rWalk);
-            if (land == null || e == Integer.MIN_VALUE) return;
+            if (land == null) return;
             int n = floor(land[1]) - e;
-            if (n > 0 && (slots > 0 || land[0] <= n)) replayExtend(rWalk, want);
+            if (n > 0 && land[0] <= n) replayExtend(rWalk, want);
             return;
         }
+        // The jump up: first the blocks on top of the cells behind the one you jumped from, then the
+        // level you left one block further, then on top of that, where you come down
         int up = rWalk + 1;
         double[] land = replayLanding(up + 1);
         if (land == null) {
@@ -1310,20 +1326,27 @@ public class TellyBridge extends HintModule {
             return;
         }
         int target = floor(land[1]);
+        for (int c = rCell - 2; c <= rCell - 1 && rBehind < 2; c++) {
+            if (replayTop(c, rWalk, want)) {
+                rBehind++;
+                return;
+            }
+        }
         int e = lastCell(rWalk);
-        boolean must = land[0] <= 2;
-        if (slots == 0 && !must) return;
-        if (e != Integer.MIN_VALUE && e < target && replayExtend(rWalk, want)) return;
-        for (int c = target - 2; c <= target; c++) {
-            // The block you come down on goes in last, while you are still above it
-            if (c == target && land[0] > 1) continue;
+        if (e != Integer.MIN_VALUE && e < target + 1 && replayExtend(rWalk, want)) return;
+        for (int c = rCell + 1; c <= target; c++) {
             if (replayTop(c, rWalk, want)) return;
         }
     }
 
+    /** The cell the jump up left from, and how many blocks have gone on top behind it. */
+    private int rCell, rBehind;
+
     private void replayJump(int stage, int level) {
         rStage = stage;
         rWalk = level;
+        rCell = floor(alongNow());
+        rBehind = 0;
         rT = 0;
         jumps++;
         mc.options.keyJump.setDown(true);
