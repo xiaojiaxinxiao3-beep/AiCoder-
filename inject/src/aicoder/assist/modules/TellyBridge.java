@@ -144,8 +144,8 @@ public class TellyBridge extends Module {
 
     private final Setting<Integer> glide = sgGeneral.add(new IntSetting.Builder()
         .name("glide-ticks")
-        .description("Telly Replay mode: after turning round in the air the camera drifts down slowly for this many ticks of the jump before the first block goes on, as in the recording. It places sooner when the landing needs it.")
-        .defaultValue(6)
+        .description("Telly Replay mode: after turning round in the air the camera drifts down slowly until this tick of the jump before the first block goes on, as in the recording (which waits about 6). Up to 2 the bridge climbs; from 3 on there is no time left for the upper layer and the bridge is flat with a block on top each jump.")
+        .defaultValue(2)
         .range(0, 8)
         .sliderRange(0, 8)
         .visible(() -> mode.get() == Mode.TellyReplay)

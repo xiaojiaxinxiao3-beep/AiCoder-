@@ -50,7 +50,8 @@ In the game
   ticks, the camera drifts down slowly for "Glide Ticks" before the first block goes on, it lands
   still turned round and walks on backwards placing for "Stay Round" ticks, then turns forward in
   three ticks and jumps. The camera turns half as often as in Telly Up. With the default
-  "Glide Ticks" 6 the bridge is flat with a block on top each jump; with 0 it climbs like Telly Up.
+  "Glide Ticks" 2 the bridge climbs; from 3 on (the recording waits about 6) it is flat with a
+  block on top each jump.
   "Max Pitch" is how far down the camera looks while turned round.
   It always turns right to look back and left to face forward again, and it presses the left
   and right keys by itself to stay on the middle of the bridge.
