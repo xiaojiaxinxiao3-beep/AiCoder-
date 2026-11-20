@@ -19,7 +19,15 @@ public final class Player {
     public double getEyeY() { return p().posY + p().getEyeHeight(); }
     public float getXRot() { return p().rotationPitch; }
     public float getYRot() { return p().rotationYaw; }
-    public void setXRot(float pitch) { p().rotationPitch = pitch; }
+    /**
+     * 1.8.9 draws the camera between the previous tick's angle and the current one, by itself. The
+     * modules already set the angle they want shown on every frame, so both are set: otherwise the game
+     * blends a second time, from an angle of its own, and the picture swings back and forth each tick.
+     */
+    public void setXRot(float pitch) {
+        p().rotationPitch = pitch;
+        p().prevRotationPitch = pitch;
+    }
     /**
      * In 1.8.9 the crosshair's line is worked out from the head's yaw, which the game copies from the
      * body's yaw only when the player is updated, later in the tick than the crosshair. Setting both keeps
@@ -27,7 +35,9 @@ public final class Player {
      */
     public void setYRot(float yaw) {
         p().rotationYaw = yaw;
+        p().prevRotationYaw = yaw;
         p().rotationYawHead = yaw;
+        p().prevRotationYawHead = yaw;
     }
     public boolean onGround() { return p().onGround; }
     public boolean isUsingItem() { return p().isUsingItem(); }

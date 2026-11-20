@@ -41,8 +41,14 @@
         double ease = softness.get() > 0 ? Math.min(1, off / (30 * softness.get())) : 1;
         double step = Math.min(off, speed.get() * Math.max(0.15, ease) * Math.min(event.frameTime, 0.1));
 
-        me.rotationYaw = (float) (me.rotationYaw + dYaw / off * step);
-        me.rotationPitch = (float) clamp(me.rotationPitch + dPitch / off * step, -90, 90);
+        // Turned the way the mouse turns the view in this version: the previous tick's angle moves along,
+        // so the game's own blending between the two shows the turn at once
+        float yawStep = (float) (dYaw / off * step);
+        float pitchTo = (float) clamp(me.rotationPitch + dPitch / off * step, -90, 90);
+        me.prevRotationYaw += yawStep;
+        me.rotationYaw += yawStep;
+        me.prevRotationPitch += pitchTo - me.rotationPitch;
+        me.rotationPitch = pitchTo;
     }
 
     private static double clamp(double value, double low, double high) {
