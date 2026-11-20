@@ -146,7 +146,7 @@ public class TellyBridge extends Module {
         .name("replay-side")
         .description("Telly Replay mode: which way the camera swings. In the recording it is Left: the camera faces 45 degrees left of the bridge to jump (forward and right held) and turns on to the left to look back.")
         .defaultValue(Side.Left)
-        .visible(() -> mode.get() == Mode.TellyReplay)
+        .visible(() -> false)
         .build()
     );
 
@@ -1212,124 +1212,107 @@ public class TellyBridge extends Module {
     }
 
     /**
-     * One round is two jumps with no step on the ground between them. The first is level and taken at a
-     * sprint: facing 45 degrees to the side with forward and strafe for three ticks, then round, and the
-     * blocks of the level go on in its last ticks, just before the landing. The second is taken the
-     * moment that one lands, still looking back: at the top of it the level gets one more block and the
-     * blocks on top go on, the one you come down on last; meanwhile the camera turns forward again, so
-     * you land a level higher already facing the way of the next jump.
+     * Telly Replay is not worked out: it is one round of a player's recording, played back. Read off
+     * the film frame by frame (the camera's direction from the far scenery, the keys from the key
+     * display, the blocks from the count in the hotbar) and brought to the game's twenty ticks a second:
+     * where the camera points (degrees from straight ahead, left is negative, and degrees down), which
+     * keys are down, and how many clicks. A round is twenty-one ticks and two jumps; the jump key is
+     * pressed whenever the feet touch down, which is also what keeps the table in step.
      */
+    private static final float[] REC_YAW = {-55.1f, -29.1f, -23.1f, -52.9f, -107.7f, -167.9f, -179.3f, -179.3f, -178.7f, -176.7f, -173.4f, -168.0f, -162.2f, -157.0f, -150.7f, -143.4f, -137.4f, -129.5f, -111.8f, -83.9f, -58.9f};
+    private static final float[] REC_PITCH = {75.3f, 69.1f, 62.2f, 56.9f, 51.3f, 45.0f, 43.9f, 44.0f, 44.7f, 47.2f, 51.6f, 56.9f, 61.5f, 64.8f, 67.6f, 70.5f, 72.3f, 73.2f, 74.7f, 76.6f, 76.3f};
+    private static final String[] REC_KEYS = {"D", "W", "WD", "WSD", "SD", "SD", "SD", "S", "S", "S", "S", "S", "S", "S", "S", "S", "SD", "SD", "D", "WD", "WD"};
+    private static final int[] REC_CLICKS = {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0};
+    /** The tick of the table at which the second jump of a round is taken. */
+    private static final int REC_SECOND_JUMP = 11;
+
     private void replay() {
-        int sign = turnSign();
-        double p = alongNow();
         int stand = floor(mc.player.getY() - 0.2);
         boolean ground = mc.player.onGround();
-        float back = forwardYaw + 180;
-        double aside = (mc.player.getX() - (lineX + 0.5)) * -dz + (mc.player.getZ() - (lineZ + 0.5)) * dx;
-        double drift = mc.player.getDeltaMovement().x * -dz + mc.player.getDeltaMovement().z * dx;
-        float trim = (float) Math.max(-12, Math.min(12, -(aside + drift * 2) * 40));
-        float faceForward = forwardYaw + sign * REPLAY_FACE + trim;
 
         if (rStage == 0) {
-            // The first jump only: run to the end of the block
+            // Before the first jump, as the recording begins: straight ahead, looking down, at a run to
+            // the end of the block
             floorY = stand;
-            mc.player.setYRot(faceForward);
-            mc.player.setXRot(mc.player.getXRot() + (REPLAY_PITCH_FORWARD - mc.player.getXRot()) * 0.5f);
-            replayKeys(REPLAY_FACE);
+            mc.player.setYRot(forwardYaw);
+            mc.player.setXRot(mc.player.getXRot() + (57 - mc.player.getXRot()) * 0.5f);
+            mc.options.keyDown.setDown(false);
+            mc.options.keyLeft.setDown(false);
+            mc.options.keyRight.setDown(false);
+            mc.options.keyUp.setDown(true);
+            mc.options.keySprint.setDown(true);
             int e = lastCell(stand);
-            if (ground && e != Integer.MIN_VALUE && p >= e + 1 - 0.1) replayJump(1, stand);
-            return;
-        }
-
-        rT++;
-        if (ground && rT > 2) {
-            // Landed: the next jump at once. After the level jump it is taken looking back, after the
-            // jump up facing forward again.
-            floorY = stand;
-            if (rStage == 1) {
-                mc.player.setYRot(back);
-                mc.options.keyUp.setDown(false);
-                mc.options.keySprint.setDown(false);
-                mc.options.keyDown.setDown(true);
-                steer(false);
-                replayJump(2, stand);
-            } else {
-                mc.player.setYRot(faceForward);
-                replayKeys(REPLAY_FACE);
+            if (ground && e != Integer.MIN_VALUE && alongNow() >= e + 1 - 0.1) {
                 replayJump(1, stand);
+                rT = 2;
             }
             return;
         }
 
+        if (ground) {
+            // Touched down: the next jump at once, and the table set to the jump it belongs to
+            floorY = stand;
+            boolean second = rT >= 6 && rT <= 15;
+            replayJump(second ? 2 : 1, stand);
+            rT = second ? REC_SECOND_JUMP : 0;
+        }
+
+        int k = rT % REC_YAW.length;
+        // The recording's camera, nudged a few degrees towards the middle line of the bridge when you
+        // have drifted off it: the recording is only five rounds long, and played back blind the error
+        // of every round adds up
+        double aside = (mc.player.getX() - (lineX + 0.5)) * -dz + (mc.player.getZ() - (lineZ + 0.5)) * dx;
+        double drift = mc.player.getDeltaMovement().x * -dz + mc.player.getDeltaMovement().z * dx;
+        float trim = (float) Math.max(-10, Math.min(10, -(aside + drift * 3) * 40));
+        float want = forwardYaw + REC_YAW[k] + trim;
+        mc.player.setYRot(want);
+        mc.player.setXRot(REC_PITCH[k]);
+        String keys = REC_KEYS[k];
+        boolean forward = keys.indexOf('W') >= 0;
+        mc.options.keyUp.setDown(forward);
+        mc.options.keySprint.setDown(forward);
+        mc.options.keyDown.setDown(keys.indexOf('S') >= 0);
+        mc.options.keyLeft.setDown(keys.indexOf('A') >= 0);
+        mc.options.keyRight.setDown(keys.indexOf('D') >= 0);
+        rT = (k + 1) % REC_YAW.length;
+
+        // The clicks come at the recording's ticks. Which face each one is for follows from where you
+        // are: the point on that face nearest to where the recording looks is taken, so the camera moves
+        // a few degrees at most. One more click is allowed off the beat when without it there would be
+        // nothing to land on.
+        int slots = REC_CLICKS[k];
+        if (ground) return;
+        double p = alongNow();
         if (rStage == 1) {
-            float want;
-            if (rT < 3) {
-                want = faceForward;
-                mc.player.setYRot(want);
-                mc.player.setXRot(mc.player.getXRot() + (REPLAY_PITCH_FORWARD - mc.player.getXRot()) * 0.5f);
-                replayKeys(REPLAY_FACE);
-            } else if (rT < 6) {
-                // Back and strafe: at 135 degrees that is straight on; a little less or more takes off
-                // the sideways push the sprint jump gave
-                float off = 135 + (sign < 0 ? 1 : -1) * (float) Math.max(-35, Math.min(35, (aside + drift * 4) * 150));
-                off = Math.max(100, Math.min(155, off));
-                want = forwardYaw + sign * off;
-                mc.player.setYRot(want);
-                mc.player.setXRot(REPLAY_PITCH_ROUND + 4 * (rT - 3));
-                replayKeys(135);
-            } else {
-                want = back;
-                mc.player.setYRot(want);
-                mc.player.setXRot(Math.min(60, REPLAY_PITCH_ROUND + 4 * (rT - 3)));
-                mc.options.keyUp.setDown(false);
-                mc.options.keySprint.setDown(false);
-                mc.options.keyDown.setDown(true);
-                steer(false);
+            if (k <= 3) {
+                // Just off the ground, looking forward and down: blocks on top of the ones you left
+                int c = floor(p - 0.3) - 1;
+                for (int i = 0; i < slots; i++) replayTop(c - i, rWalk, want);
+                return;
             }
-            // The level you left, on from its end, a block a tick, as late as still puts one under you
             double[] land = replayLanding(rWalk + 1);
             int e = lastCell(rWalk);
-            if (land != null && e != Integer.MIN_VALUE && rT >= 3) {
-                int n = floor(land[1]) - e;
-                if (n > 0 && land[0] <= n) replayExtend(rWalk, want);
-            }
+            if (land == null || e == Integer.MIN_VALUE) return;
+            int n = floor(land[1]) - e;
+            if (n > 0 && (slots > 0 || land[0] <= n)) replayExtend(rWalk, want);
             return;
         }
-
-        // The jump up
-        float want;
-        if (rT <= 3) {
-            want = back;
-            mc.player.setYRot(want);
-            mc.options.keyUp.setDown(false);
-            mc.options.keySprint.setDown(false);
-            mc.options.keyDown.setDown(true);
-            steer(false);
-        } else {
-            float off = rT <= 5 ? 135 : rT == 6 ? 90 : REPLAY_FACE;
-            want = rT <= 6 ? forwardYaw + sign * off : faceForward;
-            mc.player.setYRot(want);
-            replayKeys(off);
-        }
         int up = rWalk + 1;
-        boolean placed = false;
         double[] land = replayLanding(up + 1);
-        if (land != null) {
-            int target = floor(land[1]);
-            int e = lastCell(rWalk);
-            if (e != Integer.MIN_VALUE && e < target) placed = replayExtend(rWalk, want);
-            if (!placed) {
-                for (int c = target - 2; c <= target && !placed; c++) {
-                    // The block you come down on goes in last, while you are still above it
-                    if (c == target && land[0] > 1) continue;
-                    placed = replayTop(c, rWalk, want);
-                }
-            }
-        } else if (mc.player.getDeltaMovement().y < 0) {
-            // Too low for the upper level: the level you left, so there is something to land on
-            placed = replayExtend(rWalk, want);
+        if (land == null) {
+            if (mc.player.getDeltaMovement().y < 0) replayExtend(rWalk, want);
+            return;
         }
-        if (!placed) mc.player.setXRot(mc.player.getXRot() + ((rT <= 3 ? 70 : REPLAY_PITCH_FORWARD) - mc.player.getXRot()) * 0.5f);
+        int target = floor(land[1]);
+        int e = lastCell(rWalk);
+        boolean must = land[0] <= 2;
+        if (slots == 0 && !must) return;
+        if (e != Integer.MIN_VALUE && e < target && replayExtend(rWalk, want)) return;
+        for (int c = target - 2; c <= target; c++) {
+            // The block you come down on goes in last, while you are still above it
+            if (c == target && land[0] > 1) continue;
+            if (replayTop(c, rWalk, want)) return;
+        }
     }
 
     private void replayJump(int stage, int level) {
