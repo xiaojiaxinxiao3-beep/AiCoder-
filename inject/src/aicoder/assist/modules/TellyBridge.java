@@ -205,6 +205,9 @@ public class TellyBridge extends Module {
     private float fromYaw, fromPitch, toYaw, toPitch;
     private boolean steering;
     /** Telly Up and Speed build higher; Telly stays on the level it started on. */
+    /** Blocks of the jump speed telly opens with. */
+    private static final int OPENING_BLOCKS = 4;
+
     private boolean rising() {
         return tellyUp() || mode.get() == Mode.Speed;
     }
@@ -597,6 +600,9 @@ public class TellyBridge extends Module {
             fy = level + 0.95;
             spot = true;
             onSpot = beyond >= 0.08 && replaceable(end[0] + dx, level, end[1] + dz);
+            // Speed telly opens with a "4b": the first jump goes forward and puts exactly four blocks
+            // in a straight line behind it, and the speed telly begins from the end of those
+            if (speedy() && jumps == 1 && index(end) - takeoffEnd >= OPENING_BLOCKS) onSpot = false;
             need = Math.max(1, (int) Math.ceil(beyond + advance - 0.15));
             // A block on top first. Seen from behind and above, the top of the last block is only four
             // to nine degrees above its side, so the camera hardly moves between the two: it is your
@@ -752,7 +758,10 @@ public class TellyBridge extends Module {
         // The ordinary telly going up flies on for two ticks and turns round on the third: the step then
         // goes on a block further back, and the new level lies over the last blocks of the old one.
         int n = speedy() ? 2 : calm ? REPLAY_ROUND.length + 1 : turnN();
-        boolean turnNow = speedy() || pair || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + topBlocks.get() + n + 2);
+        // Speed telly's opening jump is flown like an ordinary telly: forward at a sprint first, so it
+        // carries far enough for four blocks, and round only when there is just time to put them in
+        boolean opening = speedy() && jumps == 1;
+        boolean turnNow = speedy() && !opening || pair || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + (opening ? 0 : topBlocks.get()) + n + 2);
         if (phase == 0 && !landing && turnNow) {
             phase = 1;
             phaseTick = 0;

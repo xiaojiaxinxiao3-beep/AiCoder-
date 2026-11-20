@@ -40,6 +40,8 @@ In the game
   at 2; with slower turns it stays flat.
   "Bridge Mode" Speed is speed telly: it turns round the moment it is off the ground and every
   jump goes up a level. "Bumps" adds one block on top of the second block of every jump.
+  Speed opens with a "4b": the first jump is flown forward at a sprint, then it turns round and
+  puts four blocks in a straight line; the speed telly starts from the end of those.
   "Turn Ticks" is how long half a turn takes (Speed always takes 2). "Top Blocks" is how many
   blocks a jump puts on top of the bridge while it fills in (Telly and Telly Up).
   "Fill Back" (Telly Up) is how many blocks a jump goes back for behind where it took off:
