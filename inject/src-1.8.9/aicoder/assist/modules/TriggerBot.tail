@@ -1,0 +1,28 @@
+    @EventHandler
+    private void onTick(TickEvent.Pre event) {
+        if (wait > 0) wait--;
+        if (mc.player == null || mc.level == null || mc.screen != null) return;
+
+        net.minecraft.client.Minecraft game = mc.real();
+        net.minecraft.util.MovingObjectPosition over = game.objectMouseOver;
+        if (over == null || over.typeOfHit != net.minecraft.util.MovingObjectPosition.MovingObjectType.ENTITY || over.entityHit == null) return;
+
+        net.minecraft.entity.Entity target = over.entityHit;
+        if (!accept(target)) return;
+        net.minecraft.util.Vec3 eye = game.thePlayer.getPositionEyes(1.0f);
+        if (over.hitVec != null && eye.distanceTo(over.hitVec) > range.get()) return;
+        if (pauseWhileUsing.get() && game.thePlayer.isUsingItem()) return;
+
+        // 1.8.9 has no weapon cooldown to wait for: Auto is a steady ten clicks a second
+        if (wait > 0) return;
+        wait = cooldown.get() == Cooldown.Auto ? 2 : delay.get();
+
+        // One more press of the attack key; the game handles it later in this same tick
+        KeyMapping.click(Input.keyOf(mc.options.keyAttack));
+    }
+
+    private boolean accept(net.minecraft.entity.Entity target) {
+        if (target instanceof net.minecraft.entity.player.EntityPlayer) return target.isEntityAlive();
+        return mobs.get() && target instanceof net.minecraft.entity.EntityLivingBase && target.isEntityAlive();
+    }
+}

@@ -97,6 +97,99 @@ if version == '1.21.4':
         ('click.button()', 'button'),
         ('event.key()', 'keyCode'),
     ])
+elif version == '1.8.9':
+    # A far older game: no official names (the sources here use MCP's), LWJGL 2, fixed-function OpenGL,
+    # Java 8. src-1.8.9/aicoder/assist/compat answers the newer names the shared code uses with the old
+    # game, so the menu, the settings and Telly Bridge are the same source; what the old game has no
+    # counterpart for is left out.
+    A = 'aicoder/assist/'
+    KEEP = ('TellyBridge', 'LeftClicker', 'RightClicker', 'TriggerBot', 'CrosshairDrift')
+    dropped = []
+    for name in sorted(os.listdir(os.path.join(out, A, 'modules'))):
+        if name.endswith('.java') and name[:-5] not in KEEP:
+            os.remove(os.path.join(out, A, 'modules', name))
+            dropped.append(name[:-5])
+    os.remove(os.path.join(out, A, 'gfx', 'Mesh.java'))
+    # The licence check is not built for this version: License here is the one from src-1.8.9, which never locks
+    for name in ('HwidProvider.java',):
+        os.remove(os.path.join(out, A, 'license', name))
+
+    # Two modules keep their settings and get a body written for the old game (src-1.8.9/.../*.tail)
+    for name in ('TriggerBot', 'CrosshairDrift'):
+        full = os.path.join(out, A, 'modules', name + '.java')
+        text = open(full, encoding='utf-8').read()
+        tail = os.path.join(out, A, 'modules', name + '.tail')
+        text = text[:text.index('    @EventHandler\n')] + open(tail, encoding='utf-8').read()
+        os.remove(tail)
+        open(full, 'w', encoding='utf-8').write(text)
+
+    client = [('import aicoder.assist.modules.%s;\n' % m, '') for m in dropped if m != 'Clicks']
+    client += [('        add(new %s());\n' % m, '') for m in dropped if m != 'Clicks']
+    client += [
+        ('import net.minecraft.client.Minecraft;', 'import aicoder.assist.compat.Minecraft;'),
+        ('import net.minecraft.client.gui.screens.TitleScreen;\n', ''),
+        ('import net.minecraft.network.chat.Component;\nimport net.minecraft.network.chat.MutableComponent;\nimport net.minecraft.network.chat.Style;\nimport org.lwjgl.glfw.GLFW;\n', ''),
+        ('    private record Handler(Module module, Method method, int priority) {\n    }',
+         '    private static final class Handler {\n        final Module module;\n        final Method method;\n        final int priority;\n\n'
+         '        Handler(Module module, Method method, int priority) {\n            this.module = module;\n            this.method = method;\n            this.priority = priority;\n        }\n    }'),
+        ('list.sort(Comparator.comparingInt(Handler::priority).reversed());', 'list.sort(Comparator.comparingInt((Handler h) -> h.priority).reversed());'),
+        ('GLFW.GLFW_KEY_RIGHT_SHIFT', '344'), ('GLFW.GLFW_KEY_INSERT', '260'),
+        ('        aicoder.assist.license.License.begin();\n', ''),
+        ('return com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM.getOrCreate(menuKey).getDisplayName().getString();', 'return aicoder.assist.compat.Keys.name(menuKey);'),
+        ('        // Without a licence nothing runs: whatever was left switched on goes off\n        aicoder.assist.license.License.tick();\n'
+         '        if (aicoder.assist.license.License.locked()) {\n            for (Module module : modules) if (module.isActive()) module.setActive(false);\n        }\n\n', ''),
+        ('mc.level != null && mc.gui != null', 'mc.level != null'),
+        ('if (mc.screen instanceof AuroraScreen) mc.screen.onClose();', 'if (mc.screen instanceof AuroraScreen) ((AuroraScreen) mc.screen).onClose();'),
+        ('mc.screen instanceof TitleScreen', 'mc.screen instanceof net.minecraft.client.gui.GuiMainMenu'),
+        ('        if (mc.gui == null || mc.level == null) return;\n\n'
+         '        MutableComponent text = Component.literal("[" + from + "] ").withStyle(Style.EMPTY.withColor(color & 0xFFFFFF));\n'
+         '        text.append(Component.literal(message).withStyle(Style.EMPTY.withColor(0xEEFAFF)));\n'
+         '        mc.gui.getChat().addMessage(text);',
+         '        if (mc.level == null) return;\n\n'
+         '        // The old game has sixteen chat colours and no others: the name in aqua, the message in white\n'
+         '        mc.real().ingameGUI.getChatGUI().printChatMessage(new net.minecraft.util.ChatComponentText("\\u00a7b[" + from + "] \\u00a7f" + message));'),
+    ]
+    edit(A + 'Client.java', client)
+    edit(A + 'api/Module.java', [
+        ('import net.minecraft.client.Minecraft;', 'import aicoder.assist.compat.Minecraft;'),
+    ])
+    edit(A + 'Injector.java', [('1.21.11', '1.8.9'),
+                               # Java 8 has no ProcessHandle
+                               ('String.valueOf(ProcessHandle.current().pid())', 'java.lang.management.ManagementFactory.getRuntimeMXBean().getName().split("@")[0]'),
+                               ('started without mods.', 'started plain or with OptiFine.'),
+                               # A newer Java attaching to the Java 8 this game runs on reads the old side's "0"
+                               # (its word for success) as a failure. Whether the agent really failed is in the
+                               # reason it leaves behind.
+                               ('                machine.loadAgent(payload, licenceKey);\n',
+                                '                try {\n                    machine.loadAgent(payload, licenceKey);\n'
+                                '                } catch (com.sun.tools.attach.AgentLoadException e) {\n'
+                                '                    if (!String.valueOf(e.getMessage()).endsWith(": 0") || machine.getSystemProperties().getProperty(Agent.ERROR_PROPERTY) != null) throw e;\n'
+                                '                }\n')])
+    # No module of the Explosives column exists in this version
+    edit(A + 'api/Category.java', [('List.of(EXPLOSIVES, MELEE, UTILITY)', 'List.of(MELEE, UTILITY)')])
+    edit(A + 'gfx/GuiRenderer.java', [('import net.minecraft.client.gui.GuiGraphics;', 'import aicoder.assist.compat.GuiGraphics;')])
+    edit(A + 'aurora/AuroraScreen.java', [
+        ('import net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.client.gui.screens.Screen;\nimport com.mojang.blaze3d.platform.InputConstants;\n'
+         'import net.minecraft.client.input.KeyEvent;\nimport net.minecraft.client.input.MouseButtonEvent;\nimport org.lwjgl.glfw.GLFW;\nimport net.minecraft.network.chat.Component;\n',
+         'import aicoder.assist.compat.Component;\nimport aicoder.assist.compat.GuiGraphics;\nimport aicoder.assist.compat.KeyEvent;\nimport aicoder.assist.compat.Keys;\n'
+         'import aicoder.assist.compat.MouseButtonEvent;\nimport aicoder.assist.compat.Screen;\n'),
+        ('minecraft.getWindow().getWidth()', 'minecraft.real().displayWidth'),
+        ('minecraft.getWindow().getHeight()', 'minecraft.real().displayHeight'),
+        ('Math.min(0.1, minecraft.getDeltaTracker().getRealtimeDeltaTicks() / 20.0)', 'frameSeconds()'),
+        ('InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString()', 'Keys.name(key)'),
+        ('GLFW.GLFW_KEY_ESCAPE', '256'),
+    ])
+    for name in KEEP:
+        full = os.path.join(out, A, 'modules', name + '.java')
+        text = open(full, encoding='utf-8').read()
+        text = text.replace('import net.minecraft.client.KeyMapping;', 'import aicoder.assist.compat.KeyMapping;')
+        text = text.replace('import net.minecraft.core.BlockPos;', 'import net.minecraft.util.BlockPos;')
+        text = text.replace('import net.minecraft.world.item.BlockItem;\n', '').replace('instanceof BlockItem', 'instanceof net.minecraft.item.ItemBlock')
+        text = text.replace('import net.minecraft.world.phys.HitResult;', 'import aicoder.assist.compat.HitResult;')
+        text = text.replace('import net.minecraft.world.entity.Entity;', 'import net.minecraft.entity.Entity;')
+        text = text.replace('import net.minecraft.world.phys.Vec3;', 'import net.minecraft.util.Vec3;')
+        text = re.sub(r'import net\.minecraft\.(world\.entity\.LivingEntity|world\.entity\.player\.Player|world\.phys\.EntityHitResult|world\.phys\.AABB|util\.Mth);\n', '', text)
+        open(full, 'w', encoding='utf-8').write(text)
 else:
     sys.exit('port_version: no rules for ' + version)
 print('ported to', version)

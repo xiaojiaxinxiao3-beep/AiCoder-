@@ -1,0 +1,90 @@
+    @EventHandler
+    private void onRender(Render3DEvent event) {
+        if (mc.player == null || mc.level == null || mc.screen != null) return;
+
+        net.minecraft.client.Minecraft game = mc.real();
+        net.minecraft.client.entity.EntityPlayerSP me = game.thePlayer;
+        Vec3 eye = me.getPositionEyes(event.tickDelta);
+        Vec3 look = me.getLook(event.tickDelta);
+
+        Entity target = null;
+        Vec3 targetPoint = null;
+        double best = cone.get() / 2;
+
+        for (Entity entity : game.theWorld.loadedEntityList) {
+            if (!valid(entity)) continue;
+
+            Vec3 point = aimPoint(entity, eye, look, event.tickDelta);
+            if (point.distanceTo(eye) > range.get()) continue;
+
+            double angle = Math.toDegrees(Math.acos(clamp(point.subtract(eye).normalize().dotProduct(look), -1, 1)));
+            if (angle <= best) {
+                best = angle;
+                target = entity;
+                targetPoint = point;
+            }
+        }
+
+        if (target == null) return;
+        if (stopOnTarget.get() && game.objectMouseOver != null && game.objectMouseOver.entityHit == target) return;
+
+        Vec3 d = targetPoint.subtract(eye);
+        double wantYaw = Math.toDegrees(Math.atan2(-d.xCoord, d.zCoord));
+        double wantPitch = -Math.toDegrees(Math.atan2(d.yCoord, Math.sqrt(d.xCoord * d.xCoord + d.zCoord * d.zCoord)));
+
+        double dYaw = net.minecraft.util.MathHelper.wrapAngleTo180_double(wantYaw - me.rotationYaw);
+        double dPitch = vertical.get() ? wantPitch - me.rotationPitch : 0;
+        double off = Math.sqrt(dYaw * dYaw + dPitch * dPitch);
+        if (off < 0.05) return;
+
+        // Full speed far away, easing off inside the last few degrees
+        double ease = softness.get() > 0 ? Math.min(1, off / (30 * softness.get())) : 1;
+        double step = Math.min(off, speed.get() * Math.max(0.15, ease) * Math.min(event.frameTime, 0.1));
+
+        me.rotationYaw = (float) (me.rotationYaw + dYaw / off * step);
+        me.rotationPitch = (float) clamp(me.rotationPitch + dPitch / off * step, -90, 90);
+    }
+
+    private static double clamp(double value, double low, double high) {
+        return value < low ? low : Math.min(value, high);
+    }
+
+    private boolean valid(Entity entity) {
+        net.minecraft.client.entity.EntityPlayerSP me = mc.real().thePlayer;
+        if (entity == me || !entity.isEntityAlive() || !(entity instanceof net.minecraft.entity.EntityLivingBase)) return false;
+
+        if (entity instanceof net.minecraft.entity.player.EntityPlayer) {
+            if (((net.minecraft.entity.player.EntityPlayer) entity).isSpectator()) return false;
+        } else if (!mobs.get()) {
+            return false;
+        }
+
+        return !walls.get() || me.canEntityBeSeen(entity);
+    }
+
+    private Vec3 aimPoint(Entity entity, Vec3 eye, Vec3 look, float tickDelta) {
+        double px = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * tickDelta;
+        double py = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * tickDelta;
+        double pz = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * tickDelta;
+        double height = entity.height;
+
+        double y;
+        switch (part.get()) {
+            case Head:
+                y = py + entity.getEyeHeight();
+                break;
+            case Body:
+                y = py + height * 0.5;
+                break;
+            default: {
+                // Height at which the line of sight passes the target, kept inside its hitbox
+                double flat = Math.sqrt((px - eye.xCoord) * (px - eye.xCoord) + (pz - eye.zCoord) * (pz - eye.zCoord));
+                double lookFlat = Math.sqrt(look.xCoord * look.xCoord + look.zCoord * look.zCoord);
+                double at = lookFlat > 1e-4 ? eye.yCoord + look.yCoord / lookFlat * flat : py + height * 0.5;
+                y = clamp(at, py + height * 0.15, py + height * 0.9);
+            }
+        }
+
+        return new Vec3(px, y, pz);
+    }
+}

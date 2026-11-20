@@ -31,7 +31,9 @@ meta_url = next(v['url'] for v in manifest['versions'] if v['id'] == version)
 meta = json.load(urllib.request.urlopen(meta_url, timeout=60))
 
 get(meta['downloads']['client']['url'], os.path.join(out, 'minecraft-client.jar'), meta['downloads']['client']['sha1'])
-get(meta['downloads']['client_mappings']['url'], os.path.join(out, 'client.txt'))
+# Versions from before 2019 have no official mappings (1.8.9 gets its names from tools/mcp_names.py)
+if 'client_mappings' in meta['downloads']:
+    get(meta['downloads']['client_mappings']['url'], os.path.join(out, 'client.txt'))
 
 libs = []
 for lib in meta['libraries']:
@@ -41,6 +43,13 @@ for lib in meta['libraries']:
     art = lib.get('downloads', {}).get('artifact')
     if art:
         libs.append(get(art['url'], os.path.join(out, 'libraries', art['path']), art['sha1']))
+    # Old versions keep their native code in separate jars, unpacked next to the game for a test run
+    nat = lib.get('downloads', {}).get('classifiers', {}).get(lib.get('natives', {}).get('linux', ''))
+    if nat:
+        import zipfile
+        path = get(nat['url'], os.path.join(out, 'libraries', nat['path']), nat['sha1'])
+        with zipfile.ZipFile(path) as z:
+            z.extractall(os.path.join(out, 'natives'), [n for n in z.namelist() if n.endswith('.so')])
 open(os.path.join(out, 'cp.txt'), 'w').write(':'.join([os.path.abspath(os.path.join(out, 'minecraft-client.jar'))] + [os.path.abspath(p) for p in libs]))
 
 index = meta['assetIndex']
