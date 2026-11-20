@@ -12,21 +12,21 @@ def predict(x,vx,vy,y,target,accel=0.0196,maxt=16):
         if vy<0 and y<=target: return k,x
         vy=(vy-0.08)*0.98; vx=vx2*0.91
     return None,x
-def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit=1, first=0):
+def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit=1, first=0, early=0):
     w=World()
     for i in range(-12,0): w.b.add((i,-1))
     x,y,vx,vy,ground=-0.6,0.0,0.25,0.0,True
-    stage=0; k=0; T=0; placed=[]; m=-1; c0=0; nb=0; rnd=0
+    stage=0; k=0; T=0; placed=[]; m=-1; c0=0; nb=0; rnd=0; c1=0
     while rnd<=rounds and T<900:
         act=None; stand=round(y)-1; jump=False
         if stage==0:
             off,fwd,right,spr=0,1,0,True
             e=last(w,stand,x)
-            if ground and x>=e+1-0.1: jump=True; stage=1; m=stand; k=2; rnd+=1
+            if ground and x>=e+1-0.1: jump=True; stage=1; m=stand; k=2; rnd+=1; c1=math.floor(x)
         else:
             if ground:
                 second=6<=k<=15
-                jump=True; stage=2 if second else 1; m=stand; k=SECOND if second else first; c0=math.floor(x); nb=0
+                jump=True; stage=2 if second else 1; m=stand; c1=math.floor(x); k=SECOND if second else first; c0=math.floor(x); nb=0
                 if not second: rnd+=1
             ks=keys[k]; off=-YAW[k]
             fwd=(1 if 'W' in ks else 0)-(1 if 'S' in ks else 0); right=1 if 'D' in ks else 0; spr='W' in ks
@@ -41,7 +41,13 @@ def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit
                         kk2,xl=predict(x,vx,vy,y,m+1)
                         if kk2 is not None:
                             n=math.floor(xl)-e
-                            if n>0 and kk2<=n and x>e+1+0.01 and not hits_player(e+1,m,x,y): act=(e+1,m)
+                            if n>0 and kk2<=n+early and x>e+1+0.01 and not hits_player(e+1,m,x,y): act=(e+1,m)
+                            elif n<=0 and early:
+                                # the row reaches under the landing: blocks on top of the cells behind it,
+                                # the further one first (the nearer would hide it)
+                                lim=math.floor(xl-0.35)-1
+                                for c in (lim-1,lim):
+                                    if act is None and c>c1 and (c,m) in w.b and (c,m+1) not in w.b and not hits_player(c,m+1,x,y): act=(c,m+1)
                 else:
                     up=m+1
                     kk2,xl=predict(x,vx,vy,y,up+1)
@@ -50,6 +56,7 @@ def simulate(keys=KEYS, rounds=8, rule="java", verbose=False, behind=1, lowlimit
                         if vy<0 and x>e+1+0.01 and not hits_player(e+1,m,x,y): act=(e+1,m)
                     else:
                         target=math.floor(xl)
+                        if (c0-1,up) in w.b: nb=behind
                         for c in range(c0-1,c0-1-behind,-1):
                             if act is None and nb<behind and (c,m) in w.b and (c,up) not in w.b and not hits_player(c,up,x,y): act=(c,up); nb+=1
                         if act is None and e<target+lowlimit and x>e+1+0.01 and not hits_player(e+1,m,x,y): act=(e+1,m)
