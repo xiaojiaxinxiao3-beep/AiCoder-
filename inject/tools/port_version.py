@@ -158,13 +158,13 @@ elif version == '1.8.9':
                                ('String.valueOf(ProcessHandle.current().pid())', 'java.lang.management.ManagementFactory.getRuntimeMXBean().getName().split("@")[0]'),
                                ('started without mods.', 'started plain or with OptiFine.'),
                                # A newer Java attaching to the Java 8 this game runs on reads the old side's "0"
-                               # (its word for success) as a failure. Whether the agent really failed is in the
+                               # (its word for success) as a failure; the message is "0" or ends in ": 0", depending on the Java. Whether the agent really failed is in the
                                # reason it leaves behind.
                                ('                machine.loadAgent(payload, licenceKey);\n',
                                 '                try {\n                    machine.loadAgent(payload, licenceKey);\n'
                                 '                } catch (Exception e) {\n'
                                 '                    // Named as text: a Java without the attach classes must still be able to load this class\n'
-                                '                    if (!e.getClass().getName().endsWith("AgentLoadException") || !String.valueOf(e.getMessage()).endsWith(": 0")\n'
+                                '                    if (!e.getClass().getName().endsWith("AgentLoadException") || !String.valueOf(e.getMessage()).matches("(.*: )?0")\n'
                                 '                        || machine.getSystemProperties().getProperty(Agent.ERROR_PROPERTY) != null) throw e;\n'
                                 '                }\n')])
     # No module of the Explosives column exists in this version
