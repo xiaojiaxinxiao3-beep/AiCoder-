@@ -86,7 +86,7 @@ public class TellyBridge extends HintModule {
         .name("turn-side")
         .description("Telly, Telly Up and Speed modes: which way the camera turns round to place. It always turns back the way it came.")
         .defaultValue(Side.Right)
-        .visible(() -> mode.get() != Mode.Diagonal)
+        .visible(() -> mode.get() != Mode.Diagonal && mode.get() != Mode.TellyReplay)
         .build()
     );
 
@@ -114,7 +114,7 @@ public class TellyBridge extends HintModule {
         .defaultValue(4)
         .range(2, 6)
         .sliderRange(2, 6)
-        .visible(() -> mode.get() == Mode.Telly || tellyUp())
+        .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
         .build()
     );
 
@@ -124,7 +124,7 @@ public class TellyBridge extends HintModule {
         .defaultValue(2)
         .range(0, 4)
         .sliderRange(0, 4)
-        .visible(() -> mode.get() == Mode.Telly || tellyUp())
+        .visible(() -> mode.get() == Mode.Telly || mode.get() == Mode.TellyUp)
         .build()
     );
 
@@ -134,7 +134,7 @@ public class TellyBridge extends HintModule {
         .defaultValue(2)
         .range(0, 6)
         .sliderRange(0, 6)
-        .visible(() -> tellyUp())
+        .visible(() -> mode.get() == Mode.TellyUp)
         .build()
     );
 
@@ -144,7 +144,23 @@ public class TellyBridge extends HintModule {
         .defaultValue(5)
         .range(1, 12)
         .sliderRange(1, 12)
+        .visible(() -> false)
+        .build()
+    );
+
+    private final Setting<Side> replaySide = sgGeneral.add(new EnumSetting.Builder<Side>()
+        .name("replay-side")
+        .description("Telly Replay mode: which way the camera swings. In the recording it is Left: the camera faces 45 degrees left of the bridge to jump (forward and right held) and turns on to the left to look back.")
+        .defaultValue(Side.Left)
         .visible(() -> mode.get() == Mode.TellyReplay)
+        .build()
+    );
+
+    private final Setting<Boolean> finishJump = sgGeneral.add(new BoolSetting.Builder()
+        .name("finish-jump")
+        .description("When you switch the module off while it is bridging, it first turns forward and jumps on, the way the recording ends, instead of stopping where it is. Switch it off a second time to stop at once.")
+        .defaultValue(true)
+        .visible(() -> mode.get() != Mode.Diagonal)
         .build()
     );
 
@@ -154,7 +170,7 @@ public class TellyBridge extends HintModule {
         .defaultValue(2)
         .range(0, 8)
         .sliderRange(0, 8)
-        .visible(() -> mode.get() == Mode.TellyReplay)
+        .visible(() -> false)
         .build()
     );
 
@@ -220,7 +236,14 @@ public class TellyBridge extends HintModule {
     private int stayT;
     private boolean gliding;
     /** Telly Replay: ticks for the half turn forward; three here (the recording takes about four, but with four the jump starts too slowly to build upward), and two to turn round. */
-    private static final int REPLAY_FORWARD = 3;
+    private static final int REPLAY_FORWARD = 5;
+    /** Telly Replay, read off the recording: degrees from straight ahead while facing forward, and tick by tick on the way round and back. */
+    private static final float REPLAY_FACE = 45;
+    private static final float[] REPLAY_ROUND = {135};
+    private static final float[] REPLAY_BACK = {160, 130, 100, 70, 45};
+    /** Degrees the camera looks down: facing forward, and just after turning round. */
+    private static final float REPLAY_PITCH_FORWARD = 50, REPLAY_PITCH_ROUND = 26;
+    private int forwardT;
     /** Telly Up: blocks this jump has gone back for, behind where it took off. */
     private int backFills;
     /** A jump up of the ordinary telly: whether its one more block on the lower level is in, and where. */
@@ -265,6 +288,10 @@ public class TellyBridge extends HintModule {
         reversed = false;
         phase = 0;
         jumps = 0;
+        rStage = 0;
+        rT = 0;
+        finishing = false;
+        forceOff = false;
         steering = false;
         running = true;
         noteFloor();
@@ -339,6 +366,7 @@ public class TellyBridge extends HintModule {
             pressedJump = false;
             mc.options.keyJump.setDown(false);
         }
+        if (finishing) { finishStep(); return; }
 
         if (mc.gui.screen() != null) { stop("Stopped: a screen was opened."); return; }
         // The key that would undo what the module holds: back when it runs forward, forward when it walks backwards
@@ -349,6 +377,7 @@ public class TellyBridge extends HintModule {
         double feet = mc.player.getY() - (floorY + 1);
         if (feet < -0.75) { stop("Stopped: fell off the bridge."); return; }
         if (diagonal) { diagonal(); return; }
+        if (mode.get() == Mode.TellyReplay) { replay(); return; }
         telly();
     }
 
@@ -436,7 +465,7 @@ public class TellyBridge extends HintModule {
         // enough of that level ahead to turn on
         int turnN = REPLAY_FORWARD;
         boolean staying = calm && mc.player.onGround() && phase == 2
-            && (stayT < stayRound.get() || overhang() > -(0.22 * turnN - 0.1));
+            && (stayT < stayRound.get() || overhang() > -0.6);
         if (staying) {
             stayT++;
             floorY = floor(mc.player.getY() - 0.2);
@@ -465,6 +494,21 @@ public class TellyBridge extends HintModule {
                 // With half a turn in two ticks there is time to face forward and turn round again
                 // early enough to go up; with slower turns there is not
                 takeOff(speedy() || rising() && turnN() <= 2);
+                return;
+            }
+            if (calm) {
+                // The recording does not face straight ahead to jump: 45 degrees to one side with
+                // forward and the far strafe key, which carries you straight along the bridge. A few
+                // degrees more or less keeps you on its middle line.
+                phase = 0;
+                reversed = false;
+                double aside = (mc.player.getX() - (lineX + 0.5)) * -dz + (mc.player.getZ() - (lineZ + 0.5)) * dx;
+                float trim = (float) Math.max(-12, Math.min(12, -aside * 40));
+                mc.player.setYRot(forwardYaw + turnSign() * REPLAY_FACE + trim);
+                mc.player.setXRot(mc.player.getXRot() + (REPLAY_PITCH_FORWARD - mc.player.getXRot()) * 0.5f);
+                replayKeys(REPLAY_FACE);
+                forwardT++;
+                if (forwardT >= 2 || overhang() > -0.35) takeOff(true);
                 return;
             }
             phase = 0;
@@ -713,7 +757,7 @@ public class TellyBridge extends HintModule {
         // one a tick, two ticks for the turn, two to spare.
         // The ordinary telly going up flies on for two ticks and turns round on the third: the step then
         // goes on a block further back, and the new level lies over the last blocks of the old one.
-        int n = speedy() || calm ? 2 : turnN();
+        int n = speedy() ? 2 : calm ? REPLAY_ROUND.length + 1 : turnN();
         boolean turnNow = speedy() || pair || (up ? airT >= Math.max(1, 5 - n) : landIn > 0 && landIn <= need + topBlocks.get() + n + 2);
         if (phase == 0 && !landing && turnNow) {
             phase = 1;
@@ -737,11 +781,16 @@ public class TellyBridge extends HintModule {
         float pitchNow = mc.player.getXRot();
         float downTo = aimPitch;
         // Telly Replay comes round looking about 30 degrees down and drifts on from there
-        boolean drift = calm && glide.get() > 0 && !(landIn > 0 && landIn <= 4 && !landing);
+        boolean drift = calm && glide.get() > 2 && !(landIn > 0 && landIn <= 4 && !landing);
         if (phase == 1) {
             // Half a turn to the right in n ticks. Back is pressed as soon as forward is let go of.
             phaseTick++;
-            if (phaseTick < n) {
+            if (phaseTick < n && calm) {
+                float off = REPLAY_ROUND[phaseTick - 1];
+                replayKeys(off);
+                mc.player.setYRot(forwardYaw + turnSign() * off);
+                mc.player.setXRot(pitchNow + ((drift ? REPLAY_PITCH_ROUND : aimPitch) - pitchNow) / (n - phaseTick + 1));
+            } else if (phaseTick < n) {
                 turnKeys(180f * phaseTick / n);
                 mc.player.setYRot(forwardYaw + turnSign() * 180f * phaseTick / n);
                 mc.player.setXRot(pitchNow + ((drift ? 30 : aimPitch) - pitchNow) / (n - phaseTick + 1));
@@ -751,7 +800,7 @@ public class TellyBridge extends HintModule {
                 mc.options.keyDown.setDown(true);
                 mc.player.setYRot(aimYaw);
                 gliding = drift;
-                mc.player.setXRot(drift ? 30 : downTo);
+                mc.player.setXRot(drift ? (calm ? REPLAY_PITCH_ROUND : 30) : downTo);
                 steer(false);
                 phase = 2;
             }
@@ -771,7 +820,7 @@ public class TellyBridge extends HintModule {
             // The recording: round in two ticks at about 30 degrees down, then a slow drift to about 50
             // with nothing placed, and only then down onto the end of the bridge
             gliding = calm && !staying && airT <= glide.get() && !(landIn > 0 && landIn <= 4 && !landing);
-            if (gliding) downTo = Math.min(downTo, 30 + 3.5f * Math.max(0, airT - 2));
+            if (gliding) downTo = Math.min(downTo, REPLAY_PITCH_ROUND + 3.2f * Math.max(0, airT - 2));
             mc.player.setXRot(downTo);
         } else {
             turnForward(calm ? REPLAY_FORWARD : n);
@@ -817,6 +866,19 @@ public class TellyBridge extends HintModule {
      * once it is within 20 degrees of straight ahead.
      */
     private void turnForward(int n) {
+        if (mode.get() == Mode.TellyReplay && pairJump) {
+            // Back the way it came, in five ticks, to 45 degrees short of straight ahead
+            phaseTick++;
+            float off = REPLAY_BACK[Math.min(phaseTick, REPLAY_BACK.length) - 1];
+            mc.player.setYRot(forwardYaw + turnSign() * off);
+            mc.player.setXRot(mc.player.getXRot() + (REPLAY_PITCH_FORWARD - mc.player.getXRot()) / Math.max(1, REPLAY_BACK.length - phaseTick + 1));
+            replayKeys(off);
+            if (phaseTick >= REPLAY_BACK.length) {
+                phase = 0;
+                forwardT = 0;
+            }
+            return;
+        }
         phaseTick++;
         float off = Math.max(0, 180f - 180f * phaseTick / n);
         mc.player.setYRot(forwardYaw + turnSign() * off);
@@ -858,6 +920,7 @@ public class TellyBridge extends HintModule {
         jumps++;
         tops = 0;
         stayT = 0;
+        forwardT = 0;
         backFills = 0;
         baseDone = false;
         airT = 0;
@@ -998,12 +1061,312 @@ public class TellyBridge extends HintModule {
 
     private void stop(String why) {
         info(why);
+        forceOff = true;
         toggle();
+    }
+
+    private boolean finishing, finishJumped, forceOff;
+    private int finishT;
+
+    /** Switched off while bridging: with finish-jump on it turns forward and jumps on first. */
+    @Override
+    public void toggle() {
+        if (isActive() && running && !forceOff && !finishing && finishJump.get() && mode.get() != Mode.Diagonal && mc.player != null) {
+            finishing = true;
+            finishJumped = false;
+            finishT = 0;
+            return;
+        }
+        forceOff = false;
+        finishing = false;
+        super.toggle();
+    }
+
+    private void finishStep() {
+        finishT++;
+        float yaw = mc.player.getYRot();
+        float step = Math.max(-60, Math.min(60, wrap(forwardYaw - yaw)));
+        mc.player.setYRot(yaw + step);
+        mc.player.setXRot(mc.player.getXRot() + (15 - mc.player.getXRot()) * 0.4f);
+        boolean straight = Math.abs(wrap(forwardYaw - mc.player.getYRot())) < 25;
+        mc.options.keyDown.setDown(false);
+        mc.options.keyLeft.setDown(false);
+        mc.options.keyRight.setDown(false);
+        mc.options.keyUp.setDown(straight);
+        mc.options.keySprint.setDown(straight);
+        if (straight && mc.player.onGround() && !finishJumped) {
+            mc.options.keyJump.setDown(true);
+            pressedJump = true;
+            finishJumped = true;
+            finishT = 0;
+        } else if (finishJumped && mc.player.onGround() && finishT > 3 || finishT > 40) {
+            forceOff = true;
+            toggle();
+        }
+    }
+
+    // ---- Telly Replay: the cycle worked out from the recording and checked in a simulation of the
+    // game's movement. One jump is twenty ticks, eight blocks, four blocks on and one level up. ----
+    /** 0 running up to the first jump, 1 the level jump, 2 the jump up. */
+    private int rStage;
+    private int rT;
+    /** The level of the blocks the jump left from. */
+    private int rWalk;
+
+    private int along1() {
+        return dx != 0 ? dx : dz;
+    }
+
+    /** Where you are along the bridge, growing the way it goes. */
+    private double alongNow() {
+        return (dx != 0 ? mc.player.getX() : mc.player.getZ()) * along1();
+    }
+
+    /** Cell c along the bridge is the block from c to c + 1. */
+    private int cellX(int c) {
+        return dx != 0 ? (dx > 0 ? c : -c - 1) : lineX;
+    }
+
+    private int cellZ(int c) {
+        return dz != 0 ? (dz > 0 ? c : -c - 1) : lineZ;
+    }
+
+    private boolean cell(int c, int level) {
+        return solid(cellX(c), level, cellZ(c));
+    }
+
+    /** The cell of the last block of a level near you, or Integer.MIN_VALUE. */
+    private int lastCell(int level) {
+        int from = floor(alongNow()) + 4;
+        for (int c = from; c >= from - 12; c--) {
+            if (cell(c, level)) return c;
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /** Would a block in this cell be in your way: the game does not place a block inside you. */
+    private boolean inside(int c, int level) {
+        double p = alongNow(), y = mc.player.getY();
+        return c < p + 0.3 - 1e-6 && c + 1 > p - 0.3 + 1e-6 && level < y + 1.8 - 1e-6 && level + 1 > y + 1e-6;
+    }
+
+    /**
+     * Clicks a face of a block: its front (the side the bridge grows from) or its top. Of the points on
+     * that face that can be seen, it takes the one nearest to where the camera is meant to be looking
+     * anyway, so a click made while turning does not swing the camera back.
+     */
+    private void replayClick(int c, int level, boolean top, float wantYaw) {
+        double ex = mc.player.getX(), ey = mc.player.getEyeY(), ez = mc.player.getZ();
+        double bestYaw = 0, bestPitch = 0, bestCost = Double.MAX_VALUE;
+        for (int i = 0; i <= 8; i++) {
+            double aside = 0.1 + 0.1 * i;
+            for (int j = 0; j <= (top ? 8 : 0); j++) {
+                double a = top ? c + 0.1 + 0.1 * j : c + 1;
+                double y = top ? level + 1 : level + 0.25 + 0.1 * (i % 3) + 0.5;
+                double wx = dx != 0 ? a * along1() : lineX + aside;
+                double wz = dz != 0 ? a * along1() : lineZ + aside;
+                double ax = wx - ex, ay = y - ey, az = wz - ez;
+                double flat = Math.sqrt(ax * ax + az * az);
+                if (ax * ax + ay * ay + az * az > 4.4 * 4.4) continue;
+                float yaw = flat < 0.05 ? wantYaw : (float) Math.toDegrees(Math.atan2(-ax, az));
+                float pitch = (float) -Math.toDegrees(Math.atan2(ay, flat));
+                if (pitch > 89.5f) continue;
+                double cost = Math.abs(wrap(yaw - wantYaw)) * (flat < 0.4 ? flat / 0.4 : 1) + Math.abs(aside - 0.5) * 6;
+                if (cost < bestCost) {
+                    bestCost = cost;
+                    bestYaw = yaw;
+                    bestPitch = pitch;
+                }
+            }
+        }
+        if (bestCost == Double.MAX_VALUE) return;
+        mc.player.setYRot(wantYaw + wrap((float) bestYaw - wantYaw));
+        mc.player.setXRot((float) bestPitch);
+        KeyMapping.click(((KeyMappingAccessor) mc.options.keyUse).meteor$getKey());
+    }
+
+    /** A block on from the front of the last block of a level; false when you are not past that front yet. */
+    private boolean replayExtend(int level, float wantYaw) {
+        int e = lastCell(level);
+        if (e == Integer.MIN_VALUE) return false;
+        if (alongNow() <= e + 1 + 0.01 || inside(e + 1, level) || !replaceable(cellX(e + 1), level, cellZ(e + 1))) return false;
+        replayClick(e, level, false, wantYaw);
+        return true;
+    }
+
+    /** A block on top of the block in cell c of a level; false when it would be inside you or is taken. */
+    private boolean replayTop(int c, int level, float wantYaw) {
+        if (!cell(c, level) || inside(c, level + 1) || !replaceable(cellX(c), level + 1, cellZ(c))) return false;
+        replayClick(c, level, true, wantYaw);
+        return true;
+    }
+
+    /** Ticks until your feet come down to a height, and where along the bridge you are then; null if never. */
+    private double[] replayLanding(double height) {
+        double x = alongNow(), y = mc.player.getY();
+        double vx = (dx != 0 ? mc.player.getDeltaMovement().x : mc.player.getDeltaMovement().z) * along1();
+        double vy = mc.player.getDeltaMovement().y;
+        for (int k = 1; k <= 16; k++) {
+            vx += 0.0196;
+            x += vx;
+            y += vy;
+            if (vy < 0 && y <= height) return new double[] {k, x};
+            vy = (vy - 0.08) * 0.98;
+            vx *= 0.91;
+        }
+        return null;
+    }
+
+    /**
+     * One round is two jumps with no step on the ground between them. The first is level and taken at a
+     * sprint: facing 45 degrees to the side with forward and strafe for three ticks, then round, and the
+     * blocks of the level go on in its last ticks, just before the landing. The second is taken the
+     * moment that one lands, still looking back: at the top of it the level gets one more block and the
+     * blocks on top go on, the one you come down on last; meanwhile the camera turns forward again, so
+     * you land a level higher already facing the way of the next jump.
+     */
+    private void replay() {
+        int sign = turnSign();
+        double p = alongNow();
+        int stand = floor(mc.player.getY() - 0.2);
+        boolean ground = mc.player.onGround();
+        float back = forwardYaw + 180;
+        double aside = (mc.player.getX() - (lineX + 0.5)) * -dz + (mc.player.getZ() - (lineZ + 0.5)) * dx;
+        double drift = mc.player.getDeltaMovement().x * -dz + mc.player.getDeltaMovement().z * dx;
+        float trim = (float) Math.max(-12, Math.min(12, -(aside + drift * 2) * 40));
+        float faceForward = forwardYaw + sign * REPLAY_FACE + trim;
+
+        if (rStage == 0) {
+            // The first jump only: run to the end of the block
+            floorY = stand;
+            mc.player.setYRot(faceForward);
+            mc.player.setXRot(mc.player.getXRot() + (REPLAY_PITCH_FORWARD - mc.player.getXRot()) * 0.5f);
+            replayKeys(REPLAY_FACE);
+            int e = lastCell(stand);
+            if (ground && e != Integer.MIN_VALUE && p >= e + 1 - 0.1) replayJump(1, stand);
+            return;
+        }
+
+        rT++;
+        if (ground && rT > 2) {
+            // Landed: the next jump at once. After the level jump it is taken looking back, after the
+            // jump up facing forward again.
+            floorY = stand;
+            if (rStage == 1) {
+                mc.player.setYRot(back);
+                mc.options.keyUp.setDown(false);
+                mc.options.keySprint.setDown(false);
+                mc.options.keyDown.setDown(true);
+                steer(false);
+                replayJump(2, stand);
+            } else {
+                mc.player.setYRot(faceForward);
+                replayKeys(REPLAY_FACE);
+                replayJump(1, stand);
+            }
+            return;
+        }
+
+        if (rStage == 1) {
+            float want;
+            if (rT < 3) {
+                want = faceForward;
+                mc.player.setYRot(want);
+                mc.player.setXRot(mc.player.getXRot() + (REPLAY_PITCH_FORWARD - mc.player.getXRot()) * 0.5f);
+                replayKeys(REPLAY_FACE);
+            } else if (rT < 6) {
+                // Back and strafe: at 135 degrees that is straight on; a little less or more takes off
+                // the sideways push the sprint jump gave
+                float off = 135 + (sign < 0 ? 1 : -1) * (float) Math.max(-35, Math.min(35, (aside + drift * 4) * 150));
+                off = Math.max(100, Math.min(155, off));
+                want = forwardYaw + sign * off;
+                mc.player.setYRot(want);
+                mc.player.setXRot(REPLAY_PITCH_ROUND + 4 * (rT - 3));
+                replayKeys(135);
+            } else {
+                want = back;
+                mc.player.setYRot(want);
+                mc.player.setXRot(Math.min(60, REPLAY_PITCH_ROUND + 4 * (rT - 3)));
+                mc.options.keyUp.setDown(false);
+                mc.options.keySprint.setDown(false);
+                mc.options.keyDown.setDown(true);
+                steer(false);
+            }
+            // The level you left, on from its end, a block a tick, as late as still puts one under you
+            double[] land = replayLanding(rWalk + 1);
+            int e = lastCell(rWalk);
+            if (land != null && e != Integer.MIN_VALUE && rT >= 3) {
+                int n = floor(land[1]) - e;
+                if (n > 0 && land[0] <= n) replayExtend(rWalk, want);
+            }
+            return;
+        }
+
+        // The jump up
+        float want;
+        if (rT <= 3) {
+            want = back;
+            mc.player.setYRot(want);
+            mc.options.keyUp.setDown(false);
+            mc.options.keySprint.setDown(false);
+            mc.options.keyDown.setDown(true);
+            steer(false);
+        } else {
+            float off = rT <= 5 ? 135 : rT == 6 ? 90 : REPLAY_FACE;
+            want = rT <= 6 ? forwardYaw + sign * off : faceForward;
+            mc.player.setYRot(want);
+            replayKeys(off);
+        }
+        int up = rWalk + 1;
+        boolean placed = false;
+        double[] land = replayLanding(up + 1);
+        if (land != null) {
+            int target = floor(land[1]);
+            int e = lastCell(rWalk);
+            if (e != Integer.MIN_VALUE && e < target) placed = replayExtend(rWalk, want);
+            if (!placed) {
+                for (int c = target - 2; c <= target && !placed; c++) {
+                    // The block you come down on goes in last, while you are still above it
+                    if (c == target && land[0] > 1) continue;
+                    placed = replayTop(c, rWalk, want);
+                }
+            }
+        } else if (mc.player.getDeltaMovement().y < 0) {
+            // Too low for the upper level: the level you left, so there is something to land on
+            placed = replayExtend(rWalk, want);
+        }
+        if (!placed) mc.player.setXRot(mc.player.getXRot() + ((rT <= 3 ? 70 : REPLAY_PITCH_FORWARD) - mc.player.getXRot()) * 0.5f);
+    }
+
+    private void replayJump(int stage, int level) {
+        rStage = stage;
+        rWalk = level;
+        rT = 0;
+        jumps++;
+        mc.options.keyJump.setDown(true);
+        pressedJump = true;
     }
 
     /** 1 when the camera turns round to the right, -1 to the left. */
     private int turnSign() {
+        if (mode.get() == Mode.TellyReplay) return replaySide.get() == Side.Left ? -1 : 1;
         return mode.get() != Mode.Diagonal && turnSide.get() == Side.Left ? -1 : 1;
+    }
+
+    /**
+     * Telly Replay: the keys that push you straight along the bridge with the camera this many degrees
+     * from straight ahead, as the recording shows them: forward and strafe at 45, strafe alone at 90,
+     * back and strafe at 135, back alone looking straight back. The strafe key is the one away from the
+     * side the camera is turned to.
+     */
+    private void replayKeys(float off) {
+        boolean strafe = off > 22.5f && off < 157.5f;
+        mc.options.keyUp.setDown(off < 67.5f);
+        // The level jump is taken at a sprint
+        mc.options.keySprint.setDown(off < 67.5f);
+        mc.options.keyDown.setDown(off > 112.5f);
+        mc.options.keyLeft.setDown(strafe && turnSign() > 0);
+        mc.options.keyRight.setDown(strafe && turnSign() < 0);
     }
 
     /** How far you are past the front of the last block of the level you stand on; negative while it is still ahead. */
