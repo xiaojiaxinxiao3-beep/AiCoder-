@@ -50,6 +50,8 @@ public final class Injector {
     /** Whether the Java at this home folder has the module that attaches to a running JVM. */
     private static boolean canAttach(File home) {
         if (new File(home, "jmods/jdk.attach.jmod").isFile()) return true;
+        // Java 8 keeps it in a file of its own, which only a JDK has
+        if (toolsJar(home) != null) return true;
         try {
             for (String line : java.nio.file.Files.readAllLines(new File(home, "release").toPath())) {
                 if (line.startsWith("MODULES=") && line.contains("jdk.attach")) return true;
@@ -58,6 +60,14 @@ public final class Injector {
             // No release file: not a runtime this can judge
         }
         return false;
+    }
+
+    /** The tools.jar of a Java 8 JDK at this home folder (or the JDK this is the jre folder of), or null. */
+    private static File toolsJar(File home) {
+        for (File file : new File[]{new File(home, "lib/tools.jar"), new File(home, "../lib/tools.jar")}) {
+            if (file.isFile()) return file;
+        }
+        return null;
     }
 
     private static void javaHomesIn(File folder, int depth, List<File> out) {
@@ -93,6 +103,17 @@ public final class Injector {
         List<String> roots = new ArrayList<>();
         String appData = System.getenv("APPDATA"), local = System.getenv("LOCALAPPDATA");
         if (appData != null) roots.add(appData + "\\.minecraft\\runtime");
+        // Other launchers keep the Javas they download in folders of their own
+        for (String base : new String[]{appData, local}) {
+            if (base == null) continue;
+            for (String folder : new String[]{"ModrinthApp\\meta\\java_versions", "com.modrinth.theseus\\meta\\java_versions", "PrismLauncher\\java",
+                "PolyMC\\java", ".tlauncher\\jvms", "ATLauncher\\runtimes", "gdlauncher_next\\java", "curseforge\\minecraft\\Install\\runtime"}) roots.add(base + "\\" + folder);
+        }
+        String userHome = System.getProperty("user.home");
+        if (userHome != null) {
+            roots.add(userHome + "\\.jdks");
+            roots.add(userHome + "\\curseforge\\minecraft\\Install\\runtime");
+        }
         if (local != null) roots.add(local + "\\Packages\\Microsoft.4297127D64EC6_8wekyb3d8bbwe\\LocalCache\\Local\\runtime");
         for (String base : new String[]{System.getenv("ProgramFiles"), System.getenv("ProgramFiles(x86)"), System.getenv("ProgramW6432")}) {
             if (base == null) continue;
@@ -124,7 +145,11 @@ public final class Injector {
                 System.out.println("The game's Java (" + System.getProperty("java.home") + ") cannot attach to a running program.");
                 System.out.println("Using this one instead: " + other.getAbsolutePath());
                 System.out.println();
-                List<String> command = new ArrayList<>(List.of(other.getAbsolutePath(), "-Daicoder.assist.relaunched=true", "-jar", self));
+                List<String> command = new ArrayList<>(List.of(other.getAbsolutePath(), "-Daicoder.assist.relaunched=true"));
+                File tools = toolsJar(other.getParentFile().getParentFile());
+                // A Java 8 JDK: the attach classes are in its tools.jar, which has to be named
+                if (tools != null) command.addAll(List.of("-cp", self + File.pathSeparator + tools.getAbsolutePath(), "aicoder.assist.Injector"));
+                else command.addAll(List.of("-jar", self));
                 command.addAll(List.of(args));
                 System.exit(new ProcessBuilder(command).inheritIO().start().waitFor());
             }

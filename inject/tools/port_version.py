@@ -162,8 +162,10 @@ elif version == '1.8.9':
                                # reason it leaves behind.
                                ('                machine.loadAgent(payload, licenceKey);\n',
                                 '                try {\n                    machine.loadAgent(payload, licenceKey);\n'
-                                '                } catch (com.sun.tools.attach.AgentLoadException e) {\n'
-                                '                    if (!String.valueOf(e.getMessage()).endsWith(": 0") || machine.getSystemProperties().getProperty(Agent.ERROR_PROPERTY) != null) throw e;\n'
+                                '                } catch (Exception e) {\n'
+                                '                    // Named as text: a Java without the attach classes must still be able to load this class\n'
+                                '                    if (!e.getClass().getName().endsWith("AgentLoadException") || !String.valueOf(e.getMessage()).endsWith(": 0")\n'
+                                '                        || machine.getSystemProperties().getProperty(Agent.ERROR_PROPERTY) != null) throw e;\n'
                                 '                }\n')])
     # No module of the Explosives column exists in this version
     edit(A + 'api/Category.java', [('List.of(EXPLOSIVES, MELEE, UTILITY)', 'List.of(MELEE, UTILITY)')])
